@@ -1,3 +1,7 @@
+[system]
+input_path = "/Users/ahenderson/Documents/Whisper_Test_Files/_input/"
+output_path = "/Users/ahenderson/Documents/Whisper_Test_Files/_output/"
+
 [whisper]
 model = "large-v2"
 device = "cpu"
@@ -6,6 +10,8 @@ batch_size = 28
 beam_size = 5  # 5 is default
 compute_type = "float32"
 language = "de"  # Set to None for automatic language detection.
+# initial_prompt option may lead to omissions in the transcript.
+initial_prompt = "Alice Henderson Bob Sanders äh ähm ah oh aja aha ja"
 
 [email]
 smtp_server = "mail.example.com"
