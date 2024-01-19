@@ -4,6 +4,7 @@ Utilities and helper functions for automatic speech recognition.
 import io
 import csv
 from datetime import datetime
+import subprocess
 
 class Tee(io.StringIO):
     "What does this class do?"
@@ -32,6 +33,19 @@ def ignore_file(file):
         return True
     else:
         return False
+
+
+def audio_duration(audio_file: str) -> float:
+    """
+    Runs ffprobe command to extract duration information.
+    Returns audio duration in seconds.
+    """
+    result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                            "format=duration", "-of",
+                            "default=noprint_wrappers=1:nokey=1", audio_file],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    return float(result.stdout)
 
 
 def write_vtt_file(output_file, custom_segs):
