@@ -6,7 +6,13 @@ from app_config import get_config
 
 def send_email(subject, body, type):
     "Sends email to recipients specified in config."
-    email_config = get_config()['email']
+    config = get_config()
+    email_config = config['email']
+    email_notifications = config['system']['email_notifications']
+
+    if not email_notifications:
+        print(body)
+        return
 
     server = smtplib.SMTP(email_config['smtp_server'], email_config['smtp_port'])
     server.starttls()
