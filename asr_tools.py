@@ -1,5 +1,5 @@
 """
-Utilities and helper functions for automatic speech recognition.
+Utilities and helper functions for the main ASR script.
 """
 import io
 import csv

@@ -1,5 +1,6 @@
 """
-Alignment tools
+Custom alignment process.
+TODO: Split up large function into smaller functions.
 """
 import re
 
