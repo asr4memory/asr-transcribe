@@ -58,6 +58,10 @@ warning_count = 0
 warning_audio_inputs = []
 
 try:
+    # Load WhisperX model
+    model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size}) # WITHOUT  "initial_prompt": initial_prompt
+    #model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size, "initial_prompt": initial_prompt}) # WITH  "initial_prompt": initial_prompt
+
     # This loop iterates over all the files in the input directory and
     # transcribes them using the specified model.
     for root, directories, files in os.walk(input_path):
@@ -83,9 +87,7 @@ try:
             print("--> Audio Duration in hours:minutes:seconds :", audioduration)
             audioduration_list.append(str(audioduration))
 
-            # Load WhisperX model, audio file and transcribe it
-            model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size}) # WITHOUT  "initial_prompt": initial_prompt
-            #model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size, "initial_prompt": initial_prompt}) # WITH  "initial_prompt": initial_prompt
+            # Load audio file and transcribe it
             audio = whisperx.load_audio(audio_file)
             result = model.transcribe(audio, batch_size=batch_size)
 
