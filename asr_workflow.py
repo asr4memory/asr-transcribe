@@ -12,6 +12,7 @@ import torch
 from email_notifications import send_success_email, send_failure_email, send_warning_email
 from app_config import get_config
 from utilities import ignore_file, Tee, write_text_file, write_csv_file, write_vtt_file, audio_duration
+from whisper_tools import get_transcription_model, get_alignment_model
 from alignment import align_segments
 
 # The following lines are to capture the stdout/terminal output
@@ -33,13 +34,10 @@ config = get_config()
 number_threads = config['whisper']['thread_count']
 
 # Define parameters for WhisperX model
-model_name = config['whisper']['model']
 device = config['whisper']['device']
 batch_size = config['whisper']['batch_size']
 beam_size = config['whisper']['beam_size']
-compute_type = config['whisper']['compute_type']
 language_audio = config['whisper']['language']
-initial_prompt = config['whisper']['initial_prompt']
 
 # Define input und output folders
 input_path = config['system']['input_path']
@@ -58,9 +56,7 @@ warning_count = 0
 warning_audio_inputs = []
 
 try:
-    # Load WhisperX model
-    model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size}) # WITHOUT  "initial_prompt": initial_prompt
-    #model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size, "initial_prompt": initial_prompt}) # WITH  "initial_prompt": initial_prompt
+    model = get_transcription_model()
 
     # This loop iterates over all the files in the input directory and
     # transcribes them using the specified model.
@@ -93,8 +89,7 @@ try:
 
             # Align transcribed segments to original audio and get time stamps
             # for start and end of each segment.
-            model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device) # With default align model
-            #model_a, metadata = whisperx.load_align_model(model_name="WAV2VEC2_ASR_LARGE_LV60K_960H",language_code=result["language"], device=device) # WITH greater align model which uses more computing ressources.
+            model_a, metadata = get_alignment_model(result['language'])
             result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
 
             custom_segs = align_segments(result['segments'])
