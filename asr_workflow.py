@@ -3,20 +3,13 @@ ASR workflow script.
 This is the main script that runs the ASR and alignment processes and sends
 emails.
 """
-import whisperx
-from datetime import datetime, timedelta
-import re
-import os
-import torch
-
+from datetime import datetime
+import sys, os, re
 from email_notifications import send_success_email, send_failure_email, send_warning_email
 from app_config import get_config
-from utilities import ignore_file, Tee, write_text_file, write_csv_file, write_vtt_file, audio_duration
-from whisper_tools import get_transcription_model, get_alignment_model
+from utilities import ignore_file, Tee, write_text_file, write_csv_file, write_vtt_file
+from whisper_tools import get_audio, transcribe, align, get_audio_length
 from alignment import align_segments
-
-# The following lines are to capture the stdout/terminal output
-import sys
 
 # Save a reference to the original stdout and stderr
 original_stdout = sys.stdout
@@ -56,8 +49,6 @@ warning_count = 0
 warning_audio_inputs = []
 
 try:
-    model = get_transcription_model()
-
     # This loop iterates over all the files in the input directory and
     # transcribes them using the specified model.
     for root, directories, files in os.walk(input_path):
@@ -70,27 +61,21 @@ try:
             workflowstarttime = datetime.now()
             print(f'--> Whisper workflow for {audio_input} started: {workflowstarttime}')
 
-            torch.set_num_threads(number_threads)
             print(f'--> Number of threads: {number_threads}')
 
             print(f'--> Value of beam size: {beam_size}')
 
-            audioduration_in_seconds = audio_duration(audio_file)
-            print('--> Audio Duration in seconds:', audioduration_in_seconds)
+            # Main part: Loading, transcription and alignment.
+            audio = get_audio(path=audio_file)
 
-            # Convert the duration from seconds to hh:mm:ss format and print it:
-            audioduration = str(timedelta(seconds=audioduration_in_seconds))
-            print("--> Audio Duration in hours:minutes:seconds :", audioduration)
-            audioduration_list.append(str(audioduration))
+            duration, formatted_duration = get_audio_length(audio)
+            audioduration_list.append(formatted_duration)
+            print('--> Audio duration: %s (%.1fs)' % (formatted_duration, duration))
 
-            # Load audio file and transcribe it
-            audio = whisperx.load_audio(audio_file)
-            result = model.transcribe(audio, batch_size=batch_size)
-
-            # Align transcribed segments to original audio and get time stamps
-            # for start and end of each segment.
-            model_a, metadata = get_alignment_model(result['language'])
-            result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+            transcription_result = transcribe(audio)
+            result = align(audio=audio,
+                                    segments=transcription_result['segments'],
+                                    language=transcription_result['language'])
 
             custom_segs = align_segments(result['segments'])
 
