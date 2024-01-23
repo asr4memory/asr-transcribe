@@ -69,8 +69,8 @@ try:
             if ignore_file(audio_input): continue
 
             input_file_list.append(audio_input)
-            audio_file = input_path + audio_input
-            output_file = output_directory + "/" + audio_input.split(".")[0] + filename_suffix
+            audio_file = os.path.join(input_path, audio_input)
+            output_file = os.path.join(output_directory, audio_input.split(".")[0] + filename_suffix)
             workflowstarttime = datetime.now()
             print(f'--> Whisper workflow for {audio_input} started: {workflowstarttime}')
 
