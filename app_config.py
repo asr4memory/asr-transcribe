@@ -1,9 +1,12 @@
 """
 Application configuration.
 """
+import os
 import toml
 
-with open("config.toml") as f:
+config_file_path = os.path.join(os.getcwd(), 'config.toml')
+
+with open(config_file_path) as f:
     data = toml.load(f)
 
 def get_config() -> dict:
