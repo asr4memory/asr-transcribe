@@ -57,6 +57,9 @@ real_time_factor_list = []
 warning_count = 0
 warning_audio_inputs = []
 
+torch.set_num_threads(number_threads)
+print(f'--> Number of threads: {number_threads}')
+
 try:
     # Load WhisperX model
     model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size}) # WITHOUT  "initial_prompt": initial_prompt
@@ -73,9 +76,6 @@ try:
             output_file = os.path.join(output_directory, audio_input.split(".")[0] + filename_suffix)
             workflowstarttime = datetime.now()
             print(f'--> Whisper workflow for {audio_input} started: {workflowstarttime}')
-
-            torch.set_num_threads(number_threads)
-            print(f'--> Number of threads: {number_threads}')
 
             print(f'--> Value of beam size: {beam_size}')
 
