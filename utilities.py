@@ -93,3 +93,21 @@ def write_csv_file(output_file, custom_segs, write_header=False):
                                                           seg['start'] % 60)
             sentence_content = seg['sentence']
             writer.writerow({'start': start_content, 'sentence': sentence_content})
+
+def write_csv_speaker_file(output_file, custom_segs, write_header=False):
+    """
+    Write the processed segments to a tab-separated .csv file
+    This file will contain the start timestamps of each segment in the first 
+    column, an empty "SPEAKER" column, and the transcribed text of each segment 
+    in the third column
+    """
+    with open(output_file + '_speaker.csv', 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['IN', 'SPEAKER', 'TRANSCRIPT']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter='\t') # Set the delimiter to a tab character
+        writer.writeheader() # Include the header in the .csv file
+        for seg in custom_segs:
+            writer.writerow({
+            'IN': "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600), int((seg['start'] % 3600) // 60), seg['start'] % 60), 
+            'SPEAKER': '', # Leave the "SPEAKER" column empty
+            'TRANSCRIPT': seg['sentence']
+            })
