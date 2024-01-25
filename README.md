@@ -17,6 +17,7 @@
 - Captures the stdout/terminal output and sends an email if the word "failed" is found in the output.
 
 ## Installation instructions...
+- Clone this repository.
 - Install whisperx per its installation instructions.
 - Install toml library via `pip install -r requirements.txt`
 - Copy config.example.toml to config.toml and customize it.
