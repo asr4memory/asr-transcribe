@@ -3,20 +3,17 @@ ASR workflow script.
 This is the main script that runs the ASR and alignment processes and sends
 emails.
 """
-import whisperx
 from datetime import datetime, timedelta
-import re
-import os
+import sys, os, re
 import torch
+import whisperx
 
 from email_notifications import send_success_email, send_failure_email, send_warning_email
 from app_config import get_config
 from utilities import ignore_file, Tee, write_text_file, write_csv_file, write_csv_speaker_file, write_vtt_file, audio_duration
-from alignment import align_segments
+from post_processing import process_whisperx_segments
 
 # The following lines are to capture the stdout/terminal output
-import sys
-
 # Save a reference to the original stdout and stderr
 original_stdout = sys.stdout
 original_stderr = sys.stderr
@@ -46,7 +43,8 @@ input_path = config['system']['input_path']
 output_path = config['system']['output_path']
 input_directory = os.listdir(path=input_path)
 output_directory = os.path.dirname(output_path)
-filename_suffix = "_" + language_audio # Filename suffix corresponds to the variable "language_audio" above.
+# Filename suffix corresponds to the variable "language_audio" above.
+filename_suffix = "_" + language_audio
 
 input_file_list = []
 workflowduration_list = []
@@ -62,8 +60,15 @@ print(f'--> Number of threads: {number_threads}')
 
 try:
     # Load WhisperX model
-    model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size}) # WITHOUT  "initial_prompt": initial_prompt
-    #model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size, "initial_prompt": initial_prompt}) # WITH  "initial_prompt": initial_prompt
+    # WITHOUT  "initial_prompt": initial_prompt
+    model = whisperx.load_model(model_name, device, language=language_audio,
+                                compute_type=compute_type,
+                                asr_options={"beam_size": beam_size})
+    # WITH  "initial_prompt": initial_prompt
+    #model = whisperx.load_model(model_name, device, language=language_audio,
+    #                            compute_type=compute_type,
+    #                            asr_options={"beam_size": beam_size, "initial_prompt": initial_prompt})
+
 
     # This loop iterates over all the files in the input directory and
     # transcribes them using the specified model.
@@ -73,7 +78,8 @@ try:
 
             input_file_list.append(audio_input)
             audio_file = os.path.join(input_path, audio_input)
-            output_file = os.path.join(output_directory, audio_input.split(".")[0] + filename_suffix)
+            output_file = os.path.join(output_directory,
+                                       audio_input.split(".")[0] + filename_suffix)
             workflowstarttime = datetime.now()
             print(f'--> Whisper workflow for {audio_input} started: {workflowstarttime}')
 
@@ -93,11 +99,21 @@ try:
 
             # Align transcribed segments to original audio and get time stamps
             # for start and end of each segment.
-            model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device) # With default align model
-            #model_a, metadata = whisperx.load_align_model(model_name="WAV2VEC2_ASR_LARGE_LV60K_960H",language_code=result["language"], device=device) # WITH greater align model which uses more computing ressources.
-            result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+            # With default align model
+            model_a, metadata = whisperx.load_align_model(language_code=result["language"],
+                                                          device=device)
+            # WITH greater align model which uses more computing ressources.
+            #model_a, metadata = whisperx.load_align_model(model_name="WAV2VEC2_ASR_LARGE_LV60K_960H",
+            #                                              language_code=result["language"],
+            #                                              device=device)
+            result = whisperx.align(result["segments"],
+                                    model_a,
+                                    metadata,
+                                    audio,
+                                    device,
+                                    return_char_alignments=False)
 
-            custom_segs = align_segments(result['segments'])
+            custom_segs = process_whisperx_segments(result['segments'])
 
             write_vtt_file(output_file=output_file, custom_segs=custom_segs)
             write_text_file(output_file=output_file, custom_segs=custom_segs)
@@ -135,7 +151,9 @@ try:
             sys.stderr = original_stderr
 
             # Check the output for the specific message
-            warning_word = "failed" # Goal is to find the message "failed to align segment" in the stdout/terminal output to identify AI hallucinations.
+            # Goal is to find the message "failed to align segment" in the
+            # stdout/terminal output to identify AI hallucinations.
+            warning_word = "failed"
             for match in re.finditer(rf"({warning_word})", output.lower()):
                 line_start = output.rfind('\n', 0, match.start()) + 1
                 line_end = output.find('\n', match.end())
