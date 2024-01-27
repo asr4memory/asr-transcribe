@@ -58,6 +58,8 @@ warning_audio_inputs = []
 torch.set_num_threads(number_threads)
 print(f'--> Number of threads: {number_threads}')
 
+warning_word = "failed"
+
 try:
     # Load WhisperX model
     # WITHOUT  "initial_prompt": initial_prompt
@@ -153,7 +155,6 @@ try:
             # Check the output for the specific message
             # Goal is to find the message "failed to align segment" in the
             # stdout/terminal output to identify AI hallucinations.
-            warning_word = "failed"
             for match in re.finditer(rf"({warning_word})", output.lower()):
                 line_start = output.rfind('\n', 0, match.start()) + 1
                 line_end = output.find('\n', match.end())

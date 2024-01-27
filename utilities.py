@@ -3,6 +3,7 @@ Utilities and helper functions for the main ASR script.
 """
 import io
 import csv
+import json
 from datetime import datetime
 import subprocess
 
@@ -97,8 +98,8 @@ def write_csv_file(output_file, custom_segs, write_header=False):
 def write_csv_speaker_file(output_file, custom_segs, write_header=False):
     """
     Write the processed segments to a tab-separated .csv file
-    This file will contain the start timestamps of each segment in the first 
-    column, an empty "SPEAKER" column, and the transcribed text of each segment 
+    This file will contain the start timestamps of each segment in the first
+    column, an empty "SPEAKER" column, and the transcribed text of each segment
     in the third column
     """
     with open(output_file + '_speaker.csv', 'w', newline='', encoding='utf-8') as csvfile:
@@ -107,7 +108,12 @@ def write_csv_speaker_file(output_file, custom_segs, write_header=False):
         writer.writeheader() # Include the header in the .csv file
         for seg in custom_segs:
             writer.writerow({
-            'IN': "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600), int((seg['start'] % 3600) // 60), seg['start'] % 60), 
+            'IN': "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600), int((seg['start'] % 3600) // 60), seg['start'] % 60),
             'SPEAKER': '', # Leave the "SPEAKER" column empty
             'TRANSCRIPT': seg['sentence']
             })
+
+def write_json_file(data: dict, filename: str):
+    """Write a dictionary as a JSON file."""
+    with open(filename, 'w') as f:
+        json.dump(data, f)
