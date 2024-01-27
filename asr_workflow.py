@@ -8,9 +8,11 @@ import sys, os, re
 import torch
 import whisperx
 
-from email_notifications import send_success_email, send_failure_email, send_warning_email
+from email_notifications import (send_success_email, send_failure_email,
+                                 send_warning_email)
 from app_config import get_config
-from utilities import ignore_file, Tee, write_text_file, write_csv_file, write_csv_speaker_file, write_vtt_file, audio_duration
+from utilities import (ignore_file, Tee, write_text_file, write_csv_file,
+                       write_csv_speaker_file, write_vtt_file, audio_duration)
 from post_processing import process_whisperx_segments
 
 # The following lines are to capture the stdout/terminal output
