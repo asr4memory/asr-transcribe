@@ -16,6 +16,8 @@ ENDS_WITH_TITLE = re.compile(r'\b(' + '|'.join(titles) + r')[\.,:;!\?]*$',
 ENDS_WITH_NUMBER = re.compile(r'\b([1-9]|[12]\d|3[01])([.])$')
 ENDS_WITHOUT_PUNCTUATION = re.compile(r'[^\.\?!]$')
 
+MAX_SENTENCE_LENGTH = 120
+
 
 def sentence_is_incomplete(sentence: str):
     """
@@ -88,38 +90,37 @@ def uppercase_sentences(custom_segs):
                                           custom_segs[i]["sentence"][1:])
 
 
-def split_long_sentences(custom_segs):
+def split_long_sentences(segments):
     """
-    Check for sentences that are longer than 120 characters
-    and split them at the next comma.
+    Splits a long segment into two if it has a comma.
+    If a segment text is longer than 120 characters, and has a comma
+    after the 120th character, break it into two segments at the comma
+    position.
+    The end time of the first segment, that is, the start time of the
+    second segment, are estimated based on the len of the two sentence
+    parts.
     """
-    i = 0
-    while i < len(custom_segs):
-        seg = custom_segs[i]
-        sentence = seg["sentence"]
-        # If sentence is longer than 120 characters, find the position of the
-        # next comma after the 120th character.
-        if len(sentence) > 120:
-            split_point = sentence.find(',', 120)
-            # If a comma is found, split the sentence at this point and trim
-            # any leading/trailing whitespace.
-            if split_point != -1:
-                first_sentence = sentence[:split_point + 1].strip()
-                second_sentence = sentence[split_point + 1:].strip()
-                # Calculate duration of the segment and find the time point
-                # to split the segment.
-                duration = seg["end"] - seg["start"]
-                split_time = (seg["start"] + duration *
-                              (len(first_sentence) / len(sentence)))
-                # Replace the original segment with the first part and insert
-                # the second part after it.
-                custom_segs[i] = {"start": seg["start"],
-                                  "end": split_time,
-                                  "sentence": first_sentence}
-                custom_segs.insert(i + 1, {"start": split_time,
-                                           "end": seg["end"],
-                                           "sentence": second_sentence})
-        i += 1
+    for segment in segments:
+        sentence = segment["sentence"]
+
+        if len(sentence) <= MAX_SENTENCE_LENGTH:
+            yield segment
+        else:
+            split_index = sentence.find(",", MAX_SENTENCE_LENGTH)
+            if split_index == -1:
+                yield segment
+            else:
+                sentence_part1 = sentence[:split_index + 1].strip()
+                sentence_part2 = sentence[split_index + 1:].strip()
+                duration = segment["end"] - segment["start"]
+                split_time = (segment["start"]
+                              + duration * len(sentence_part1) / len(sentence))
+                yield {"start": segment["start"],
+                       "end": split_time,
+                       "sentence": sentence_part1}
+                yield {"start": split_time,
+                       "end": segment["end"],
+                       "sentence": sentence_part2}
 
 
 def process_whisperx_segments(segments):
@@ -131,6 +132,6 @@ def process_whisperx_segments(segments):
 
     result = buffer_sentences(segments)
     uppercase_sentences(result)
-    split_long_sentences(result)
+    result = list(split_long_sentences(result))
 
     return result
