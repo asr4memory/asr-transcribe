@@ -2,20 +2,20 @@ from post_processing import (sentence_is_incomplete, split_long_sentences)
 
 class TestSentenceIsIncomplete:
     def test_no_punctuation(self):
-        assert sentence_is_incomplete("Howdy, Alice")
+        assert sentence_is_incomplete("This sentence has no punctuation")
 
     def test_number(self):
         """
         Do we actually need the number check?
         What does it even do?
         """
-        assert sentence_is_incomplete("How do you like this number: 821")
+        assert sentence_is_incomplete("This sentence ends with 821")
 
     def test_academic_title(self):
-        assert sentence_is_incomplete("Sorry, I'm not a Dr.")
+        assert sentence_is_incomplete("This sentence ends with a Dr.")
 
     def test_normal_sentence(self):
-        assert not sentence_is_incomplete("We all have to die some day.")
+        assert not sentence_is_incomplete("This is a normal sentence with punctuation.")
 
 
 def test_split_sentences():
