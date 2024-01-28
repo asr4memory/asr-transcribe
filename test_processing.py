@@ -1,4 +1,6 @@
-from post_processing import (sentence_is_incomplete, split_long_sentences)
+import copy
+from post_processing import (sentence_is_incomplete, uppercase_sentences,
+                             split_long_sentences)
 
 class TestSentenceIsIncomplete:
     def test_no_punctuation(self):
@@ -16,6 +18,24 @@ class TestSentenceIsIncomplete:
 
     def test_normal_sentence(self):
         assert not sentence_is_incomplete("This is a normal sentence with punctuation.")
+
+
+def test_uppercase_sentences():
+    segment1 = {"sentence": "The first sentence is not affected.",
+                "start": 0.0, "end": 0.0}
+    segment2 = {"sentence": "the sentences after that are affected,",
+                "start": 0.0, "end": 0.0}
+    segment3 = {"sentence": "unless there is a comma before them.",
+                "start": 0.0, "end": 0.0}
+    segments = [segment1, segment2, segment3]
+
+    expected = [copy.deepcopy(segment1),
+                {"sentence": "The sentences after that are affected,",
+                 "start": 0.0, "end": 0.0},
+                copy.deepcopy(segment3)]
+
+    uppercase_sentences(segments)
+    assert expected == segments
 
 
 def test_split_sentences():
