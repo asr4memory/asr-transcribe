@@ -10,7 +10,7 @@ import whisperx
 
 from email_notifications import (send_success_email, send_failure_email,
                                  send_warning_email)
-from app_config import get_config
+from app_config import get_config, print_config
 from utilities import (ignore_file, Tee, write_text_file, write_csv_file,
                        write_vtt_file, audio_duration)
 from post_processing import process_whisperx_segments
@@ -57,8 +57,9 @@ real_time_factor_list = []
 warning_count = 0
 warning_audio_inputs = []
 
+print_config()
+
 torch.set_num_threads(number_threads)
-print(f'--> Number of threads: {number_threads}')
 
 warning_word = "failed"
 
@@ -86,8 +87,6 @@ try:
                                        audio_input.split(".")[0] + filename_suffix)
             workflowstarttime = datetime.now()
             print(f'--> Whisper workflow for {audio_input} started: {workflowstarttime}')
-
-            print(f'--> Value of beam size: {beam_size}')
 
             audioduration_in_seconds = audio_duration(audio_file)
             print('--> Audio Duration in seconds:', audioduration_in_seconds)
