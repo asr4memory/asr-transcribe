@@ -3,16 +3,17 @@ ASR workflow script.
 This is the main script that runs the ASR and alignment processes and sends
 emails.
 """
-from datetime import datetime, timedelta
-import sys, os, re
-import torch
-import whisperx
+from datetime import datetime
+import os
+import sys
+import re
 
 from email_notifications import (send_success_email, send_failure_email,
                                  send_warning_email)
 from app_config import get_config, print_config
 from utilities import (ignore_file, Tee, write_text_file, write_csv_file,
-                       write_vtt_file, audio_duration)
+                       write_vtt_file)
+from whisper_tools import get_audio, transcribe, align, get_audio_length
 from post_processing import process_whisperx_segments
 
 # The following lines are to capture the stdout/terminal output
@@ -28,17 +29,8 @@ sys.stderr = stderr_buffer
 
 config = get_config()
 
-# Set the number of threads used by PyTorch
-number_threads = config['whisper']['thread_count']
-
 # Define parameters for WhisperX model
-model_name = config['whisper']['model']
-device = config['whisper']['device']
-batch_size = config['whisper']['batch_size']
-beam_size = config['whisper']['beam_size']
-compute_type = config['whisper']['compute_type']
 language_audio = config['whisper']['language']
-initial_prompt = config['whisper']['initial_prompt']
 
 # Define input und output folders
 input_path = config['system']['input_path']
@@ -56,25 +48,11 @@ real_time_factor_list = []
 
 warning_count = 0
 warning_audio_inputs = []
+warning_word = "failed"
 
 print_config()
 
-torch.set_num_threads(number_threads)
-
-warning_word = "failed"
-
 try:
-    # Load WhisperX model
-    # WITHOUT  "initial_prompt": initial_prompt
-    model = whisperx.load_model(model_name, device, language=language_audio,
-                                compute_type=compute_type,
-                                asr_options={"beam_size": beam_size})
-    # WITH  "initial_prompt": initial_prompt
-    #model = whisperx.load_model(model_name, device, language=language_audio,
-    #                            compute_type=compute_type,
-    #                            asr_options={"beam_size": beam_size, "initial_prompt": initial_prompt})
-
-
     # This loop iterates over all the files in the input directory and
     # transcribes them using the specified model.
     for root, directories, files in os.walk(input_path):
@@ -85,36 +63,21 @@ try:
             audio_file = os.path.join(input_path, audio_input)
             output_file = os.path.join(output_directory,
                                        audio_input.split(".")[0] + filename_suffix)
+
             workflowstarttime = datetime.now()
             print(f'--> Whisper workflow for {audio_input} started: {workflowstarttime}')
 
-            audioduration_in_seconds = audio_duration(audio_file)
-            print('--> Audio Duration in seconds:', audioduration_in_seconds)
+            # Main part: Loading, transcription and alignment.
+            audio = get_audio(path=audio_file)
 
-            # Convert the duration from seconds to hh:mm:ss format and print it:
-            audioduration = str(timedelta(seconds=audioduration_in_seconds))
-            print("--> Audio Duration in hours:minutes:seconds :", audioduration)
-            audioduration_list.append(str(audioduration))
+            duration, formatted_duration = get_audio_length(audio)
+            audioduration_list.append(formatted_duration)
+            print('--> Audio duration: %s (%.1fs)' % (formatted_duration, duration))
 
-            # Load audio file and transcribe it
-            audio = whisperx.load_audio(audio_file)
-            result = model.transcribe(audio, batch_size=batch_size)
-
-            # Align transcribed segments to original audio and get time stamps
-            # for start and end of each segment.
-            # With default align model
-            model_a, metadata = whisperx.load_align_model(language_code=result["language"],
-                                                          device=device)
-            # WITH greater align model which uses more computing ressources.
-            #model_a, metadata = whisperx.load_align_model(model_name="WAV2VEC2_ASR_LARGE_LV60K_960H",
-            #                                              language_code=result["language"],
-            #                                              device=device)
-            result = whisperx.align(result["segments"],
-                                    model_a,
-                                    metadata,
-                                    audio,
-                                    device,
-                                    return_char_alignments=False)
+            transcription_result = transcribe(audio)
+            result = align(audio=audio,
+                                    segments=transcription_result['segments'],
+                                    language=transcription_result['language'])
 
             custom_segs = process_whisperx_segments(result['segments'])
 
@@ -141,7 +104,7 @@ try:
 
             # Calculate the real time factor for processing an audio file,
             # i.e. the ratio of workflowduration_in_seconds to audioduration_in_seconds:
-            real_time_factor = workflowduration_in_seconds / audioduration_in_seconds
+            real_time_factor = workflowduration_in_seconds / duration
             print("==> Whisper real time factor - the ratio of workflow duration compared to audio duration:", real_time_factor)
             real_time_factor_list.append(str(real_time_factor))
 
