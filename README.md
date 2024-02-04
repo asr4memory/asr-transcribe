@@ -1,6 +1,7 @@
 # ASR Tools
 
 ## Requirements
+- Python >= 3.10
 - WhisperX v3.1.1 (https://github.com/m-bain/whisperX)
 - ffmpeg
 
@@ -22,3 +23,6 @@
 - Install toml library via `pip install -r requirements.txt`
 - Copy config.example.toml to config.toml and customize it.
 - Run `python asr_workflow.py`
+
+## Tests
+- Run automated tests with `pytest`
