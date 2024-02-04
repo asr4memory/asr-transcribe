@@ -15,17 +15,18 @@ beam_size = config['whisper']['beam_size']
 compute_type = config['whisper']['compute_type']
 language_audio = config['whisper']['language']
 initial_prompt = config['whisper']['initial_prompt']
+use_initial_prompt = config['whisper'].get('use_initial_prompt', False)
 
 SAMPLING_RATE = 16000
 
 torch.set_num_threads(number_threads)
 
-def get_transcription_model(initial_prompt=False):
+def get_transcription_model():
     """
     Load WhisperX transcription model.
     """
     asr_options = {'beam_size': beam_size}
-    if initial_prompt: asr_options['initial_prompt'] = initial_prompt
+    if use_initial_prompt: asr_options['initial_prompt'] = initial_prompt
 
     model = whisperx.load_model(model_name, device,
                                 language=language_audio,

@@ -12,6 +12,7 @@ beam_size = 5  # 5 is default
 compute_type = "float32"
 language = "de"  # Set to None for automatic language detection.
 # initial_prompt option may lead to omissions in the transcript.
+use_initial_prompt = false
 initial_prompt = "Alice Henderson Bob Sanders äh ähm ah oh aja aha ja"
 
 [email]
