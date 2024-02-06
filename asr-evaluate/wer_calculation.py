@@ -42,4 +42,4 @@ for ref_base, ref_filename in reference_files.items():
         #print(char_output.alignments)
         print(jiwer.visualize_alignment(char_output))
     else:
-        print(f"Keine entsprechende Hypothesendatei für {ref_base} gefunden.")
+        print(f"No corresponding hypothesis file found for: {ref_base}")
