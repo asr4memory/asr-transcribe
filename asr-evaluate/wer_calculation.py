@@ -1,7 +1,7 @@
 import os
 from jiwer import process_words, process_characters
 import jiwer
-from config_asr_evaluate import reference_path, hypothesis_path
+from config_asr_evaluate import reference_directory, hypothesis_directory
 
 # Function to get the base name of the files up to the first point:
 def list_files(directory):
@@ -12,15 +12,15 @@ def list_files(directory):
     return files
 
 # List files in both directories:
-reference_files = list_files(reference_path)
-hypothesis_files = list_files(hypothesis_path)
+reference_files = list_files(reference_directory)
+hypothesis_files = list_files(hypothesis_directory)
 
 # Iterate through the reference files and check for matches in the hypothesis files:
 for ref_base, ref_filename in reference_files.items():
     if ref_base in hypothesis_files:
         # Construct complete path to the files:
-        ref_file_path = os.path.join(reference_path, ref_filename)
-        hyp_file_path = os.path.join(hypothesis_path, hypothesis_files[ref_base])
+        ref_file_path = os.path.join(reference_directory, ref_filename)
+        hyp_file_path = os.path.join(hypothesis_directory, hypothesis_files[ref_base])
 
         # Read texts from the files:
         with open(ref_file_path, 'r', encoding='utf-8') as ref:
@@ -32,7 +32,7 @@ for ref_base, ref_filename in reference_files.items():
         metrics = process_words(reference_text, hypothesis_text)
         char_output = process_characters(reference_text, hypothesis_text)
 
-        print(f"Für das Dateipaare {ref_base}:")
+        print(f"For the file pair: {ref_base}")
         print(f"WER: {metrics.wer}")
         print(f"MER: {metrics.mer}")
         print(f"WIL: {metrics.wil}")
