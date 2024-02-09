@@ -4,7 +4,7 @@ output_path = "/Users/ahenderson/Documents/Whisper_Test_Files/_output/"
 email_notifications = false
 
 [whisper]
-model = "large-v2"
+model = "large-v3"
 device = "cpu"
 thread_count = 5  # 5 is default
 batch_size = 28
@@ -18,5 +18,7 @@ initial_prompt = "Alice Henderson Bob Sanders äh ähm ah oh aja aha ja"
 [email]
 smtp_server = "mail.example.com"
 smtp_port = 25
+#username = "alice"
+#password = "password"
 from = "notifications@example.com"
 to = ["alice@example.com", "bob@example.com"]

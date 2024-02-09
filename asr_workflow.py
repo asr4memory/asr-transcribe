@@ -146,7 +146,7 @@ except Exception as e:
 
     send_failure_email(input_file_list=input_file_list, audio_input=audio_input,
                        warning_count=warning_count, warning_word=warning_word,
-                       warning_audio_inputs=warning_audio_inputs)
+                       warning_audio_inputs=warning_audio_inputs, exception=e)
 
 
 # Final message.
