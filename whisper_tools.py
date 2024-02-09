@@ -65,8 +65,7 @@ def get_audio(path: str):
 def get_audio_length(audio):
     "Gets audio length in seconds."
     seconds = len(audio) / SAMPLING_RATE
-    formatted = str(timedelta(seconds=seconds))
-    return (seconds, formatted)
+    return seconds
 
 
 def transcribe(audio):

@@ -19,12 +19,6 @@ output_directory = os.path.dirname(output_path)
  # Filename suffix corresponds to the variable "language_audio" above.
 filename_suffix = "_" + language_audio
 
-input_file_list = []
-workflowduration_list = []
-workflowduration_in_seconds_list = []
-audioduration_list = []
-real_time_factor_list = []
-
 warning_count = 0
 warning_audio_inputs = []
 

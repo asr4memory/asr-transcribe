@@ -95,3 +95,13 @@ def write_json_file(data: dict, filename: str):
     """Write a dictionary as a JSON file."""
     with open(filename, 'w') as f:
         json.dump(data, f)
+
+
+def format_duration(seconds):
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    remaining_seconds = seconds % 60
+
+    formatted_time = "{}h{:02}m{:02}s".format(int(hours), int(minutes),
+                                              int(remaining_seconds))
+    return formatted_time

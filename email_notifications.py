@@ -59,26 +59,27 @@ def system_info_html():
     return result
 
 
-def send_success_email(input_file_list, audioduration_list,
-                       workflowduration_list, real_time_factor_list,
-                       warning_count, warning_word, warning_audio_inputs):
+def send_success_email(stats, warning_count, warning_word,
+                       warning_audio_inputs):
     "Sends a success email."
 
     email_subject =  "👍 ASR Process Completed! 👍"
-    email_body = ("<b>ASR Process successfully completed:</b> " + "<br>"
-                  + str(input_file_list).replace('[','').replace(']','').replace("'","").replace(",","<br>")
-                  + "<br><br>")
+
+    email_body = "<b>ASR Process successfully completed:</b> " + "<br>"
     email_body += process_date_html() + "<br><br>"
-    email_body += "<b>Whisper configuration:</b><br>" + whisper_config_html() + "<br><br>"
-    email_body += ("<b>Whisper audio duration list:</b> " + "<br>"
-                   + str(audioduration_list).replace('[','').replace(']','').replace("'","").replace(",","<br>")
-                   + "<br><br>")
-    email_body += ("<b>Whisper workflow duration list:</b> " + "<br>"
-                   + str(workflowduration_list).replace('[','').replace(']','').replace("'","").replace(",","<br>")
-                   + "<br><br>")
-    email_body += ("<b>Whisper real time factor list:</b>" + "<br>"
-                   + str(real_time_factor_list).replace('[','').replace(']','').replace("'","").replace(",","<br>")
-                   + "<br><br>")
+    email_body += "<b>Whisper configuration:</b><br>" + whisper_config_html() + "<br>"
+
+    email_body += "<ul>"
+
+    for process_info in stats:
+        email_body += "<li>"
+        email_body += f"<b>{process_info.filename},</b> file length {process_info.formatted_audio_length()}, "
+        email_body += f"took {process_info.formatted_process_duration()}, rtf "
+        email_body += "{:.2f}".format(process_info.realtime_factor())
+        email_body += "</li>"
+
+    email_body += "</ul><br>"
+
     if warning_count > 0:
         email_body += (f"<b>Number of times the warning word '{warning_word}' was found in the stdout output:</b> "
                        + str(warning_count) + "<br>")
@@ -110,14 +111,18 @@ def send_warning_email(audio_input, warning_word, line):
     send_email(subject=email_subject, body=email_body, type="warning")
 
 
-def send_failure_email(input_file_list, audio_input, warning_count,
+def send_failure_email(stats, audio_input, warning_count,
                        warning_word, warning_audio_inputs, exception):
     "Sends a failure email."
 
     email_subject =  "👎 ASR Process Failed! 👎"
-    email_body = ("<b>ASR Process failed:</b> " + "<br>"
-                  + str(input_file_list).replace('[','').replace(']','').replace("'","").replace(",","<br>")
-                  + "<br>" + "<br>")
+    email_body = "<b>ASR Process failed:</b> " + "<br>"
+    email_body += "<ul>"
+
+    for process_info in stats:
+        email_body += "<li>" + process_info.filename + "</li>"
+
+    email_body += "</ul><br>"
     email_body += f"<b>Error in Whisper ASR Transcription of the file:</b> <br> {audio_input} -> {exception}</p>"
     email_body += process_date_html() + "<br><br>"
     if warning_count > 0:

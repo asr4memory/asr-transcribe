@@ -12,7 +12,8 @@ from email_notifications import (send_success_email, send_failure_email,
                                  send_warning_email)
 from app_config import get_config, print_config
 from utilities import (ignore_file, Tee, write_text_file, write_csv_file,
-                       write_vtt_file)
+                       write_vtt_file, format_duration)
+from stats import ProcessInfo
 from whisper_tools import get_audio, transcribe, align, get_audio_length
 from post_processing import process_whisperx_segments
 
@@ -40,11 +41,7 @@ output_directory = os.path.dirname(output_path)
 # Filename suffix corresponds to the variable "language_audio" above.
 filename_suffix = "_" + language_audio
 
-input_file_list = []
-workflowduration_list = []
-workflowduration_in_seconds_list = []
-audioduration_list = []
-real_time_factor_list = []
+stats = []
 
 warning_count = 0
 warning_audio_inputs = []
@@ -59,25 +56,30 @@ try:
         for audio_input in files:
             if ignore_file(audio_input): continue
 
-            input_file_list.append(audio_input)
             audio_file = os.path.join(input_path, audio_input)
             output_file = os.path.join(output_directory,
                                        audio_input.split(".")[0] + filename_suffix)
 
-            workflowstarttime = datetime.now()
-            print(f'--> Whisper workflow for {audio_input} started: {workflowstarttime}')
+            process_info = ProcessInfo(audio_input)
+            process_info.start = datetime.now()
 
             # Main part: Loading, transcription and alignment.
             audio = get_audio(path=audio_file)
+            audio_length = get_audio_length(audio)
+            process_info.audio_length = audio_length
+            formatted_audio_length = format_duration(audio_length)
 
-            duration, formatted_duration = get_audio_length(audio)
-            audioduration_list.append(formatted_duration)
-            print('--> Audio duration: %s (%.1fs)' % (formatted_duration, duration))
+            start_message = "\033[94m{0}\033[0m Transcribing {1}, {2}...".format(
+                process_info.start.isoformat(sep=" ", timespec="seconds"),
+                process_info.filename,
+                process_info.formatted_audio_length()
+            )
+            print(start_message)
 
             transcription_result = transcribe(audio)
             result = align(audio=audio,
-                                    segments=transcription_result['segments'],
-                                    language=transcription_result['language'])
+                           segments=transcription_result['segments'],
+                           language=transcription_result['language'])
 
             custom_segs = process_whisperx_segments(result['segments'])
 
@@ -87,26 +89,15 @@ try:
             write_csv_file(output_file, custom_segs, delimiter="\t",
                            speaker_column=True, write_header=True)
 
-            # These lines prints the time of the workflow end:
-            workflowendtime = datetime.now()
-            print(f'--> Whisper workflow completed for {audio_input}: {workflowendtime}')
-
-            # Calculate the duration of the workflow:
-            workflowduration = workflowendtime - workflowstarttime
-            print(f'==> Whisper workflow duration for transcribing the file {audio_input}: {workflowduration}')
-            workflowduration_list.append(str(workflowduration))
-
-            # Assume workflowduration is a datetime.timedelta object and print
-            # the duration in seconds:
-            workflowduration_in_seconds = workflowduration.total_seconds()
-            print(f"==> Whisper workflow duration for transcribing the file {audio_input}:", workflowduration_in_seconds)
-            workflowduration_in_seconds_list.append(str(workflowduration_in_seconds))
-
-            # Calculate the real time factor for processing an audio file,
-            # i.e. the ratio of workflowduration_in_seconds to audioduration_in_seconds:
-            real_time_factor = workflowduration_in_seconds / duration
-            print("==> Whisper real time factor - the ratio of workflow duration compared to audio duration:", real_time_factor)
-            real_time_factor_list.append(str(real_time_factor))
+            process_info.end = datetime.now()
+            stats.append(process_info);
+            end_message = "\033[94m{0}\033[0m Completed {1} after {2} \033[92m(rtf {3:.2f})\033[0m".format(
+                process_info.end.isoformat(sep=" ", timespec="seconds"),
+                process_info.filename,
+                process_info.formatted_process_duration(),
+                process_info.realtime_factor()
+            )
+            print(end_message)
 
             # The following lines send email warnings of the output of the
             # stdout/terminal output:
@@ -132,10 +123,7 @@ try:
                                    warning_word=warning_word, line=line)
 
 
-    send_success_email(input_file_list=input_file_list,
-                       audioduration_list=audioduration_list,
-                       workflowduration_list=workflowduration_list,
-                       real_time_factor_list=real_time_factor_list,
+    send_success_email(stats=stats,
                        warning_count=warning_count,
                        warning_word=warning_word,
                        warning_audio_inputs=warning_audio_inputs)
@@ -144,7 +132,7 @@ try:
 except Exception as e:
     print('==> The following error occured: ', e)
 
-    send_failure_email(input_file_list=input_file_list, audio_input=audio_input,
+    send_failure_email(stats=stats, audio_input=audio_input,
                        warning_count=warning_count, warning_word=warning_word,
                        warning_audio_inputs=warning_audio_inputs, exception=e)
 
