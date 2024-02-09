@@ -1,4 +1,4 @@
-# ASR Tools
+# asr-transcribe
 
 ## Requirements
 - Python >= 3.10
@@ -20,7 +20,7 @@
 ## Installation instructions...
 - Clone this repository.
 - Install whisperx per its installation instructions.
-- Install toml library via `pip install -r requirements.txt`
+- Install dependencies with `pip install -r requirements.txt`
 - Copy config.example.toml to config.toml and customize it.
 - Run `python asr_workflow.py`
 
