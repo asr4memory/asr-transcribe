@@ -11,8 +11,9 @@ import re
 from email_notifications import (send_success_email, send_failure_email,
                                  send_warning_email)
 from app_config import get_config, print_config
-from utilities import (ignore_file, Tee, write_text_file, write_csv_file,
-                       write_vtt_file, format_duration)
+from utilities import ignore_file, Tee, format_duration
+from writers import (write_text_file, write_csv_file, write_vtt_file,
+                     write_json_file)
 from stats import ProcessInfo
 from whisper_tools import get_audio, transcribe, align, get_audio_length
 from post_processing import process_whisperx_segments
@@ -88,6 +89,7 @@ try:
             write_csv_file(output_file, custom_segs)
             write_csv_file(output_file, custom_segs, delimiter="\t",
                            speaker_column=True, write_header=True)
+            write_json_file(output_file, custom_segs)
 
             process_info.end = datetime.now()
             stats.append(process_info);
