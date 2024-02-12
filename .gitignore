@@ -2,3 +2,5 @@ config.toml
 __pycache__
 .mypy_cache
 asr-tools_venv/
+.DS_Store
+.gitignore
