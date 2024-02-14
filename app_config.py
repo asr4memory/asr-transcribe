@@ -3,15 +3,27 @@ Application configuration.
 """
 import os
 import toml
+from default_config import CONST_DEFAULT_CONFIG
 
-config_file_path = os.path.join(os.getcwd(), 'config.toml')
+combined_config = {}
 
-with open(config_file_path) as f:
-    data = toml.load(f)
+def initialize_config():
+    global combined_config
+
+    config_file_path = os.path.join(os.getcwd(), 'config.toml')
+
+    with open(config_file_path) as f:
+        data = toml.load(f)
+        combined_config = {
+            'system':  CONST_DEFAULT_CONFIG['system']  | data['system'],
+            'whisper': CONST_DEFAULT_CONFIG['whisper'] | data['whisper'],
+            'email':   CONST_DEFAULT_CONFIG['email']   | data['email']
+        }
+
 
 def get_config() -> dict:
     "Returns app configuration as a dictionary."
-    return data
+    return combined_config
 
 
 def print_config():
@@ -38,3 +50,6 @@ def whisper_config_html(blacklist = ["initial_prompt"]):
         result += f"{key.capitalize()}: {value}<br>"
 
     return result
+
+
+initialize_config()
