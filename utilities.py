@@ -1,18 +1,6 @@
 """
 Utilities and helper functions for the main ASR script.
 """
-import io
-
-class Tee(io.StringIO):
-    "What does this class do?"
-    def __init__(self, terminal):
-        self.terminal = terminal
-        super().__init__()
-
-    def write(self, message):
-        self.terminal.write(message)
-        super().write(message)
-
 
 def ignore_file(file):
     "Checks whether the file should be ignored. File has which type?"

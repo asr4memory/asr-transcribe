@@ -7,27 +7,38 @@ from datetime import datetime
 import os
 import sys
 import re
+import io
 
 from email_notifications import (send_success_email, send_failure_email,
                                  send_warning_email)
 from app_config import get_config, print_config
-from utilities import ignore_file, Tee, format_duration
+from utilities import ignore_file, format_duration
 from writers import (write_text_file, write_csv_file, write_vtt_file,
                      write_json_file)
 from stats import ProcessInfo
 from whisper_tools import get_audio, transcribe, align, get_audio_length
 from post_processing import process_whisperx_segments
 
-# The following lines are to capture the stdout/terminal output
-# Save a reference to the original stdout and stderr
-original_stdout = sys.stdout
-original_stderr = sys.stderr
 
-# Redirect stdout and stderr to the buffer
+# The following lines are to capture the stdout/terminal output
+class Tee(io.StringIO):
+    "Writes to two streams simultanously."
+    def __init__(self, terminal):
+        self.terminal = terminal
+        super().__init__()
+
+    def write(self, message):
+        self.terminal.write(message)
+        super().write(message)
+
+
+# Save a reference to the original stdout
+original_stdout = sys.stdout
+# Redirect stdout to the buffer
 stdout_buffer = Tee(original_stdout)
-stderr_buffer = Tee(original_stderr)
 sys.stdout = stdout_buffer
-sys.stderr = stderr_buffer
+
+#####
 
 config = get_config()
 
@@ -105,10 +116,8 @@ try:
             # stdout/terminal output:
             # Get the output from the buffer
             output = stdout_buffer.getvalue()
-
-            # Restore the original stdout and stderr
-            sys.stdout = original_stdout
-            sys.stderr = original_stderr
+            stdout_buffer.truncate(0)
+            stdout_buffer.seek(0)
 
             # Check the output for the specific message
             # Goal is to find the message "failed to align segment" in the
@@ -133,6 +142,7 @@ try:
 
 except Exception as e:
     print('==> The following error occured: ', e)
+    sys.stdout = original_stdout
 
     send_failure_email(stats=stats, audio_input=audio_input,
                        warning_count=warning_count, warning_word=warning_word,
@@ -141,3 +151,4 @@ except Exception as e:
 
 # Final message.
 print('====> Overall workflow is finished. <====')
+sys.stdout = original_stdout
