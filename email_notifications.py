@@ -15,6 +15,7 @@ current_username = getpass.getuser()
 
 def send_email(subject, body, type):
     "Sends email to recipients specified in config."
+
     config = get_config()
     email_config = config['email']
     email_notifications = config['system']['email_notifications']
@@ -59,21 +60,22 @@ def system_info_html():
     return result
 
 
-def send_success_email(stats, warning_count, warning_word,
-                       warning_audio_inputs):
+def send_success_email(stats, warning_count, warning_audio_inputs):
     "Sends a success email."
 
     email_subject =  "👍 ASR Process Completed! 👍"
 
     email_body = "<b>ASR Process successfully completed:</b> " + "<br>"
     email_body += process_date_html() + "<br><br>"
-    email_body += "<b>Whisper configuration:</b><br>" + whisper_config_html() + "<br>"
+    email_body += ("<b>Whisper configuration:</b><br>" + whisper_config_html()
+                   + "<br>")
 
     email_body += "<ul>"
 
     for process_info in stats:
         email_body += "<li>"
-        email_body += f"<b>{process_info.filename},</b> file length {process_info.formatted_audio_length()}, "
+        email_body += (f"<b>{process_info.filename},</b> file length "
+                       + f"{process_info.formatted_audio_length()}, ")
         email_body += f"took {process_info.formatted_process_duration()}, rtf "
         email_body += "{:.2f}".format(process_info.realtime_factor())
         email_body += "</li>"
@@ -81,38 +83,41 @@ def send_success_email(stats, warning_count, warning_word,
     email_body += "</ul><br>"
 
     if warning_count > 0:
-        email_body += (f"<b>Number of times the warning word '{warning_word}' was found in the stdout output:</b> "
+        email_body += (f"<b>Number of hallucination warnings:</b> "
                        + str(warning_count) + "<br>")
         email_body += ("<b>Audio inputs where the warning message was found:</b> "
                        + "<br><br>".join(warning_audio_inputs)
                        + "<br><br>")
     else:
-        email_body += (f"<b>Number of times the warning word '{warning_word}' was found in the stdout output:</b> "
-                       + str(warning_count) + "<br><br>")
+        email_body += f"No hallucination warnings occurred.<br><br>"
 
     email_body += system_info_html() + "<br>"
 
     send_email(subject=email_subject, body=email_body, type="success")
 
 
-def send_warning_email(audio_input, warning_word, line):
+def send_warning_email(audio_input, warnings):
     "Sends a warning email."
 
-    email_subject =  "⚠️ ASR Process Warning! ⚠️"
-    email_body = ("<b>ASR Process Warning:</b> " + "<br>" + audio_input
+    email_subject =  "⚠️ ASR Hallucination Warning! ⚠️"
+    email_body = ("<b>ASR hallucination warning:</b> " + "<br>" + audio_input
                   + "<br><br>")
-    email_body += ("<b>Warning Message:</b> " + "<br>" + "'" + warning_word
-                   + "' was found in the output line " + f"-> {line}"
-                   + "<br><br>")
+
+    email_body += "<b>Possible hallucation(s):</b> " + "<br>"
+    for warning in warnings:
+        email_body += warning + "<br>"
+    email_body += "<br>"
+
     email_body += process_date_html() + "<br><br>"
-    email_body += "<b>Whisper configuration:</b><br>" + whisper_config_html() + "<br><br>"
+    email_body += ("<b>Whisper configuration:</b><br>" + whisper_config_html()
+                   + "<br><br>")
     email_body += system_info_html() + "<br>"
 
     send_email(subject=email_subject, body=email_body, type="warning")
 
 
-def send_failure_email(stats, audio_input, warning_count,
-                       warning_word, warning_audio_inputs, exception):
+def send_failure_email(stats, audio_input, warning_count, warning_audio_inputs,
+                       exception):
     "Sends a failure email."
 
     email_subject =  "👎 ASR Process Failed! 👎"
@@ -123,19 +128,20 @@ def send_failure_email(stats, audio_input, warning_count,
         email_body += "<li>" + process_info.filename + "</li>"
 
     email_body += "</ul><br>"
-    email_body += f"<b>Error in Whisper ASR Transcription of the file:</b> <br> {audio_input} -> {exception}</p>"
+    email_body += ("<b>Error in Whisper ASR Transcription of the file:</b><br>"
+                   + f"{audio_input} -> {exception}</p>")
     email_body += process_date_html() + "<br><br>"
     if warning_count > 0:
-        email_body += (f"<b>Number of times the warning word '{warning_word}' was found in the stdout output:</b> "
+        email_body += (f"<b>Number of hallucination warnings:</b> "
                        + str(warning_count) + "<br>")
         email_body += ("<b>Audio inputs where the warning message was found:</b> "
                        + "<br><br>".join(warning_audio_inputs)
                        + "<br><br>")
     else:
-        email_body += (f"<b>Number of times the warning word '{warning_word}' was found in the stdout output:</b> "
-                       + str(warning_count) + "<br><br>")
+        email_body += "No hallucination warnings occurred.<br><br>"
 
-    email_body += "<b>Whisper configuration:</b><br>" + whisper_config_html() + "<br><br>"
+    email_body += ("<b>Whisper configuration:</b><br>" + whisper_config_html()
+                   + "<br><br>")
     email_body += system_info_html() + "<br>"
 
     send_email(subject=email_subject, body=email_body, type="failure")

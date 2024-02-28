@@ -6,13 +6,13 @@ emails.
 from datetime import datetime
 import os
 import sys
-import re
 import io
 
 from email_notifications import (send_success_email, send_failure_email,
                                  send_warning_email)
 from app_config import get_config, print_config
-from utilities import ignore_file, format_duration
+from utilities import (ignore_file, format_duration,
+                       check_for_hallucination_warnings)
 from writers import (write_text_file, write_csv_file, write_vtt_file,
                      write_json_file)
 from stats import ProcessInfo
@@ -57,7 +57,6 @@ stats = []
 
 warning_count = 0
 warning_audio_inputs = []
-warning_word = "failed"
 
 print_config()
 
@@ -65,6 +64,7 @@ try:
     # This loop iterates over all the files in the input directory and
     # transcribes them using the specified model.
     for root, directories, files in os.walk(input_path):
+        files.sort()
         for audio_input in files:
             if ignore_file(audio_input): continue
 
@@ -112,31 +112,24 @@ try:
             )
             print(end_message)
 
-            # The following lines send email warnings of the output of the
-            # stdout/terminal output:
-            # Get the output from the buffer
+
             output = stdout_buffer.getvalue()
+            warnings = check_for_hallucination_warnings(output)
+
+            if warnings:
+                warnings_str = ", ".join(warnings)
+                print(f"==> Possible hallucation(s) detected: {warnings_str}")
+                warning_count += len(warnings)
+                warning_audio_inputs.append(audio_input)
+                send_warning_email(audio_input=audio_input, warnings=warnings)
+
+            # Clear buffer after checking for warnings.
             stdout_buffer.truncate(0)
             stdout_buffer.seek(0)
-
-            # Check the output for the specific message
-            # Goal is to find the message "failed to align segment" in the
-            # stdout/terminal output to identify AI hallucinations.
-            for match in re.finditer(rf"({warning_word})", output.lower()):
-                line_start = output.rfind('\n', 0, match.start()) + 1
-                line_end = output.find('\n', match.end())
-                line = output[line_start:line_end]
-                print(f"==> The following warning message was captured in the stdout/terminal output: {line}")
-                warning_count += 1
-                warning_audio_inputs.append(audio_input)
-
-                send_warning_email(audio_input=audio_input,
-                                   warning_word=warning_word, line=line)
 
 
     send_success_email(stats=stats,
                        warning_count=warning_count,
-                       warning_word=warning_word,
                        warning_audio_inputs=warning_audio_inputs)
 
 
@@ -144,9 +137,11 @@ except Exception as e:
     print('==> The following error occured: ', e)
     sys.stdout = original_stdout
 
-    send_failure_email(stats=stats, audio_input=audio_input,
-                       warning_count=warning_count, warning_word=warning_word,
-                       warning_audio_inputs=warning_audio_inputs, exception=e)
+    send_failure_email(stats=stats,
+                       audio_input=audio_input,
+                       warning_count=warning_count,
+                       warning_audio_inputs=warning_audio_inputs,
+                       exception=e)
 
 
 # Final message.
