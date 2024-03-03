@@ -65,3 +65,12 @@ def write_json_file(filename, data):
     """Write a dictionary as a JSON file."""
     with open(filename + ".json", "w") as f:
         json.dump(data, f, indent=4)
+
+
+def write_output_files(base_path: str, segments: list):
+    write_vtt_file(base_path, segments)
+    write_text_file(base_path, segments)
+    write_csv_file(base_path, segments)
+    write_csv_file(base_path, segments, delimiter="\t",
+                   speaker_column=True, write_header=True)
+    write_json_file(base_path, segments)
