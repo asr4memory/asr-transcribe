@@ -1,4 +1,4 @@
-name: Pylint
+name: Test
 
 on: [push]
 
@@ -25,3 +25,6 @@ jobs:
     - name: Analysing the code with pylint
       run: |
         pylint --errors-only --disable=C,R $(git ls-files '*.py')
+    - name: Test code with pytest
+      run: |
+        pytest
