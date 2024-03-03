@@ -8,6 +8,7 @@ from datetime import datetime
 import socket, getpass
 
 from app_config import get_config, whisper_config_html
+from utilities import log_to_console
 
 computer_host_name = socket.gethostname()
 computer_host_ip = socket.gethostbyname(computer_host_name)
@@ -34,7 +35,7 @@ def send_email(subject, body, type):
     server.starttls()
     if username and password: server.login(username, password)
 
-    print(f"==> Sending {type} email to {', '.join(to_addrs)}")
+    log_to_console(f"Sending {type} email to {', '.join(to_addrs)}")
     message = MIMEMultipart('alternative')
     message['From'] = from_addr
     message['To'] = ', '.join(to_addrs)
@@ -116,12 +117,11 @@ def send_warning_email(audio_input, warnings):
     send_email(subject=email_subject, body=email_body, type="warning")
 
 
-def send_failure_email(stats, audio_input, warning_count, warning_audio_inputs,
-                       exception):
+def send_failure_email(stats, audio_input, exception):
     "Sends a failure email."
 
-    email_subject =  "👎 ASR Process Failed! 👎"
-    email_body = "<b>ASR Process failed:</b> " + "<br>"
+    email_subject =  "👎 ASR Processing file failed! 👎"
+    email_body = "<b>ASR Processing file failed:</b> " + "<br>"
     email_body += "<ul>"
 
     for process_info in stats:
@@ -130,16 +130,8 @@ def send_failure_email(stats, audio_input, warning_count, warning_audio_inputs,
     email_body += "</ul><br>"
     email_body += ("<b>Error in Whisper ASR Transcription of the file:</b><br>"
                    + f"{audio_input} -> {exception}</p>")
-    email_body += process_date_html() + "<br><br>"
-    if warning_count > 0:
-        email_body += (f"<b>Number of hallucination warnings:</b> "
-                       + str(warning_count) + "<br>")
-        email_body += ("<b>Audio inputs where the warning message was found:</b> "
-                       + "<br><br>".join(warning_audio_inputs)
-                       + "<br><br>")
-    else:
-        email_body += "No hallucination warnings occurred.<br><br>"
 
+    email_body += process_date_html() + "<br><br>"
     email_body += ("<b>Whisper configuration:</b><br>" + whisper_config_html()
                    + "<br><br>")
     email_body += system_info_html() + "<br>"
