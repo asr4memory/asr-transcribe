@@ -61,20 +61,20 @@ def buffer_sentences(segments):
                 end_time = segment_end_time
                 custom_segs.append({"start": start_time,
                                     "end": end_time,
-                                    "sentence": sentence_buffer})
+                                    "text": sentence_buffer})
                 sentence_buffer = ""
                 start_time = None
             else:
                 # Standalone sentences
                 custom_segs.append({"start": segment_start_time,
                                     "end": segment_end_time,
-                                    "sentence": sentence})
+                                    "text": sentence})
 
     # Add any remaining buffered sentence to the segments list.
     if sentence_buffer:
         custom_segs.append({"start": start_time,
                             "end": end_time,
-                            "sentence": sentence_buffer.strip()})
+                            "text": sentence_buffer.strip()})
 
     return custom_segs
 
@@ -84,10 +84,10 @@ def uppercase_sentences(custom_segs):
     Turn the first letter of a sentence to uppercase if it needs to be.
     """
     for i in range(1, len(custom_segs)):
-        if ((custom_segs[i-1]["sentence"][-1] != ',') and
-            (custom_segs[i]["sentence"][0].islower())):
-            custom_segs[i]["sentence"] = (custom_segs[i]["sentence"][0].upper() +
-                                          custom_segs[i]["sentence"][1:])
+        if ((custom_segs[i-1]["text"][-1] != ',') and
+            (custom_segs[i]["text"][0].islower())):
+            custom_segs[i]["text"] = (custom_segs[i]["text"][0].upper() +
+                                      custom_segs[i]["text"][1:])
 
 
 def split_long_sentences(segments):
@@ -101,7 +101,7 @@ def split_long_sentences(segments):
     parts.
     """
     for segment in segments:
-        sentence = segment["sentence"]
+        sentence = segment["text"]
 
         if len(sentence) <= MAX_SENTENCE_LENGTH:
             yield segment
@@ -117,10 +117,10 @@ def split_long_sentences(segments):
                               + duration * len(sentence_part1) / len(sentence))
                 yield {"start": segment["start"],
                        "end": split_time,
-                       "sentence": sentence_part1}
+                       "text": sentence_part1}
                 yield {"start": split_time,
                        "end": segment["end"],
-                       "sentence": sentence_part2}
+                       "text": sentence_part2}
 
 
 def process_whisperx_segments(segments):

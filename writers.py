@@ -18,7 +18,7 @@ def write_vtt_file(output_file, custom_segs):
             end_time = datetime.utcfromtimestamp(seg["end"]).strftime('%H:%M:%S.%f')[:-3]
             vtt_file.write(f"{i + 1}\n")
             vtt_file.write(f"{start_time} --> {end_time}\n")
-            vtt_file.write(f"{seg['sentence']}\n\n")
+            vtt_file.write(f"{seg['text']}\n\n")
 
 
 def write_text_file(output_file, custom_segs):
@@ -28,8 +28,8 @@ def write_text_file(output_file, custom_segs):
     """
     with open(output_file + '.txt', "w", encoding='utf-8') as txt_file:
         for seg in custom_segs:
-            if "sentence" in seg:
-                txt_file.write(f"{seg['sentence']}\n")
+            if "text" in seg:
+                txt_file.write(f"{seg['text']}\n")
 
 
 def write_csv_file(output_file, custom_segs, delimiter=",",
@@ -54,7 +54,7 @@ def write_csv_file(output_file, custom_segs, delimiter=",",
             timecode = "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600),
                                                      int((seg['start'] % 3600) // 60),
                                                      seg['start'] % 60)
-            text = seg['sentence']
+            text = seg['text']
             row = {'IN': timecode, 'TRANSCRIPT': text}
             # Leave the "SPEAKER" column empty
             if speaker_column: row['SPEAKER'] = ''
