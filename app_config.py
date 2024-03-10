@@ -1,16 +1,16 @@
 """
 Application configuration.
 """
-import os
+from pathlib import Path
 import toml
+
 from default_config import CONST_DEFAULT_CONFIG
 
 combined_config = {}
 
 def initialize_config():
     global combined_config
-
-    config_file_path = os.path.join(os.getcwd(), 'config.toml')
+    config_file_path = Path.cwd() / 'config.toml'
 
     with open(config_file_path) as f:
         data = toml.load(f)
