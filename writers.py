@@ -4,14 +4,15 @@ Exporter functions.
 import csv
 import json
 from datetime import datetime
+from pathlib import Path
 
-def write_vtt_file(output_file, custom_segs):
+def write_vtt_file(filepath: Path, custom_segs):
     """
     Write the processed segments to a VTT file.
     This file will contain the start and end times of each segment along with
     the transcribed text.
     """
-    with open(output_file + '.vtt', "w", encoding='utf-8') as vtt_file:
+    with open(filepath, "w", encoding="utf-8") as vtt_file:
         vtt_file.write("WEBVTT\n\n")
         for i, seg in enumerate(custom_segs):
             start_time = datetime.utcfromtimestamp(seg["start"]).strftime('%H:%M:%S.%f')[:-3]
@@ -21,18 +22,18 @@ def write_vtt_file(output_file, custom_segs):
             vtt_file.write(f"{seg['text']}\n\n")
 
 
-def write_text_file(output_file, custom_segs):
+def write_text_file(filepath: Path, custom_segs):
     """
     Write the processed segments to a text file.
     This file will contain only the transcribed text of each segment.
     """
-    with open(output_file + '.txt', "w", encoding='utf-8') as txt_file:
+    with open(filepath, "w", encoding='utf-8') as txt_file:
         for seg in custom_segs:
             if "text" in seg:
                 txt_file.write(f"{seg['text']}\n")
 
 
-def write_csv_file(output_file, custom_segs, delimiter=",",
+def write_csv_file(filepath, custom_segs, delimiter=",",
                    speaker_column=False, write_header=False):
     """
     Write the processed segments to a CSV file.
@@ -40,11 +41,10 @@ def write_csv_file(output_file, custom_segs, delimiter=",",
     first column, optionally an empty "SPEAKER" column, and the
     transcribed text of each segment in the last column.
     """
-    filename_suffix = "_speaker.csv" if speaker_column else ".csv"
     fieldnames = (['IN', 'SPEAKER', 'TRANSCRIPT'] if speaker_column
                   else ['IN', 'TRANSCRIPT'])
 
-    with open(output_file + filename_suffix, 'w', newline='') as csvfile:
+    with open(filepath, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 delimiter=delimiter)
 
@@ -61,16 +61,19 @@ def write_csv_file(output_file, custom_segs, delimiter=",",
             writer.writerow(row)
 
 
-def write_json_file(filename, data):
+def write_json_file(filepath: Path, data):
     """Write a dictionary as a JSON file."""
-    with open(filename + ".json", "w") as f:
+    with open(filepath, "w") as f:
         json.dump(data, f, indent=4)
 
 
-def write_output_files(base_path: str, segments: list):
-    write_vtt_file(base_path, segments)
-    write_text_file(base_path, segments)
-    write_csv_file(base_path, segments)
-    write_csv_file(base_path, segments, delimiter="\t",
-                   speaker_column=True, write_header=True)
-    write_json_file(base_path, segments)
+def write_output_files(base_path: Path, segments: list):
+    write_vtt_file(base_path.with_suffix('.vtt'), segments)
+    write_text_file(base_path.with_suffix('.txt'), segments)
+    write_csv_file(base_path.with_suffix('.csv'), segments)
+    write_csv_file(base_path.with_name(base_path.name + "_speaker.tsv"),
+                   segments,
+                   delimiter="\t",
+                   speaker_column=True,
+                   write_header=True)
+    write_json_file(base_path.with_suffix('.json'), segments)

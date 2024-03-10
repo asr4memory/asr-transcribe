@@ -2,24 +2,22 @@
 Utilities and helper functions for the main ASR script.
 """
 import re
+from pathlib import Path
 from datetime import datetime
 
-def ignore_file(file):
-    "Checks whether the file should be ignored. File has which type?"
-    if file.endswith(".DS_Store"):
-        return True
-    elif file.endswith("backup"):
-        return True
-    elif file.endswith("_test_"):
-        return True
-    elif file.startswith("_"):
-        return True
-    elif file.startswith("_test"):
-        return True
-    elif file.startswith("."):
-        return True
-    else:
+def should_be_processed(filepath: Path):
+    "Checks whether the file should be processed. File has which type?"
+    filename = filepath.name
+    if filename.startswith("_"):
         return False
+    elif filename.startswith("."):
+        return False
+    elif filename.endswith("backup"):
+        return False
+    elif filename.endswith("_test_"):
+        return False
+    else:
+        return True
 
 
 def format_duration(seconds):
@@ -41,7 +39,7 @@ def check_for_hallucination_warnings(text: str) -> list:
     Check the output for the message "Failed to align segment" in the
     stdout/terminal output to identify AI hallucinations.
     """
-    hallucination_regexp = 'Failed to align segment \((".*")\)'
+    hallucination_regexp = r'Failed to align segment \((".*")\)'
     match = re.search(hallucination_regexp, text)
 
     if (match):

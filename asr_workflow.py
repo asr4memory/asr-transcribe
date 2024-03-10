@@ -4,14 +4,14 @@ This is the main script that runs the ASR and alignment processes and sends
 emails.
 """
 from datetime import datetime
-import os
+from pathlib import Path
 import sys
 import io
 
 from email_notifications import (send_success_email, send_failure_email,
                                  send_warning_email)
 from app_config import get_config, print_config
-from utilities import (ignore_file, check_for_hallucination_warnings,
+from utilities import (should_be_processed, check_for_hallucination_warnings,
                        log_to_console)
 from writers import write_output_files
 from stats import ProcessInfo
@@ -40,10 +40,10 @@ warning_count = 0
 warning_audio_inputs = []
 
 
-def process_file(filepath: str, output_directory: str):
+def process_file(filepath: Path, output_directory: Path):
     global warning_count, warning_audio_inputs, stats
     language_audio = config['whisper']['language']
-    filename = os.path.basename(filepath)
+    filename = filepath.name
 
     try:
         process_info = ProcessInfo(filename)
@@ -68,12 +68,11 @@ def process_file(filepath: str, output_directory: str):
         custom_segs = process_whisperx_segments(result['segments'])
 
 
-        output_base_path = os.path.join(
-            output_directory,
-            f"{filename.split('.')[0]}_{language_audio}")
+        new_filename = f"{filename.split('.')[0]}_{language_audio}"
+        output_base_path = output_directory / new_filename
 
         write_output_files(base_path=output_base_path,
-                            segments=custom_segs)
+                           segments=custom_segs)
 
         process_info.end = datetime.now()
         stats.append(process_info);
@@ -105,17 +104,24 @@ def process_file(filepath: str, output_directory: str):
         send_failure_email(stats=stats, audio_input=filename, exception=e)
 
 
-def process_directory(input_directory, output_directory):
+def process_directory(input_directory: Path, output_directory: Path):
     """
-    This loop iterates over all the files in the input directory and
+    This loop iterates over all files in the input directory and
     transcribes them using the specified model.
     """
-    for _root, _directories, files in os.walk(input_directory):
-        files.sort()
-        for filename in files:
-            if ignore_file(filename): continue
-            process_file(os.path.join(input_directory, filename),
-                         output_directory)
+    all_filepaths = input_directory.glob('*')
+    filtered_paths = [p for p in all_filepaths if should_be_processed(p)]
+    filtered_paths.sort()
+
+    if len(filtered_paths) == 0:
+        log_to_console("No files found.")
+    elif len(filtered_paths) == 1:
+        log_to_console("Processing 1 file...")
+    else:
+        log_to_console(f"Processing {len(filtered_paths)} files...")
+
+    for filepath in filtered_paths:
+        process_file(filepath, output_directory)
 
     send_success_email(stats=stats,
                        warning_count=warning_count,
@@ -126,7 +132,14 @@ def process_directory(input_directory, output_directory):
 
 
 if __name__ == "__main__":
-    input_directory = config['system']['input_path']
-    output_directory = config['system']['output_path']
+    input_directory = Path(config['system']['input_path'])
+    output_directory = Path(config['system']['output_path'])
+
+    if not input_directory.exists():
+        raise FileNotFoundError(f"Input directory does not exist: {input_directory}")
+
+    if not output_directory.exists():
+        raise FileNotFoundError(f"Output directory does not exist: {output_directory}")
+
     print_config()
     process_directory(input_directory, output_directory)
