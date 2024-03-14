@@ -33,7 +33,7 @@ def write_text_file(filepath: Path, custom_segs):
                 txt_file.write(f"{seg['text']}\n")
 
 
-def write_csv_file(filepath, custom_segs, delimiter=",",
+def write_csv_file(filepath, custom_segs, delimiter="\t",
                    speaker_column=False, write_header=False):
     """
     Write the processed segments to a CSV file.
@@ -70,10 +70,14 @@ def write_json_file(filepath: Path, data):
 def write_output_files(base_path: Path, segments: list):
     write_vtt_file(base_path.with_suffix('.vtt'), segments)
     write_text_file(base_path.with_suffix('.txt'), segments)
-    write_csv_file(base_path.with_suffix('.csv'), segments)
-    write_csv_file(base_path.with_name(base_path.name + "_speaker.tsv"),
-                   segments,
-                   delimiter="\t",
-                   speaker_column=True,
-                   write_header=True)
+    write_csv_file(base_path.with_suffix('.csv'), 
+                    segments,
+                    delimiter="\t",  # Use tab as delimiter
+                    speaker_column=False,
+                    write_header=False)
+    write_csv_file(base_path.with_name(base_path.name + "_speaker.csv"),
+                    segments,
+                    delimiter="\t", # Use tab as delimiter
+                    speaker_column=True,
+                    write_header=True)
     write_json_file(base_path.with_suffix('.json'), segments)
