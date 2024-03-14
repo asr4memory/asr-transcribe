@@ -17,7 +17,7 @@ CONST_DEFAULT_CONFIG = {
         'batch_size': 28,
         'beam_size': 5,
         'compute_type': 'float32',
-        'language': 'de',
+        'language': None,
         'use_initial_prompt': False,
         'initial_prompt': ''
     },
