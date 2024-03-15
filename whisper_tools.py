@@ -4,7 +4,7 @@ from datetime import timedelta
 
 config = get_config()
 
-# Set the number of threads used by PyTorch
+# Set the number of threads used by PyTorch (only relevant when CPU as device is used)
 number_threads = config['whisper']['thread_count']
 
 # Define parameters for WhisperX model
