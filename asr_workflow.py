@@ -15,7 +15,7 @@ from utilities import (should_be_processed, check_for_hallucination_warnings,
                        log_to_console)
 from writers import write_output_files
 from stats import ProcessInfo
-from whisper_tools import get_audio, transcribe, align, get_audio_length
+from whisper_tools import get_audio, transcribe, align, get_audio_length, diarize
 from post_processing import process_whisperx_segments
 
 
@@ -64,6 +64,7 @@ def process_file(filepath: Path, output_directory: Path):
         result = align(audio=audio,
                         segments=transcription_result['segments'],
                         language=transcription_result['language'])
+        result = diarize(audio=audio, result=result)
 
         custom_segs = process_whisperx_segments(result['segments'])
 

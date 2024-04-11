@@ -19,7 +19,12 @@ CONST_DEFAULT_CONFIG = {
         'compute_type': 'float32',
         'language': None,
         'use_initial_prompt': False,
-        'initial_prompt': ''
+        'initial_prompt': '',
+        'max_sentence_lentgh': 120,
+        'use_speaker_diarization': False,
+        'min_speakers': None,
+        'max_speakers': None,
+        'hf_token': None,
     },
     'email': {
         'smtp_server': '',

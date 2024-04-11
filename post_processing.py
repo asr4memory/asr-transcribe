@@ -3,6 +3,9 @@ Custom post-processing of whisperx segments.
 Customized segments have a different structure than input (whisperx) segments.
 """
 import re
+from app_config import get_config
+
+config = get_config()
 
 # Define set of titles and abbreviations that should not be treated as
 # sentence endings.
@@ -16,7 +19,8 @@ ENDS_WITH_TITLE = re.compile(r'\b(' + '|'.join(titles) + r')[\.,:;!\?]*$',
 ENDS_WITH_NUMBER = re.compile(r'\b([1-9]|[12]\d|3[01])([.])$')
 ENDS_WITHOUT_PUNCTUATION = re.compile(r'[^\.\?!]$')
 
-MAX_SENTENCE_LENGTH = 120
+MAX_SENTENCE_LENGTH = config['whisper']['max_sentence_length']
+USE_SPEAKER_DIARIZATION = config['whisper']['use_speaker_diarization']
 
 
 def sentence_is_incomplete(sentence: str):
@@ -46,6 +50,7 @@ def buffer_sentences(segments):
     for segment in segments:
         segment_start_time = segment["start"]
         segment_end_time = segment["end"]
+        if USE_SPEAKER_DIARIZATION: segment_speaker = segment["speaker"]
         sentence = segment["text"].strip()
 
         if sentence_is_incomplete(sentence):
@@ -59,16 +64,28 @@ def buffer_sentences(segments):
                 # Sentence completion
                 sentence_buffer += sentence
                 end_time = segment_end_time
-                custom_segs.append({"start": start_time,
-                                    "end": end_time,
-                                    "text": sentence_buffer})
+                if USE_SPEAKER_DIARIZATION:
+                     custom_segs.append({"start": start_time,
+                                        "end": end_time,
+                                        "text": sentence_buffer,
+                                        "speaker": segment_speaker})                   
+                else:
+                    custom_segs.append({"start": start_time,
+                                        "end": end_time,
+                                        "text": sentence_buffer})
                 sentence_buffer = ""
                 start_time = None
             else:
                 # Standalone sentences
-                custom_segs.append({"start": segment_start_time,
-                                    "end": segment_end_time,
-                                    "text": sentence})
+                if USE_SPEAKER_DIARIZATION:
+                    custom_segs.append({"start": segment_start_time,
+                                        "end": segment_end_time,
+                                        "text": sentence,
+                                        "speaker": segment_speaker})
+                else:                   
+                    custom_segs.append({"start": segment_start_time,
+                                        "end": segment_end_time,
+                                        "text": sentence})
 
     # Add any remaining buffered sentence to the segments list.
     if sentence_buffer:
@@ -102,6 +119,7 @@ def split_long_sentences(segments):
     """
     for segment in segments:
         sentence = segment["text"]
+        if USE_SPEAKER_DIARIZATION: segment_speaker = segment["speaker"]
 
         if len(sentence) <= MAX_SENTENCE_LENGTH:
             yield segment
@@ -115,12 +133,22 @@ def split_long_sentences(segments):
                 duration = segment["end"] - segment["start"]
                 split_time = (segment["start"]
                               + duration * len(sentence_part1) / len(sentence))
-                yield {"start": segment["start"],
-                       "end": split_time,
-                       "text": sentence_part1}
-                yield {"start": split_time,
-                       "end": segment["end"],
-                       "text": sentence_part2}
+                if USE_SPEAKER_DIARIZATION:
+                    yield {"start": segment["start"],
+                           "end": split_time,
+                           "text": sentence_part1,
+                           "speaker": segment_speaker}
+                    yield {"start": split_time,
+                           "end": segment["end"],
+                           "text": sentence_part2,
+                           "speaker": segment_speaker}
+                else:                
+                    yield {"start": segment["start"],
+                           "end": split_time,
+                           "text": sentence_part1}
+                    yield {"start": split_time,
+                           "end": segment["end"],
+                           "text": sentence_part2}
 
 
 def process_whisperx_segments(segments):
