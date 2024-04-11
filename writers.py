@@ -56,18 +56,14 @@ def write_csv_file(filepath, custom_segs, delimiter="\t",
         if write_header: writer.writeheader()
 
         for seg in custom_segs:
+            timecode = "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600),
+                                                    int((seg['start'] % 3600) // 60),
+                                                    seg['start'] % 60)
+            text = seg['text']
             if USE_SPEAKER_DIARIZATION == True and speaker_column == True:
-                timecode = "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600),
-                                                        int((seg['start'] % 3600) // 60),
-                                                        seg['start'] % 60)
                 speaker = seg['speaker']
-                text = seg['text']
                 row = {'IN': timecode, 'SPEAKER': speaker, 'TRANSCRIPT': text}
             elif USE_SPEAKER_DIARIZATION == False and speaker_column == False:
-                timecode = "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600),
-                                                        int((seg['start'] % 3600) // 60),
-                                                        seg['start'] % 60)
-                text = seg['text']
                 row = {'IN': timecode, 'TRANSCRIPT': text}                
             # Leave the "SPEAKER" column empty
             elif USE_SPEAKER_DIARIZATION == False and speaker_column == True: row['SPEAKER'] = ''

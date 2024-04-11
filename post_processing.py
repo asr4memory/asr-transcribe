@@ -89,9 +89,15 @@ def buffer_sentences(segments):
 
     # Add any remaining buffered sentence to the segments list.
     if sentence_buffer:
-        custom_segs.append({"start": start_time,
-                            "end": end_time,
-                            "text": sentence_buffer.strip()})
+        if USE_SPEAKER_DIARIZATION:
+            custom_segs.append({"start": start_time,
+                                "end": end_time,
+                                "text": sentence_buffer.strip(),
+                                "speaker": segment_speaker})
+        else:
+            custom_segs.append({"start": start_time,
+                                "end": end_time,
+                                "text": sentence_buffer.strip()})
 
     return custom_segs
 
