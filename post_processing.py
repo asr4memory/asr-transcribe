@@ -50,7 +50,7 @@ def buffer_sentences(segments):
     for segment in segments:
         segment_start_time = segment["start"]
         segment_end_time = segment["end"]
-        if USE_SPEAKER_DIARIZATION: segment_speaker = segment["speaker"]
+        if USE_SPEAKER_DIARIZATION: segment_speaker = segment.get("speaker", "SPEAKER_XX")
         sentence = segment["text"].strip()
 
         if sentence_is_incomplete(sentence):
