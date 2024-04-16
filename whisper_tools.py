@@ -92,6 +92,9 @@ def align(audio, segments, language: str):
     return result
 
 def diarize(audio, result):
+    """
+    Diarize transcribed segments using WhisperX' implemenation of pyannote
+    """
     if use_speaker_diarization:
         diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
         diarize_segments = diarize_model(audio, min_speakers=min_speakers, max_speakers=max_speakers)

@@ -43,7 +43,7 @@ def write_csv_file(filepath, custom_segs, delimiter="\t",
     """
     Write the processed segments to a CSV file.
     This file will contain the start timestamps of each segment in the
-    first column, optionally an empty "SPEAKER" column, and the
+    first column, optionally a "SPEAKER" column, and the
     transcribed text of each segment in the last column.
     """
     fieldnames = (['IN', 'SPEAKER', 'TRANSCRIPT'] if speaker_column
@@ -65,7 +65,7 @@ def write_csv_file(filepath, custom_segs, delimiter="\t",
                 row = {'IN': timecode, 'SPEAKER': speaker, 'TRANSCRIPT': text}
             elif USE_SPEAKER_DIARIZATION == False and speaker_column == False:
                 row = {'IN': timecode, 'TRANSCRIPT': text}                
-            # Leave the "SPEAKER" column empty
+            # Leave the "SPEAKER" column empty if USE_SPEAKER_DIARIZATION option is false
             elif USE_SPEAKER_DIARIZATION == False and speaker_column == True: row['SPEAKER'] = ''
             writer.writerow(row)
 
