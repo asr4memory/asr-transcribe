@@ -18,6 +18,10 @@ from stats import ProcessInfo
 from whisper_tools import get_audio, transcribe, align, get_audio_length, diarize
 from post_processing import process_whisperx_segments
 
+from app_config import get_config
+
+config = get_config()
+use_speaker_diarization = config['whisper'].get('use_speaker_diarization', False)
 
 # The following lines are to capture the stdout/terminal output
 class Tee(io.StringIO):
@@ -64,7 +68,7 @@ def process_file(filepath: Path, output_directory: Path):
         result = align(audio=audio,
                         segments=transcription_result['segments'],
                         language=transcription_result['language'])
-        result = diarize(audio=audio, result=result)
+        if use_speaker_diarization: result = diarize(audio=audio, result=result)
 
         custom_segs = process_whisperx_segments(result['segments'])
 

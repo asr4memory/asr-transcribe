@@ -20,7 +20,7 @@ ENDS_WITH_NUMBER = re.compile(r'\b([1-9]|[12]\d|3[01])([.])$')
 ENDS_WITHOUT_PUNCTUATION = re.compile(r'[^\.\?!]$')
 
 MAX_SENTENCE_LENGTH = config['whisper']['max_sentence_length']
-USE_SPEAKER_DIARIZATION = config['whisper']['use_speaker_diarization']
+USE_SPEAKER_DIARIZATION = config['whisper'].get('use_speaker_diarization', False)
 
 
 def sentence_is_incomplete(sentence: str):

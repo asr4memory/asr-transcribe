@@ -16,7 +16,6 @@ compute_type = config['whisper']['compute_type']
 language_audio = config['whisper']['language']
 initial_prompt = config['whisper']['initial_prompt']
 use_initial_prompt = config['whisper'].get('use_initial_prompt', False)
-use_speaker_diarization = config['whisper'].get('use_speaker_diarization', False)
 min_speakers = config['whisper']['min_speakers']
 max_speakers = config['whisper']['max_speakers']
 hf_token = config['whisper']['hf_token']
@@ -95,8 +94,7 @@ def diarize(audio, result):
     """
     Diarize transcribed segments using WhisperX' implemenation of pyannote
     """
-    if use_speaker_diarization:
-        diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
-        diarize_segments = diarize_model(audio, min_speakers=min_speakers, max_speakers=max_speakers)
-        result = whisperx.assign_word_speakers(diarize_segments, result)
-        return result
+    diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
+    diarize_segments = diarize_model(audio, min_speakers=min_speakers, max_speakers=max_speakers)
+    result = whisperx.assign_word_speakers(diarize_segments, result)
+    return result

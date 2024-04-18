@@ -9,7 +9,7 @@ from app_config import get_config
 
 config = get_config()
 
-USE_SPEAKER_DIARIZATION = config['whisper']['use_speaker_diarization']
+USE_SPEAKER_DIARIZATION = config['whisper'].get('use_speaker_diarization', False)
 
 def write_vtt_file(filepath: Path, custom_segs):
     """
@@ -66,7 +66,8 @@ def write_csv_file(filepath, custom_segs, delimiter="\t",
             elif USE_SPEAKER_DIARIZATION == False and speaker_column == False:
                 row = {'IN': timecode, 'TRANSCRIPT': text}                
             # Leave the "SPEAKER" column empty if USE_SPEAKER_DIARIZATION option is false
-            elif USE_SPEAKER_DIARIZATION == False and speaker_column == True: row['SPEAKER'] = ''
+            elif USE_SPEAKER_DIARIZATION == False and speaker_column == True: 
+                row = {'IN': timecode, 'SPEAKER': '', 'TRANSCRIPT': text}
             writer.writerow(row)
 
 
