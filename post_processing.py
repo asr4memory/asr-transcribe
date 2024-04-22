@@ -156,6 +156,30 @@ def split_long_sentences(segments):
                            "end": segment["end"],
                            "text": sentence_part2}
 
+def process_whisperx_word_segments(word_segments):
+    """
+    Fills missing word timecodes by calculating the distance between last known end timecode 
+    and next occuring start timecode and splitting it into multiple timecodes of equal length
+    """
+    nan_indices = [i for i, item in enumerate(word_segments) if 'start' not in item or 'end' not in item]
+    
+    for idx in nan_indices:
+        prev_known_end_idx = max([i for i in range(idx) if 'end' in word_segments[i]], default=None)
+        next_known_start_idx = min([i for i in range(idx + 1, len(word_segments)) if 'start' in word_segments[i]], default=None)
+        
+        if prev_known_end_idx is not None and next_known_start_idx is not None:
+            prev_end_time = word_segments[prev_known_end_idx]['end']
+            next_start_time = word_segments[next_known_start_idx]['start']
+            
+            distance = next_start_time - prev_end_time
+            gaps = next_known_start_idx - prev_known_end_idx - 1
+            increment = distance / (gaps * 2 + 1) 
+            
+            for i in range(1, gaps + 1):
+                word_segments[prev_known_end_idx + i]['start'] = prev_end_time + increment * i
+                word_segments[prev_known_end_idx + i]['end'] = prev_end_time + increment * i * 2 
+                
+    return word_segments
 
 def process_whisperx_segments(segments):
     """
