@@ -164,20 +164,25 @@ def process_whisperx_word_segments(word_segments):
     nan_indices = [i for i, item in enumerate(word_segments) if 'start' not in item or 'end' not in item]
     
     for idx in nan_indices:
-        prev_known_end_idx = max([i for i in range(idx) if 'end' in word_segments[i]], default=None)
-        next_known_start_idx = min([i for i in range(idx + 1, len(word_segments)) if 'start' in word_segments[i]], default=None)
+        prev_known_end_idx = max([i for i in range(idx) if 'end' in word_segments[i]], default=-1)
+        next_known_start_idx = min([i for i in range(idx + 1, len(word_segments)) if 'start' in word_segments[i]], default=len(word_segments))
         
-        if prev_known_end_idx is not None and next_known_start_idx is not None:
+        if prev_known_end_idx == -1:
+            prev_end_time = 0
+        else:
             prev_end_time = word_segments[prev_known_end_idx]['end']
+        if next_known_start_idx == len(word_segments):
+            next_start_time = prev_end_time + 1
+        else:
             next_start_time = word_segments[next_known_start_idx]['start']
             
-            distance = next_start_time - prev_end_time
-            gaps = next_known_start_idx - prev_known_end_idx - 1
-            increment = distance / (gaps * 2 + 1) 
+        distance = next_start_time - prev_end_time
+        gaps = next_known_start_idx - prev_known_end_idx - 1
+        increment = distance / (gaps * 2 + 1) 
             
-            for i in range(1, gaps + 1):
-                word_segments[prev_known_end_idx + i]['start'] = prev_end_time + increment * i
-                word_segments[prev_known_end_idx + i]['end'] = prev_end_time + increment * i * 2 
+        for i in range(1, gaps + 1):
+            word_segments[prev_known_end_idx + i]['start'] = prev_end_time + increment * i
+            word_segments[prev_known_end_idx + i]['end'] = prev_end_time + increment * i * 2 
                 
     return word_segments
 
