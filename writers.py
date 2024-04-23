@@ -94,7 +94,7 @@ def write_csv_word_segments_file(filepath, word_segments, delimiter="\t"):
                                                     int((word_seg['end'] % 3600) // 60),
                                                     word_seg['end'] % 60)
             word = word_seg['word']
-            score = word_seg.get('score', 'values manually calculated')  
+            score = word_seg.get('score', 'values approximately calculated')  
             row = {'WORD': word, 'START': timecode_start, 'END': timecode_end, 'SCORE': score} 
             writer.writerow(row)
 
