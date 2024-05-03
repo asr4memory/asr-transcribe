@@ -20,7 +20,7 @@ CONST_DEFAULT_CONFIG = {
         'language': None,
         'use_initial_prompt': False,
         'initial_prompt': '',
-        'max_sentence_lentgh': 120,
+        'max_sentence_length': 120,
         'use_speaker_diarization': False,
         'min_speakers': None,
         'max_speakers': None,
