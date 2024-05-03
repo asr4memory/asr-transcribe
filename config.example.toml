@@ -13,6 +13,11 @@ compute_type = "float32"
 language = "de"  # Set to None for automatic language detection. Overview of all language codes: https://github.com/m-bain/whisperX/blob/main/whisperx/utils.py
 use_initial_prompt = false # initial_prompt option may lead to omissions in the transcript.
 initial_prompt = "Alice Henderson Bob Sanders äh ähm ah oh aja aha ja"
+max_sentence_length = 120
+use_speaker_diarization = true
+min_speakers = 1
+max_speakers = 2
+hf_token = "add your Huggingface Token here"
 
 [email]
 smtp_server = "mail.example.com"
