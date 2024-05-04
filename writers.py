@@ -32,7 +32,7 @@ def write_text_file(filepath: Path, custom_segs):
     Write the processed segments to a text file.
     This file will contain only the transcribed text of each segment.
     """
-    with open(filepath, "w", encoding='utf-8') as txt_file:
+    with open(filepath, "w", encoding="utf-8") as txt_file:
         for seg in custom_segs:
             if "text" in seg:
                 txt_file.write(f"{seg['text']}\n")
@@ -49,7 +49,7 @@ def write_csv_file(filepath, custom_segs, delimiter="\t",
     fieldnames = (['IN', 'SPEAKER', 'TRANSCRIPT'] if speaker_column
                   else ['IN', 'TRANSCRIPT'])
 
-    with open(filepath, 'w', newline='') as csvfile:
+    with open(filepath, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 delimiter=delimiter)
 
@@ -64,24 +64,25 @@ def write_csv_file(filepath, custom_segs, delimiter="\t",
                 speaker = seg['speaker']
                 row = {'IN': timecode, 'SPEAKER': speaker, 'TRANSCRIPT': text}
             elif USE_SPEAKER_DIARIZATION == False and speaker_column == False:
-                row = {'IN': timecode, 'TRANSCRIPT': text}                
+                row = {'IN': timecode, 'TRANSCRIPT': text}
             # Leave the "SPEAKER" column empty if USE_SPEAKER_DIARIZATION option is false
-            elif USE_SPEAKER_DIARIZATION == False and speaker_column == True: 
+            elif USE_SPEAKER_DIARIZATION == False and speaker_column == True:
                 row = {'IN': timecode, 'SPEAKER': '', 'TRANSCRIPT': text}
             writer.writerow(row)
 
 
 def write_json_file(filepath: Path, data):
     """Write a dictionary as a JSON file."""
-    with open(filepath, "w") as f:
-        json.dump(data, f, indent=4)
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
 
 def write_csv_word_segments_file(filepath, word_segments, delimiter="\t"):
     """
     Write the processed word segments to a CSV file.
     """
     fieldnames = (['WORD', 'START', 'END', 'SCORE'])
-    with open(filepath, 'w', newline='') as csvfile:
+    with open(filepath, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                 delimiter=delimiter)
         writer.writeheader()
@@ -94,14 +95,14 @@ def write_csv_word_segments_file(filepath, word_segments, delimiter="\t"):
                                                     int((word_seg['end'] % 3600) // 60),
                                                     word_seg['end'] % 60)
             word = word_seg['word']
-            score = word_seg.get('score', 'values approximately calculated')  
-            row = {'WORD': word, 'START': timecode_start, 'END': timecode_end, 'SCORE': score} 
+            score = word_seg.get('score', 'values approximately calculated')
+            row = {'WORD': word, 'START': timecode_start, 'END': timecode_end, 'SCORE': score}
             writer.writerow(row)
 
 def write_output_files(base_path: Path, segments: list, word_segments: list):
     write_vtt_file(base_path.with_suffix('.vtt'), segments)
     write_text_file(base_path.with_suffix('.txt'), segments)
-    write_csv_file(base_path.with_suffix('.csv'), 
+    write_csv_file(base_path.with_suffix('.csv'),
                     segments,
                     delimiter="\t",  # Use tab as delimiter
                     speaker_column=False,
@@ -114,6 +115,6 @@ def write_output_files(base_path: Path, segments: list, word_segments: list):
                     write_header=True,
                     USE_SPEAKER_DIARIZATION=USE_SPEAKER_DIARIZATION)
     write_json_file(base_path.with_suffix('.json'), segments)
-    write_csv_word_segments_file(base_path.with_name(base_path.name + "_word_segments.csv"),         
+    write_csv_word_segments_file(base_path.with_name(base_path.name + "_word_segments.csv"),
                     word_segments,
                     delimiter="\t")
