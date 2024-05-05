@@ -5,6 +5,8 @@ import csv
 import json
 from datetime import datetime
 from pathlib import Path
+from xhtml2pdf import pisa
+from mako.template import Template
 from app_config import get_config
 
 config = get_config()
@@ -99,7 +101,19 @@ def write_csv_word_segments_file(filepath, word_segments, delimiter="\t"):
             row = {'WORD': word, 'START': timecode_start, 'END': timecode_end, 'SCORE': score}
             writer.writerow(row)
 
+
+def write_pdf_file(filepath: Path, segments: list):
+    "Write a PDF file with the transcript text."
+    mytemplate = Template(filename='pdf_template.html')
+    paragraphs = [segment["text"] for segment in segments]
+    html_content = mytemplate.render(filename=filepath.stem,
+                                     paragraphs=paragraphs)
+    with open(filepath, "wb") as pdf_file:
+        pisa.CreatePDF(html_content, dest=pdf_file)
+
+
 def write_output_files(base_path: Path, segments: list, word_segments: list):
+    "Write all types of output files."
     write_vtt_file(base_path.with_suffix('.vtt'), segments)
     write_text_file(base_path.with_suffix('.txt'), segments)
     write_csv_file(base_path.with_suffix('.csv'),
@@ -118,3 +132,4 @@ def write_output_files(base_path: Path, segments: list, word_segments: list):
     write_csv_word_segments_file(base_path.with_name(base_path.name + "_word_segments.csv"),
                     word_segments,
                     delimiter="\t")
+    write_pdf_file(base_path.with_suffix('.pdf'), segments)
