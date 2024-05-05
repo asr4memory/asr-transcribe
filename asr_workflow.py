@@ -15,13 +15,13 @@ from utilities import (should_be_processed, check_for_hallucination_warnings,
                        log_to_console)
 from writers import write_output_files
 from stats import ProcessInfo
-from whisper_tools import get_audio, transcribe, align, get_audio_length, diarize
-from post_processing import process_whisperx_segments, process_whisperx_word_segments
+from whisper_tools import (get_audio, transcribe, align, get_audio_length,
+                           diarize)
+from post_processing import (process_whisperx_segments,
+                             process_whisperx_word_segments)
 
 from app_config import get_config
 
-config = get_config()
-use_speaker_diarization = config['whisper'].get('use_speaker_diarization', False)
 
 # The following lines are to capture the stdout/terminal output
 class Tee(io.StringIO):
@@ -42,6 +42,7 @@ config = get_config()
 stats = []
 warning_count = 0
 warning_audio_inputs = []
+use_speaker_diarization = config['whisper']['use_speaker_diarization']
 
 
 def process_file(filepath: Path, output_directory: Path):
@@ -68,10 +69,13 @@ def process_file(filepath: Path, output_directory: Path):
         result = align(audio=audio,
                         segments=transcription_result['segments'],
                         language=transcription_result['language'])
-        if use_speaker_diarization: result = diarize(audio=audio, result=result)
+        if use_speaker_diarization: result = diarize(audio=audio,
+                                                     result=result)
 
         custom_segs = process_whisperx_segments(result['segments'])
-        word_segments_filled = process_whisperx_word_segments(result['word_segments'])
+        word_segments_filled = process_whisperx_word_segments(
+            result['word_segments']
+        )
 
         new_filename = f"{filename.split('.')[0]}_{language_audio}"
         output_base_path = output_directory / new_filename

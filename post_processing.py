@@ -19,8 +19,8 @@ ENDS_WITH_TITLE = re.compile(r'\b(' + '|'.join(titles) + r')[\.,:;!\?]*$',
 ENDS_WITH_NUMBER = re.compile(r'\b([1-9]|[12]\d|3[01])([.])$')
 ENDS_WITHOUT_PUNCTUATION = re.compile(r'[^\.\?!]$')
 
-MAX_SENTENCE_LENGTH = config['whisper']['max_sentence_length']
-USE_SPEAKER_DIARIZATION = config['whisper'].get('use_speaker_diarization', False)
+max_sentence_length = config['whisper']['max_sentence_length']
+use_speaker_diarization = config['whisper']['use_speaker_diarization']
 
 
 def sentence_is_incomplete(sentence: str):
@@ -50,7 +50,8 @@ def buffer_sentences(segments):
     for segment in segments:
         segment_start_time = segment["start"]
         segment_end_time = segment["end"]
-        if USE_SPEAKER_DIARIZATION: segment_speaker = segment.get("speaker", "SPEAKER_XX")
+        if use_speaker_diarization:
+            segment_speaker = segment.get("speaker", "SPEAKER_XX")
         sentence = segment["text"].strip()
 
         if sentence_is_incomplete(sentence):
@@ -64,11 +65,11 @@ def buffer_sentences(segments):
                 # Sentence completion
                 sentence_buffer += sentence
                 end_time = segment_end_time
-                if USE_SPEAKER_DIARIZATION:
+                if use_speaker_diarization:
                      custom_segs.append({"start": start_time,
                                         "end": end_time,
                                         "text": sentence_buffer,
-                                        "speaker": segment_speaker})                   
+                                        "speaker": segment_speaker})
                 else:
                     custom_segs.append({"start": start_time,
                                         "end": end_time,
@@ -77,19 +78,19 @@ def buffer_sentences(segments):
                 start_time = None
             else:
                 # Standalone sentences
-                if USE_SPEAKER_DIARIZATION:
+                if use_speaker_diarization:
                     custom_segs.append({"start": segment_start_time,
                                         "end": segment_end_time,
                                         "text": sentence,
                                         "speaker": segment_speaker})
-                else:                   
+                else:
                     custom_segs.append({"start": segment_start_time,
                                         "end": segment_end_time,
                                         "text": sentence})
 
     # Add any remaining buffered sentence to the segments list.
     if sentence_buffer:
-        if USE_SPEAKER_DIARIZATION:
+        if use_speaker_diarization:
             custom_segs.append({"start": start_time,
                                 "end": end_time,
                                 "text": sentence_buffer.strip(),
@@ -125,12 +126,12 @@ def split_long_sentences(segments):
     """
     for segment in segments:
         sentence = segment["text"]
-        if USE_SPEAKER_DIARIZATION: segment_speaker = segment["speaker"]
+        if use_speaker_diarization: segment_speaker = segment["speaker"]
 
-        if len(sentence) <= MAX_SENTENCE_LENGTH:
+        if len(sentence) <= max_sentence_length:
             yield segment
         else:
-            split_index = sentence.find(",", MAX_SENTENCE_LENGTH)
+            split_index = sentence.find(",", max_sentence_length)
             if split_index == -1:
                 yield segment
             else:
@@ -139,7 +140,7 @@ def split_long_sentences(segments):
                 duration = segment["end"] - segment["start"]
                 split_time = (segment["start"]
                               + duration * len(sentence_part1) / len(sentence))
-                if USE_SPEAKER_DIARIZATION:
+                if use_speaker_diarization:
                     yield {"start": segment["start"],
                            "end": split_time,
                            "text": sentence_part1,
@@ -148,7 +149,7 @@ def split_long_sentences(segments):
                            "end": segment["end"],
                            "text": sentence_part2,
                            "speaker": segment_speaker}
-                else:                
+                else:
                     yield {"start": segment["start"],
                            "end": split_time,
                            "text": sentence_part1}
@@ -156,17 +157,26 @@ def split_long_sentences(segments):
                            "end": segment["end"],
                            "text": sentence_part2}
 
+
 def process_whisperx_word_segments(word_segments):
     """
-    Fills missing word timecodes by calculating the distance between last known end timecode 
-    and next occuring start timecode and splitting it into multiple timecodes of equal length
+    Fills missing word timecodes by calculating the distance between
+    last known end timecode and next occuring start timecode and
+    splitting it into multiple timecodes of equal length.
     """
-    nan_indices = [i for i, item in enumerate(word_segments) if 'start' not in item or 'end' not in item]
-    
+    nan_indices = [i for i, item in enumerate(word_segments)
+                   if 'start' not in item or 'end' not in item]
+
     for idx in nan_indices:
-        prev_known_end_idx = max([i for i in range(idx) if 'end' in word_segments[i]], default=-1)
-        next_known_start_idx = min([i for i in range(idx + 1, len(word_segments)) if 'start' in word_segments[i]], default=len(word_segments))
-        
+        prev_known_end_idx = max(
+            [i for i in range(idx) if 'end' in word_segments[i]],
+            default=-1
+        )
+        next_known_start_idx = min(
+            [i for i in range(idx + 1, len(word_segments)) if 'start' in word_segments[i]],
+            default=len(word_segments)
+        )
+
         if prev_known_end_idx == -1:
             prev_end_time = 0
         else:
@@ -175,16 +185,17 @@ def process_whisperx_word_segments(word_segments):
             next_start_time = prev_end_time + 1
         else:
             next_start_time = word_segments[next_known_start_idx]['start']
-            
+
         distance = next_start_time - prev_end_time
         gaps = next_known_start_idx - prev_known_end_idx - 1
-        increment = distance / (gaps * 2 + 1) 
-            
+        increment = distance / (gaps * 2 + 1)
+
         for i in range(1, gaps + 1):
             word_segments[prev_known_end_idx + i]['start'] = prev_end_time + increment * i
-            word_segments[prev_known_end_idx + i]['end'] = prev_end_time + increment * i * 2 
-                
+            word_segments[prev_known_end_idx + i]['end'] = prev_end_time + increment * i * 2
+
     return word_segments
+
 
 def process_whisperx_segments(segments):
     """

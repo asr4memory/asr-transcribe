@@ -40,7 +40,7 @@ def print_config():
     print("-" * 79)
 
 
-def whisper_config_html(blacklist = ["initial_prompt"]):
+def whisper_config_html(blacklist = ["initial_prompt", "hf_token"]):
     "Returns Whisper configuration as HTML."
     config = get_config()
 
