@@ -5,14 +5,10 @@ emails.
 """
 from datetime import datetime
 from pathlib import Path
-import sys
-import io
-
 from email_notifications import (send_success_email, send_failure_email,
                                  send_warning_email)
-from app_config import get_config, print_config
-from utilities import (should_be_processed, check_for_hallucination_warnings,
-                       log_to_console)
+from app_config import get_config, log_config
+from utilities import should_be_processed, check_for_hallucination_warnings
 from writers import write_output_files
 from stats import ProcessInfo
 from whisper_tools import (get_audio, transcribe, align, get_audio_length,
@@ -21,22 +17,7 @@ from post_processing import (process_whisperx_segments,
                              process_whisperx_word_segments)
 
 from app_config import get_config
-
-
-# The following lines are to capture the stdout/terminal output
-class Tee(io.StringIO):
-    "Writes to two streams simultanously."
-    def __init__(self, terminal):
-        self.terminal = terminal
-        super().__init__()
-
-    def write(self, message):
-        self.terminal.write(message)
-        super().write(message)
-
-original_stdout = sys.stdout
-stdout_buffer = Tee(original_stdout)
-sys.stdout = stdout_buffer
+from logger import logger, memoryHandler
 
 config = get_config()
 stats = []
@@ -63,7 +44,7 @@ def process_file(filepath: Path, output_directory: Path):
             process_info.filename,
             process_info.formatted_audio_length()
         )
-        log_to_console(start_message)
+        logger.info(start_message)
 
         transcription_result = transcribe(audio)
         result = align(audio=audio,
@@ -87,30 +68,30 @@ def process_file(filepath: Path, output_directory: Path):
         process_info.end = datetime.now()
         stats.append(process_info);
 
-        end_message = "Completed transcription of {0} after {1} \033[92m(rtf {2:.2f})\033[0m".format(
+        end_message = "Completed transcription of {0} after {1} (rtf {2:.2f})".format(
             process_info.filename,
             process_info.formatted_process_duration(),
             process_info.realtime_factor()
         )
-        log_to_console(end_message)
+        logger.info(end_message)
 
-        output = stdout_buffer.getvalue()
+        output = memoryHandler.stream.getvalue()
         warnings = check_for_hallucination_warnings(output)
 
         if warnings:
             warnings_str = ", ".join(warnings)
-            log_to_console(f"Possible hallucation(s) detected: {warnings_str}")
+            logger.warn(f"Possible hallucation(s) detected: {warnings_str}")
             warning_count += len(warnings)
             warning_audio_inputs.append(filename)
             send_warning_email(audio_input=filename, warnings=warnings)
 
         # Clear buffer after checking for warnings.
-        stdout_buffer.truncate(0)
-        stdout_buffer.seek(0)
+        memoryHandler.stream.truncate(0)
+        memoryHandler.stream.seek(0)
 
 
     except Exception as e:
-        log_to_console(f"The following error occured: {e}")
+        logger.error(e, exc_info=True)
         send_failure_email(stats=stats, audio_input=filename, exception=e)
 
 
@@ -124,11 +105,11 @@ def process_directory(input_directory: Path, output_directory: Path):
     filtered_paths.sort()
 
     if len(filtered_paths) == 0:
-        log_to_console("No files found.")
+        logger.info("No files found.")
     elif len(filtered_paths) == 1:
-        log_to_console("Processing 1 file...")
+        logger.info("Processing 1 file...")
     else:
-        log_to_console(f"Processing {len(filtered_paths)} files...")
+        logger.info(f"Processing {len(filtered_paths)} files...")
 
     for filepath in filtered_paths:
         process_file(filepath, output_directory)
@@ -136,9 +117,6 @@ def process_directory(input_directory: Path, output_directory: Path):
     send_success_email(stats=stats,
                        warning_count=warning_count,
                        warning_audio_inputs=warning_audio_inputs)
-
-    log_to_console("Workflow finished.")
-    sys.stdout = original_stdout
 
 
 if __name__ == "__main__":
@@ -151,5 +129,5 @@ if __name__ == "__main__":
     if not output_directory.exists():
         raise FileNotFoundError(f"Output directory does not exist: {output_directory}")
 
-    print_config()
+    log_config()
     process_directory(input_directory, output_directory)

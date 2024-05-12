@@ -8,7 +8,7 @@ from datetime import datetime
 import socket, getpass
 
 from app_config import get_config, whisper_config_html
-from utilities import log_to_console
+from logger import logger
 
 computer_host_name = socket.gethostname()
 computer_host_ip = socket.gethostbyname(computer_host_name)
@@ -28,14 +28,14 @@ def send_email(subject, body, type):
     password = config['email'].get('password', None)
 
     if not email_notifications:
-        print(body)
         return
 
     server = smtplib.SMTP(host, port)
     server.starttls()
     if username and password: server.login(username, password)
 
-    log_to_console(f"Sending {type} email to {', '.join(to_addrs)}")
+
+    logger.info(f"Sending {type} email to {', '.join(to_addrs)}")
     message = MIMEMultipart('alternative')
     message['From'] = from_addr
     message['To'] = ', '.join(to_addrs)

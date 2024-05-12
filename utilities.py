@@ -3,7 +3,6 @@ Utilities and helper functions for the main ASR script.
 """
 import re
 from pathlib import Path
-from datetime import datetime
 
 def should_be_processed(filepath: Path):
     "Checks whether the file should be processed. File has which type?"
@@ -46,9 +45,3 @@ def check_for_hallucination_warnings(text: str) -> list:
         return list(match.groups())
     else:
         return None
-
-
-def log_to_console(message: str):
-    formatted_time = datetime.now().isoformat(sep=" ", timespec="seconds")
-    log_message = f"\033[94m{formatted_time}\033[0m {message}"
-    print(log_message)

@@ -4,6 +4,7 @@ Application configuration.
 from pathlib import Path
 import toml
 
+from logger import logger
 from default_config import CONST_DEFAULT_CONFIG
 
 combined_config = {}
@@ -26,21 +27,17 @@ def get_config() -> dict:
     return combined_config
 
 
-def print_config():
-    "Prints configuration on the console."
+def log_config(blacklist=["hf_token"]):
+    "Logs configuration items."
     config = get_config()
+    config_items = config['system'] | config['whisper']
 
-    print("\033[1m" + "System configuration:" + "\033[0m")
-    for key, value in config["system"].items():
-        print(f"{key.capitalize()}: {value}")
-
-    print("\033[1m" + "Whisper configuration:" + "\033[0m")
-    for key, value in config["whisper"].items():
-        print(f"{key.capitalize()}: {value}")
-    print("-" * 79)
+    for key, value in config_items.items():
+        if key in blacklist: continue
+        logger.debug(f"Config: {key} -> {value}")
 
 
-def whisper_config_html(blacklist = ["initial_prompt", "hf_token"]):
+def whisper_config_html(blacklist=["initial_prompt", "hf_token"]):
     "Returns Whisper configuration as HTML."
     config = get_config()
 
