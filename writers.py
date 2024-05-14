@@ -15,7 +15,9 @@ config = get_config()
 USE_SPEAKER_DIARIZATION = config['whisper'].get('use_speaker_diarization', False)
 
 def format_timestamp(time_in_seconds):
-    """ Convert seconds to hh:mm:ss.ms format and use decimal for precise arithmetic"""
+    """ 
+    Convert seconds to hh:mm:ss.ms format and use decimal for precise arithmetic 
+    """
     time_in_seconds = Decimal(time_in_seconds)
     hours = time_in_seconds // 3600
     remainder = time_in_seconds % 3600
