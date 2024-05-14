@@ -8,10 +8,22 @@ from pathlib import Path
 from xhtml2pdf import pisa
 from mako.template import Template
 from app_config import get_config
+from decimal import Decimal
 
 config = get_config()
 
 USE_SPEAKER_DIARIZATION = config['whisper'].get('use_speaker_diarization', False)
+
+def format_timestamp(time_in_seconds):
+    """ Convert seconds to hh:mm:ss.ms format and use decimal for precise arithmetic"""
+    time_in_seconds = Decimal(time_in_seconds)
+    hours = time_in_seconds // 3600
+    remainder = time_in_seconds % 3600
+    minutes = remainder // 60
+    seconds = remainder % 60
+    milliseconds = (seconds - int(seconds)) * 1000
+
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{int(milliseconds):03}"
 
 def write_vtt_file(filepath: Path, custom_segs):
     """
@@ -22,8 +34,8 @@ def write_vtt_file(filepath: Path, custom_segs):
     with open(filepath, "w", encoding="utf-8") as vtt_file:
         vtt_file.write("WEBVTT\n\n")
         for i, seg in enumerate(custom_segs):
-            start_time = datetime.utcfromtimestamp(seg["start"]).strftime('%H:%M:%S.%f')[:-3]
-            end_time = datetime.utcfromtimestamp(seg["end"]).strftime('%H:%M:%S.%f')[:-3]
+            start_time = format_timestamp(seg["start"])
+            end_time = format_timestamp(seg["end"])
             vtt_file.write(f"{i + 1}\n")
             vtt_file.write(f"{start_time} --> {end_time}\n")
             vtt_file.write(f"{seg['text']}\n\n")
@@ -58,9 +70,7 @@ def write_csv_file(filepath, custom_segs, delimiter="\t",
         if write_header: writer.writeheader()
 
         for seg in custom_segs:
-            timecode = "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600),
-                                                    int((seg['start'] % 3600) // 60),
-                                                    seg['start'] % 60)
+            timecode = format_timestamp(seg['start'])
             text = seg['text']
             if USE_SPEAKER_DIARIZATION == True and speaker_column == True:
                 speaker = seg['speaker']
@@ -79,7 +89,7 @@ def write_json_file(filepath: Path, data):
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
-def write_csv_word_segments_file(filepath, word_segments, delimiter="\t"):
+def write_csv_word_segments_file(filepath: Path, word_segments, delimiter="\t"):
     """
     Write the processed word segments to a CSV file.
     """
@@ -90,17 +100,26 @@ def write_csv_word_segments_file(filepath, word_segments, delimiter="\t"):
         writer.writeheader()
 
         for word_seg in word_segments:
-            timecode_start = "{:02}:{:02}:{:06.3f}".format(int(word_seg['start'] // 3600),
-                                                    int((word_seg['start'] % 3600) // 60),
-                                                    word_seg['start'] % 60)
-            timecode_end = "{:02}:{:02}:{:06.3f}".format(int(word_seg['end'] // 3600),
-                                                    int((word_seg['end'] % 3600) // 60),
-                                                    word_seg['end'] % 60)
+            timecode_start = format_timestamp(word_seg['start'])
+            timecode_end = format_timestamp(word_seg['end'])
             word = word_seg['word']
             score = word_seg.get('score', 'values approximately calculated')
             row = {'WORD': word, 'START': timecode_start, 'END': timecode_end, 'SCORE': score}
             writer.writerow(row)
 
+def write_vtt_word_segments_file(filepath: Path, word_segments):
+    """ 
+    Convert processed word segments to VTT format
+    """
+    with open(filepath, "w", encoding="utf-8") as vtt_file:
+        vtt_file.write("WEBVTT\n\n")
+        for i, word_seg in enumerate(word_segments):
+            timecode_start = format_timestamp(word_seg['start'])
+            timecode_end = format_timestamp(word_seg['end'])
+            word = word_seg['word']
+            vtt_file.write(f"{i + 1}\n")
+            vtt_file.write(f"{timecode_start} --> {timecode_end}\n")
+            vtt_file.write(f"{word}\n\n")
 
 def write_pdf_file(filepath: Path, segments: list):
     "Write a PDF file with the transcript text."
@@ -132,4 +151,6 @@ def write_output_files(base_path: Path, segments: list, word_segments: list):
     write_csv_word_segments_file(base_path.with_name(base_path.name + "_word_segments.csv"),
                     word_segments,
                     delimiter="\t")
+    write_vtt_word_segments_file(base_path.with_name(base_path.name + "_word_segments.vtt"),
+                    word_segments)
     write_pdf_file(base_path.with_suffix('.pdf'), segments)
