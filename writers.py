@@ -131,7 +131,7 @@ def write_pdf_file(filepath: Path, segments: list):
         pisa.CreatePDF(html_content, dest=pdf_file)
 
 
-def write_output_files(base_path: Path, segments: list, word_segments: list):
+def write_output_files(base_path: Path, all: list, segments: list, word_segments: list):
     "Write all types of output files."
     write_vtt_file(base_path.with_suffix('.vtt'), segments)
     write_text_file(base_path.with_suffix('.txt'), segments)
@@ -148,6 +148,7 @@ def write_output_files(base_path: Path, segments: list, word_segments: list):
                     write_header=True,
                     USE_SPEAKER_DIARIZATION=USE_SPEAKER_DIARIZATION)
     write_json_file(base_path.with_suffix('.json'), segments)
+    write_json_file(base_path.with_name(base_path.name + "_unprocessed.json"), all)
     write_csv_word_segments_file(base_path.with_name(base_path.name + "_word_segments.csv"),
                     word_segments,
                     delimiter="\t")

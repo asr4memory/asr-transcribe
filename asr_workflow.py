@@ -62,6 +62,7 @@ def process_file(filepath: Path, output_directory: Path):
         output_base_path = output_directory / new_filename
 
         write_output_files(base_path=output_base_path,
+                           all=result,
                            segments=custom_segs,
                            word_segments=word_segments_filled)
 
