@@ -5,23 +5,17 @@ Customized segments have a different structure than input (whisperx) segments.
 import re
 from app_config import get_config
 
-config = get_config()
-
 # Define set of titles and abbreviations that should not be treated as
 # sentence endings.
-titles = {"Dr", "Prof", "Mr", "Mrs", "Ms", "Hr", "Fr", "usw", "bzw", "resp",
+TITLES = {"Dr", "Prof", "Mr", "Mrs", "Ms", "Hr", "Fr", "usw", "bzw", "resp",
           "i.e", "e.g", "ca", "M. A", "M. Sc", "M. Eng", "B. A", "B. Sc"}
 
 # Compile patterns to identify titles, dates and segments without sentence-
 # ending punctuation in transcribed text.
-ENDS_WITH_TITLE = re.compile(r'\b(' + '|'.join(titles) + r')[\.,:;!\?]*$',
+ENDS_WITH_TITLE = re.compile(r'\b(' + '|'.join(TITLES) + r')[\.,:;!\?]*$',
                              re.IGNORECASE)
 ENDS_WITH_NUMBER = re.compile(r'\b([1-9]|[12]\d|3[01])([.])$')
 ENDS_WITHOUT_PUNCTUATION = re.compile(r'[^\.\?!]$')
-
-max_sentence_length = config['whisper']['max_sentence_length']
-use_speaker_diarization = config['whisper']['use_speaker_diarization']
-
 
 def sentence_is_incomplete(sentence: str):
     """
@@ -37,7 +31,7 @@ def sentence_is_complete(sentence: str):
     return not sentence_is_incomplete(sentence)
 
 
-def buffer_sentences(segments):
+def buffer_sentences(segments, use_speaker_diarization=False):
     """
     Join sentences that have been falsely split (e.g. after academic titles,
     numbers).
@@ -114,7 +108,8 @@ def uppercase_sentences(custom_segs):
                                       custom_segs[i]["text"][1:])
 
 
-def split_long_sentences(segments):
+def split_long_sentences(segments, use_speaker_diarization=False,
+                         max_sentence_length=120):
     """
     Splits a long segment into two if it has a comma.
     If a segment text is longer than 120 characters, and has a comma
@@ -203,9 +198,17 @@ def process_whisperx_segments(segments):
     Joins sentence parts that have been falsely split.
     Then splits sentences that are too long.
     """
+    config = get_config()
+    max_sentence_length = config['whisper']['max_sentence_length']
+    use_speaker_diarization = config['whisper']['use_speaker_diarization']
 
-    result = buffer_sentences(segments)
+    result = buffer_sentences(segments,
+                              use_speaker_diarization=use_speaker_diarization)
     uppercase_sentences(result)
-    result = list(split_long_sentences(result))
+    result = list(split_long_sentences(
+        result,
+        use_speaker_diarization=use_speaker_diarization,
+        max_sentence_length=max_sentence_length)
+    )
 
     return result
