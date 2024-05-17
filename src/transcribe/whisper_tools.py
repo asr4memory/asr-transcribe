@@ -1,6 +1,6 @@
 import whisperx, torch
-from app_config import get_config
-from datetime import timedelta
+
+from .app_config import get_config
 
 config = get_config()
 

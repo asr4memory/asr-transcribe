@@ -1,4 +1,4 @@
-from utilities import format_duration
+from .utilities import format_duration
 
 class ProcessInfo:
     """

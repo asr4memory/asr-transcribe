@@ -7,8 +7,8 @@ from email.mime.text import MIMEText
 from datetime import datetime
 import socket, getpass
 
-from app_config import get_config, whisper_config_html
-from logger import logger
+from .app_config import get_config, whisper_config_html
+from .logger import logger
 
 computer_host_name = socket.gethostname()
 computer_host_ip = socket.gethostbyname(computer_host_name)

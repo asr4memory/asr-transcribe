@@ -3,20 +3,20 @@ Exporter functions.
 """
 import csv
 import json
-from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from xhtml2pdf import pisa
 from mako.template import Template
-from app_config import get_config
-from decimal import Decimal
+
+from .app_config import get_config
 
 config = get_config()
 
 USE_SPEAKER_DIARIZATION = config['whisper'].get('use_speaker_diarization', False)
 
 def format_timestamp(time_in_seconds):
-    """ 
-    Convert seconds to hh:mm:ss.ms format and use decimal for precise arithmetic 
+    """
+    Convert seconds to hh:mm:ss.ms format and use decimal for precise arithmetic
     """
     time_in_seconds = Decimal(time_in_seconds)
     hours = time_in_seconds // 3600
@@ -110,7 +110,7 @@ def write_csv_word_segments_file(filepath: Path, word_segments, delimiter="\t"):
             writer.writerow(row)
 
 def write_vtt_word_segments_file(filepath: Path, word_segments):
-    """ 
+    """
     Convert processed word segments to VTT format
     """
     with open(filepath, "w", encoding="utf-8") as vtt_file:

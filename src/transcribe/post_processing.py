@@ -3,7 +3,7 @@ Custom post-processing of whisperx segments.
 Customized segments have a different structure than input (whisperx) segments.
 """
 import re
-from app_config import get_config
+from .app_config import get_config
 
 # Define set of titles and abbreviations that should not be treated as
 # sentence endings.
