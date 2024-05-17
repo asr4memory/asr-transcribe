@@ -4,3 +4,4 @@ __pycache__
 asr-tools_venv/
 .DS_Store
 *.log
+/.idea

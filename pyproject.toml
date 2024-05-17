@@ -6,7 +6,9 @@ build-backend = "flit_core.buildapi"
 name = "transcribe"
 license = {file = "LICENSE"}
 authors = [
-    {name = "Marc Altmann", email = "marc.altmann@cedis.fu-berlin.de"},
+    {name = "Marc Altmann", email = "m.altmann@fu-berlin.de"},
+    {name = "Tobias Kilgus", email = "tobias.kilgus@fu-berlin.de"},
+    {name = "Peter Kompiel", email = "peter.kompiel@fu-berlin.de"},
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

@@ -10,13 +10,10 @@ from mako.template import Template
 
 from .app_config import get_config
 
-config = get_config()
-
-USE_SPEAKER_DIARIZATION = config['whisper'].get('use_speaker_diarization', False)
 
 def format_timestamp(time_in_seconds):
     """
-    Convert seconds to hh:mm:ss.ms format and use decimal for precise arithmetic
+    Convert seconds to hh:mm:ss.ms format and use decimal for precise arithmetic.
     """
     time_in_seconds = Decimal(time_in_seconds)
     hours = time_in_seconds // 3600
@@ -26,6 +23,7 @@ def format_timestamp(time_in_seconds):
     milliseconds = (seconds - int(seconds)) * 1000
 
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{int(milliseconds):03}"
+
 
 def write_vtt_file(filepath: Path, custom_segs):
     """
@@ -55,7 +53,7 @@ def write_text_file(filepath: Path, custom_segs):
 
 
 def write_csv_file(filepath, custom_segs, delimiter="\t",
-                   speaker_column=False, write_header=False, USE_SPEAKER_DIARIZATION=False):
+                   speaker_column=False, write_header=False, use_speaker_diarization=False):
     """
     Write the processed segments to a CSV file.
     This file will contain the start timestamps of each segment in the
@@ -74,13 +72,13 @@ def write_csv_file(filepath, custom_segs, delimiter="\t",
         for seg in custom_segs:
             timecode = format_timestamp(seg['start'])
             text = seg['text']
-            if USE_SPEAKER_DIARIZATION == True and speaker_column == True:
+            if use_speaker_diarization is True and speaker_column is True:
                 speaker = seg['speaker']
                 row = {'IN': timecode, 'SPEAKER': speaker, 'TRANSCRIPT': text}
-            elif USE_SPEAKER_DIARIZATION == False and speaker_column == False:
+            elif use_speaker_diarization is False and speaker_column is False:
                 row = {'IN': timecode, 'TRANSCRIPT': text}
-            # Leave the "SPEAKER" column empty if USE_SPEAKER_DIARIZATION option is false
-            elif USE_SPEAKER_DIARIZATION == False and speaker_column == True:
+            # Leave the "SPEAKER" column empty if use_speaker_diarization option is false
+            elif use_speaker_diarization is False and speaker_column is True:
                 row = {'IN': timecode, 'SPEAKER': '', 'TRANSCRIPT': text}
             writer.writerow(row)
 
@@ -109,6 +107,7 @@ def write_csv_word_segments_file(filepath: Path, word_segments, delimiter="\t"):
             row = {'WORD': word, 'START': timecode_start, 'END': timecode_end, 'SCORE': score}
             writer.writerow(row)
 
+
 def write_vtt_word_segments_file(filepath: Path, word_segments):
     """
     Convert processed word segments to VTT format
@@ -134,26 +133,28 @@ def write_pdf_file(filepath: Path, segments: list):
 
 
 def write_output_files(base_path: Path, all: list, segments: list, word_segments: list):
-    "Write all types of output files."
+    """Write all types of output files."""
+    config = get_config()
+
+    use_speaker_diarization = config['whisper'].get('use_speaker_diarization', False)
+
     write_vtt_file(base_path.with_suffix('.vtt'), segments)
     write_text_file(base_path.with_suffix('.txt'), segments)
     write_csv_file(base_path.with_suffix('.csv'),
-                    segments,
-                    delimiter="\t",  # Use tab as delimiter
-                    speaker_column=False,
-                    write_header=False,
-                    USE_SPEAKER_DIARIZATION=False)
+                   segments,
+                   delimiter="\t",  # Use tab as delimiter
+                   speaker_column=False,
+                   write_header=False,
+                   use_speaker_diarization=False)
     write_csv_file(base_path.with_name(base_path.name + "_speaker.csv"),
-                    segments,
-                    delimiter="\t", # Use tab as delimiter
-                    speaker_column=True,
-                    write_header=True,
-                    USE_SPEAKER_DIARIZATION=USE_SPEAKER_DIARIZATION)
+                   segments,
+                   delimiter="\t",  # Use tab as delimiter
+                   speaker_column=True,
+                   write_header=True,
+                   use_speaker_diarization=use_speaker_diarization)
     write_json_file(base_path.with_suffix('.json'), segments)
     write_json_file(base_path.with_name(base_path.name + "_unprocessed.json"), all)
-    write_csv_word_segments_file(base_path.with_name(base_path.name + "_word_segments.csv"),
-                    word_segments,
-                    delimiter="\t")
-    write_vtt_word_segments_file(base_path.with_name(base_path.name + "_word_segments.vtt"),
-                    word_segments)
+    write_csv_word_segments_file(base_path.with_name(base_path.name + "_word_segments.csv"), word_segments,
+                                 delimiter="\t")
+    write_vtt_word_segments_file(base_path.with_name(base_path.name + "_word_segments.vtt"), word_segments)
     write_pdf_file(base_path.with_suffix('.pdf'), segments)
