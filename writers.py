@@ -8,24 +8,11 @@ from pathlib import Path
 from xhtml2pdf import pisa
 from mako.template import Template
 from app_config import get_config
-from decimal import Decimal
+from utilities import format_timestamp
 
 config = get_config()
 
 USE_SPEAKER_DIARIZATION = config['whisper'].get('use_speaker_diarization', False)
-
-def format_timestamp(time_in_seconds):
-    """ 
-    Convert seconds to hh:mm:ss.ms format and use decimal for precise arithmetic 
-    """
-    time_in_seconds = Decimal(time_in_seconds)
-    hours = time_in_seconds // 3600
-    remainder = time_in_seconds % 3600
-    minutes = remainder // 60
-    seconds = remainder % 60
-    milliseconds = (seconds - int(seconds)) * 1000
-
-    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{int(milliseconds):03}"
 
 def write_vtt_file(filepath: Path, custom_segs):
     """
@@ -36,8 +23,8 @@ def write_vtt_file(filepath: Path, custom_segs):
     with open(filepath, "w", encoding="utf-8") as vtt_file:
         vtt_file.write("WEBVTT\n\n")
         for i, seg in enumerate(custom_segs):
-            start_time = format_timestamp(seg["start"])
-            end_time = format_timestamp(seg["end"])
+            _, start_time = format_timestamp(seg["start"])
+            _, end_time = format_timestamp(seg["end"])
             vtt_file.write(f"{i + 1}\n")
             vtt_file.write(f"{start_time} --> {end_time}\n")
             vtt_file.write(f"{seg['text']}\n\n")
@@ -72,7 +59,7 @@ def write_csv_file(filepath, custom_segs, delimiter="\t",
         if write_header: writer.writeheader()
 
         for seg in custom_segs:
-            timecode = format_timestamp(seg['start'])
+            _, timecode = format_timestamp(seg['start'])
             text = seg['text']
             if USE_SPEAKER_DIARIZATION == True and speaker_column == True:
                 speaker = seg['speaker']
@@ -102,8 +89,8 @@ def write_csv_word_segments_file(filepath: Path, word_segments, delimiter="\t"):
         writer.writeheader()
 
         for word_seg in word_segments:
-            timecode_start = format_timestamp(word_seg['start'])
-            timecode_end = format_timestamp(word_seg['end'])
+            _, timecode_start = format_timestamp(word_seg['start'])
+            _, timecode_end = format_timestamp(word_seg['end'])
             word = word_seg['word']
             score = word_seg.get('score', 'values approximately calculated')
             row = {'WORD': word, 'START': timecode_start, 'END': timecode_end, 'SCORE': score}
@@ -116,8 +103,8 @@ def write_vtt_word_segments_file(filepath: Path, word_segments):
     with open(filepath, "w", encoding="utf-8") as vtt_file:
         vtt_file.write("WEBVTT\n\n")
         for i, word_seg in enumerate(word_segments):
-            timecode_start = format_timestamp(word_seg['start'])
-            timecode_end = format_timestamp(word_seg['end'])
+            _, timecode_start = format_timestamp(word_seg['start'])
+            _, timecode_end = format_timestamp(word_seg['end'])
             word = word_seg['word']
             vtt_file.write(f"{i + 1}\n")
             vtt_file.write(f"{timecode_start} --> {timecode_end}\n")

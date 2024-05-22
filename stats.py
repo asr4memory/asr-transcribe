@@ -1,4 +1,4 @@
-from utilities import format_duration
+from utilities import format_timestamp
 
 class ProcessInfo:
     """
@@ -15,13 +15,13 @@ class ProcessInfo:
     def formatted_process_duration(self):
         "Returns formatted process duration."
         seconds = self.process_duration()
-        formatted_time = format_duration(seconds)
+        formatted_time, _ = format_timestamp(seconds)
         formatted_seconds = "{:.1f}s".format(seconds)
         return f"{formatted_time} ({formatted_seconds})"
 
     def formatted_audio_length(self):
         "Returns formatted length of audio file."
-        formatted_time = format_duration(self.audio_length)
+        formatted_time, _ = format_timestamp(self.audio_length)
         formatted_seconds = "{:.1f}s".format(self.audio_length)
         return f"{formatted_time} ({formatted_seconds})"
 

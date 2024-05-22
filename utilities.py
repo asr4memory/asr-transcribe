@@ -3,6 +3,7 @@ Utilities and helper functions for the main ASR script.
 """
 import re
 from pathlib import Path
+from decimal import Decimal
 
 def should_be_processed(filepath: Path):
     "Checks whether the file should be processed. File has which type?"
@@ -19,18 +20,21 @@ def should_be_processed(filepath: Path):
         return True
 
 
-def format_duration(seconds):
+def format_timestamp(seconds):
+    """ 
+    Convert seconds to hh:mm:ss and hh:mm:ss.ms format and use decimal for precise arithmetic 
     """
-    Format time duration.
+    time_in_seconds = Decimal(seconds)
+    hours = time_in_seconds // 3600
+    remainder = time_in_seconds % 3600
+    minutes = remainder // 60
+    seconds = remainder % 60
+    milliseconds = (seconds - int(seconds)) * 1000
 
-    """
-    hours = seconds // 3600
-    minutes = (seconds % 3600) // 60
-    remaining_seconds = seconds % 60
-
-    formatted_time = "{}h{:02}m{:02}s".format(int(hours), int(minutes),
-                                              int(remaining_seconds))
-    return formatted_time
+    formatted_time = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+    formatted_time_ms = f"{formatted_time}.{int(milliseconds):03}"
+    
+    return formatted_time, formatted_time_ms
 
 
 def check_for_hallucination_warnings(text: str) -> list:
