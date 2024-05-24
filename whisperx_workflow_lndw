@@ -28,7 +28,7 @@ import wave
 from transformers import MarianMTModel, MarianTokenizer
 
 # Import audio optimizer libraries
-from audio_optimizer import check_audiotrack
+#from audio_optimizer import check_audiotrack
 
 # Import libraries to send emails
 import smtplib
@@ -69,7 +69,7 @@ number_threads = 5 # the value 5 is default and recommended concerning the accur
 model_name = "large-v2"
 #device = "cpu"
 #device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-device = "mps" if torch.mps.is_available() else "cpu"
+device = "cpu"
 #print("Using device:", device)
 batch_size = 28 # The value 28 is the optimal batch size for CPU on Mac Studio 2022 Apple M1 Max 10 CPU 64 GB RAM
 beam_size = 4 # The value 5 is default and recommended concerning the accuracy of the model. 
@@ -87,9 +87,9 @@ num_pattern = re.compile(r'\b([1-9]|[12]\d|3[01])([.])$')
 non_punct_pattern = re.compile(r'[^\.\?!]$')
 
 # Define input und output folders
-input_path = '/_input/'
+input_path = '/Users/tkilgus/Documents/Whisper_Test_Files/_input/'
 input_directory = os.listdir(path=input_path)
-output_directory = os.path.dirname('/_output/')
+output_directory = os.path.dirname('/Users/tkilgus/Documents/Whisper_Test_Files/_output/')
 filename_suffix = "_" + language_audio # Filename suffix corresponds to the variable "language_audio" above.
 #filename_suffix = "_de" # Optional: Add a filename suffix to the output files, e.g. "_beam5_threads5_batch28_noinitialprompt" 
 
@@ -181,14 +181,15 @@ try:
             if audio_input.startswith("."):
                 continue
             
-            # Check if the file contains an audio track:
             full_audio_path = os.path.join(root, audio_input)
             #print(full_audio_path)
-            if check_audiotrack(full_audio_path):
-                print("The file contains an audio track.")
-            else:
-                print("The file does not contain an audio track.")
-                sys.exit('==> The script is aborted because the input file does not contain an audio track: ' + str(audio_input)) # If a video does not contain an audio track, the script is aborted.
+
+            # Check if the file contains an audio track:
+            #if check_audiotrack(full_audio_path):
+            #    print("The file contains an audio track.")
+            #else:
+            #    print("The file does not contain an audio track.")
+            #    sys.exit('==> The script is aborted because the input file does not contain an audio track: ' + str(audio_input)) # If a video does not contain an audio track, the script is aborted.
 
             # Create the extended audio file by concatenating the input file four times
             extended_audio_file = os.path.join(output_directory, f"extended_{audio_input}")
@@ -387,7 +388,8 @@ try:
             #    email_body += "<b>Current User's Username:</b> " + current_username + "<br>"
 
             #    send_warningEmail()
-
+finally: 
+    print('==> The Whisper workflow is completed. <==')
 
     #Success Email Content:
     #email_recepients = ["user@mail.de"]
@@ -431,9 +433,6 @@ try:
     
 #    send_failureEmail()
 
-
-# Print the final message that workflow is finished:
-print('====> Overall workflow is finished. <====')
 
 ############################################################################################################
 # Start of the translation part
@@ -581,8 +580,8 @@ def create_combined_vtt(input_dir, output_dir, processed_files):
     print(f"Die kombinierte Datei wurde gespeichert unter: {combined_output_file}")
 
 # Pfade zum Eingabe- und Ausgabeverzeichnis
-input_dir = '/_output/'
-output_dir = '/_output/'
+input_dir = '/Users/tkilgus/Documents/Whisper_Test_Files/_output/'
+output_dir = '/Users/tkilgus/Documents/Whisper_Test_Files/_output/'
 num_beams = 2
 
 # Liste der Übersetzungsfunktionen und der entsprechenden Sprachcodes
@@ -594,3 +593,6 @@ processed_files = process_vtt_file(input_dir, output_dir, translate_funcs, lang_
 
 # Erstelle die kombinierte VTT-Datei mit fortlaufenden Segmentnummern
 create_combined_vtt(input_dir, output_dir, processed_files)
+
+# Print the final message that workflow is finished:
+print('====> Overall workflow is finished. <====')
