@@ -19,7 +19,6 @@ import re
 import os
 import subprocess
 import torch
-#import csv
 
 # Import translation libraries
 import os
@@ -27,16 +26,11 @@ import glob
 import wave
 from transformers import MarianMTModel, MarianTokenizer
 
-# Import audio optimizer libraries
-#from audio_optimizer import check_audiotrack
+# Import llm library
+from mlx_lm import load, generate
 
-# Import libraries to send emails
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import socket
-import getpass
-
+# Import text-to-speech library
+from TTS.api import TTS
 
 # The following lines are to capture the stdout/terminal output
 import sys
@@ -66,9 +60,7 @@ sys.stderr = stdout_buffer
 number_threads = 5 # the value 5 is default and recommended concerning the accuracy of the model. 
 
 # Define parameters for WhisperX model
-model_name = "large-v2"
-#device = "cpu"
-#device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+model_name = "large-v3"
 device = "cpu"
 #print("Using device:", device)
 batch_size = 28 # The value 28 is the optimal batch size for CPU on Mac Studio 2022 Apple M1 Max 10 CPU 64 GB RAM
@@ -87,73 +79,11 @@ num_pattern = re.compile(r'\b([1-9]|[12]\d|3[01])([.])$')
 non_punct_pattern = re.compile(r'[^\.\?!]$')
 
 # Define input und output folders
-input_path = '/Users/tkilgus/Documents/Whisper_Test_Files/_input/'
+input_path = '/Users/peterkompiel/python_scripts/asr4memory/processing_files/lndw-pipeline/_input/'
 input_directory = os.listdir(path=input_path)
-output_directory = os.path.dirname('/Users/tkilgus/Documents/Whisper_Test_Files/_output/')
+output_directory = os.path.dirname('/Users/peterkompiel/python_scripts/asr4memory/processing_files/lndw-pipeline/_output/')
 filename_suffix = "_" + language_audio # Filename suffix corresponds to the variable "language_audio" above.
 #filename_suffix = "_de" # Optional: Add a filename suffix to the output files, e.g. "_beam5_threads5_batch28_noinitialprompt" 
-
-# Computer Host Name:
-#computer_host_name = socket.gethostname()
-#computer_host_ip = socket.gethostbyname(computer_host_name)
-
-# Current User's Username:
-#current_username = getpass.getuser()
-
-#Email Account
-#email_sender_account = "user@mail.de"
-#email_smtp_server = "mail.institute.de"
-#email_smtp_port = 25 
-
-'''
-def send_failureEmail():
-    #login to email server:
-    server = smtplib.SMTP(email_smtp_server,email_smtp_port)
-    server.starttls()
-    #server.login(email_sender_username, email_sender_password) # For loop, sending emails to all email recipients
-    for recipient in email_recepients:
-        print(f"==> Sending Failure Email to {recipient}")
-        message = MIMEMultipart('alternative')
-        message['From'] = email_sender_account
-        message['To'] = recipient
-        message['Subject'] = email_subject
-        message.attach(MIMEText(email_body, 'html'))
-        text = message.as_string()
-        server.sendmail(email_sender_account,recipient,text) # All emails sent, log out.
-    server.quit()
-
-def send_warningEmail():
-    #login to email server:
-    server = smtplib.SMTP(email_smtp_server,email_smtp_port)
-    server.starttls()
-    #server.login(email_sender_username, email_sender_password) # For loop, sending emails to all email recipients
-    for recipient in email_recepients:
-        print(f"==> Sending Warning Email to {recipient}")
-        message = MIMEMultipart('alternative')
-        message['From'] = email_sender_account
-        message['To'] = recipient
-        message['Subject'] = email_subject
-        message.attach(MIMEText(email_body, 'html'))
-        text = message.as_string()
-        server.sendmail(email_sender_account,recipient,text) # All emails sent, log out.
-    server.quit()
-
-def send_successEmail():
-    #login to email server:
-    server = smtplib.SMTP(email_smtp_server,email_smtp_port)
-    server.starttls()
-    #server.login(email_sender_username, email_sender_password) # For loop, sending emails to all email recipients
-    for recipient in email_recepients:
-        print(f"==> Sending Success Email to {recipient}")
-        message = MIMEMultipart('alternative')
-        message['From'] = email_sender_account
-        message['To'] = recipient
-        message['Subject'] = email_subject
-        message.attach(MIMEText(email_body, 'html'))
-        text = message.as_string()
-        server.sendmail(email_sender_account,recipient,text) # All emails sent, log out.
-    server.quit()
-'''
 
 input_file_list = []
 workflowduration_list = []
@@ -311,33 +241,10 @@ try:
 
             # Write the processed segments to a .txt file
             # This file will contain only the transcribed text of each segment
-            #with open(output_file + '.txt', "w", encoding='utf-8') as txt_file:
-            #    for seg in custom_segs:
-            #        if "sentence" in seg:
-            #            txt_file.write(f"{seg['sentence']}\n")
-
-            # Write the processed segments to a .csv file
-            # This file will contain the start timestamps of each segment in the first column and the transcribed text of each segment in the second column
-            #with open(output_file + '.csv', 'w', newline='') as csvfile:
-            #    fieldnames = ['start', 'sentence']
-            #    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            #    #writer.writeheader() # Uncomment this line if you want to include the header in the .csv file
-            #    for seg in custom_segs:
-            #        writer.writerow({'start': "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600), int((seg['start'] % 3600) // 60), seg['start'] % 60), 'sentence': seg['sentence']})
-
-            # Write the processed segments to a tab-separated .csv file
-            # This file will contain the start timestamps of each segment in the first column, an empty "SPEAKER" column, and the transcribed text of each segment in the third column
-            #with open(output_file + '.csv', 'w', newline='', encoding='utf-8') as csvfile:
-            #    fieldnames = ['IN', 'SPEAKER', 'TRANSCRIPT']
-            #    # Set the delimiter to a tab character
-            #    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter='\t')
-            #    writer.writeheader()  # Include the header in the .csv file
-            #    for seg in custom_segs:
-            #        writer.writerow({
-            #            'IN': "{:02}:{:02}:{:06.3f}".format(int(seg['start'] // 3600), int((seg['start'] % 3600) // 60), seg['start'] % 60), 
-            #            'SPEAKER': '',  # Leave the "SPEAKER" column empty
-            #            'TRANSCRIPT': seg['sentence']
-            #        })
+            with open(output_file + '.txt', "w", encoding='utf-8') as txt_file:
+                for seg in custom_segs:
+                    if "sentence" in seg:
+                        txt_file.write(f"{seg['sentence']}\n")
 
             # These lines print the time of the workflow end:
             workflowendtime = datetime.now()
@@ -358,80 +265,8 @@ try:
             print("==> Whisper real time factor - the ratio of workflow duration compared to audio duration:", real_time_factor)
             real_time_factor_list.append(str(real_time_factor))
 
-            # The following lines send email warnings of the output of the stdout/terminal output: 
-            # Get the output from the buffer
-            #output = stdout_buffer.getvalue()
-
-            # Restore the original stdout and stderr
-            #sys.stdout = original_stdout
-            #sys.stderr = original_stderr
-
-            # Check the output for the specific message
-            #warning_word = "failed" # Goal is to find the message "failed to align segment" in the stdout/terminal output to identify AI hallucinations.
-            #for match in re.finditer(rf"({warning_word})", output.lower()):
-            #    line_start = output.rfind('\n', 0, match.start()) + 1
-            #    line_end = output.find('\n', match.end())
-            #    line = output[line_start:line_end]
-            #    print(f"==> The following warning message was captured in the stdout/terminal output: {line}")
-            #    warning_count += 1
-            #    warning_audio_inputs.append(audio_input)
-
-            #    #Warning Email Content:
-            #    email_recepients = ["user@mail.de"]
-            #    email_subject =  "⚠️ ASR Process Warning! ⚠️"
-            #    email_body = "<b>ASR Process Warning:</b> " + "<br>" + audio_input + "<br>" + "<br>" #+ str(input_file_list).replace('[','').replace(']','').replace("'","").replace(",","<br>") + "<br>" + "<br>" 
-            #    email_body += "<b>Warning Message:</b> " + "<br>" + "'" + warning_word + "' was found in the output line " + f"-> {line}" + "<br>" + "<br>"
-            #    email_body += "<b>Date of ASR Process:</b> " + datetime.now().strftime('%Y-%m-%d %H-%M-%S') + "<br>" + "<br>" 
-            #    email_body += "<b>Selected Audio Language:</b> " + str(language_audio) + "<br>" + "<br>" 
-            #    email_body += "<b>Email Recipients:</b> " + str(email_recepients) + "<br>" 
-            #    email_body += "<b>Computer Host Name:</b> " + computer_host_name + " / " + computer_host_ip + "<br>" 
-            #    email_body += "<b>Current User's Username:</b> " + current_username + "<br>"
-
-            #    send_warningEmail()
 finally: 
     print('==> The Whisper workflow is completed. <==')
-
-    #Success Email Content:
-    #email_recepients = ["user@mail.de"]
-    #email_subject =  "👍 ASR Process Completed! 👍"
-    #email_body = "<b>ASR Process successfully completed:</b> " + "<br>" + str(input_file_list).replace('[','').replace(']','').replace("'","").replace(",","<br>") + "<br>" + "<br>" 
-    #email_body += "<b>Date of ASR Process:</b> " + datetime.now().strftime('%Y-%m-%d %H-%M-%S') + "<br>" + "<br>" 
-    #email_body += "<b>Whisper audio duration list:</b> " + "<br>" + str(audioduration_list).replace('[','').replace(']','').replace("'","").replace(",","<br>") + "<br>" + "<br>" 
-    #email_body += "<b>Whisper workflow duration list:</b> " + "<br>" + str(workflowduration_list).replace('[','').replace(']','').replace("'","").replace(",","<br>") + "<br>" + "<br>" 
-    #email_body += "<b>Whisper real time factor list:</b>" + "<br>" + str(real_time_factor_list).replace('[','').replace(']','').replace("'","").replace(",","<br>") + "<br>" + "<br>" 
-    #if warning_count > 0:
-    #    email_body += f"<b>Number of times the warning word '{warning_word}' was found in the stdout output:</b> " + str(warning_count) + "<br>"
-    #    email_body += "<b>Audio inputs where the warning message was found:</b> " + "<br>" + "<br>".join(warning_audio_inputs) + "<br>" + "<br>"
-    #else:
-    #    email_body += f"<b>Number of times the warning word '{warning_word}' was found in the stdout output:</b> " + str(warning_count) + "<br>" + "<br>"
-    #email_body += "<b>Selected Audio Language:</b> " + str(language_audio) + "<br>" + "<br>" 
-    #email_body += "<b>Email Recipients:</b> " + str(email_recepients) + "<br>" 
-    #email_body += "<b>Computer Host Name:</b> " + computer_host_name + " / " + computer_host_ip + "<br>" 
-    #email_body += "<b>Current User's Username:</b> " + current_username + "<br>"
-
-    #send_successEmail()
-
-
-#except Exception as e:
-#    print('==> The following error occured: ', e)
-
-#    #Failure Email Content:
-#    email_recepients = ["user@mail.de"]
-#    email_subject =  "👎 ASR Process Failed! 👎"
-#    email_body = "<b>ASR Process failed:</b> " + "<br>" + str(input_file_list).replace('[','').replace(']','').replace("'","").replace(",","<br>") + "<br>" + "<br>" 
-#    email_body += f"<b>Error in Whisper ASR Transcription of the file:</b> <br> {audio_input} -> {e}</p>"
-#    email_body += "<b>Date of ASR Process:</b> " + datetime.now().strftime('%Y-%m-%d %H-%M-%S') + "<br>" + "<br>"
-#    if warning_count > 0:
-#        email_body += f"<b>Number of times the warning word '{warning_word}' was found in the stdout output:</b> " + str(warning_count) + "<br>"
-#        email_body += "<b>Audio inputs where the warning message was found:</b> " + "<br>" + "<br>".join(warning_audio_inputs) + "<br>" + "<br>"
-#    else:
-#        email_body += f"<b>Number of times the warning word '{warning_word}' was found in the stdout output:</b> " + str(warning_count) + "<br>" + "<br>"
-#    email_body += "<b>Selected Audio Language:</b> " + str(language_audio) + "<br>" + "<br>" 
-#    email_body += "<b>Email Recipients:</b> " + str(email_recepients) + "<br>" 
-#    email_body += "<b>Computer Host Name:</b> " + computer_host_name + " / " + computer_host_ip + "<br>" 
-#    email_body += "<b>Current User's Username:</b> " + current_username + "<br>"
-    
-#    send_failureEmail()
 
 
 ############################################################################################################
@@ -580,8 +415,8 @@ def create_combined_vtt(input_dir, output_dir, processed_files):
     print(f"Die kombinierte Datei wurde gespeichert unter: {combined_output_file}")
 
 # Pfade zum Eingabe- und Ausgabeverzeichnis
-input_dir = '/Users/tkilgus/Documents/Whisper_Test_Files/_output/'
-output_dir = '/Users/tkilgus/Documents/Whisper_Test_Files/_output/'
+output_dir = '/Users/peterkompiel/python_scripts/asr4memory/processing_files/lndw-pipeline/_output/'
+input_dir = output_dir
 num_beams = 2
 
 # Liste der Übersetzungsfunktionen und der entsprechenden Sprachcodes
@@ -593,6 +428,54 @@ processed_files = process_vtt_file(input_dir, output_dir, translate_funcs, lang_
 
 # Erstelle die kombinierte VTT-Datei mit fortlaufenden Segmentnummern
 create_combined_vtt(input_dir, output_dir, processed_files)
+
+print('====> Translation workflow is finished. <====')
+
+############################################################################################################
+# Start of the LLM part
+
+for txt_file_path in glob.glob(os.path.join(input_dir, '*.txt')):
+    print(f"Verarbeite TXT-Datei: {txt_file_path}")
+
+    with open(txt_file_path, 'r', encoding='utf-8') as txt_file:
+        transcript = txt_file.read()
+
+    prompt = f"Formuliere den folgenden Text zu einem sich reimenden Gedicht für Kinder um. Begrenze das Gedicht auf 8 Zeilen. Du bist ein professioneller Dichter. Sei dabei gerne auch kreativ, was die Wortwahl anbelangt: '{transcript}'"
+
+    # llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x7B-Instruct-v0.1")
+    # response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=10000)
+
+    llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x22B-Instruct-v0.1-4bit")
+    response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000)
+
+    transcribed_txt_file_path = txt_file_path.replace('.txt', '_llm.txt')
+    with open(transcribed_txt_file_path, 'w', encoding='utf-8') as transcribed_txt_file:
+        transcribed_txt_file.write(response)  
+
+    print(f"Die bearbeitete Datei wurde gespeichert unter: {transcribed_txt_file_path}") 
+
+    print('====> LLM workflow is finished. <====')
+
+############################################################################################################
+# Start text-to-speech part
+
+# Init TTS with the target model name
+tts = TTS(model_name="tts_models/de/thorsten/tacotron2-DDC", progress_bar=False).to(device)
+
+for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
+    print(f"Verarbeite TXT-Datei: {txt_file_path}")
+
+    with open(llm_txt_file_path, 'r', encoding='utf-8') as llm_txt_file:
+        llm_transcript = llm_txt_file.read()
+    
+    text_to_speech_file_path = llm_txt_file_path.replace('.txt', '.wav')
+
+    # Run TTS
+    tts.tts_to_file(text=llm_transcript, file_path=text_to_speech_file_path)
+
+    print(f"Die bearbeitete Datei wurde gespeichert unter: {text_to_speech_file_path}") 
+
+    print('====> Text-to-Speech workflow is finished. <====')
 
 # Print the final message that workflow is finished:
 print('====> Overall workflow is finished. <====')
