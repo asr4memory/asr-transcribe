@@ -32,6 +32,12 @@ from mlx_lm import load, generate
 # Import text-to-speech library
 from TTS.api import TTS
 
+# # Import Suno.ai bark libraries
+
+# from bark import SAMPLE_RATE, generate_audio, preload_models
+# from scipy.io.wavfile import write as write_wav
+# from IPython.display import Audio
+
 # The following lines are to capture the stdout/terminal output
 import sys
 import io
@@ -440,13 +446,17 @@ for txt_file_path in glob.glob(os.path.join(input_dir, '*.txt')):
     with open(txt_file_path, 'r', encoding='utf-8') as txt_file:
         transcript = txt_file.read()
 
-    prompt = f"Formuliere den folgenden Text zu einem sich reimenden Gedicht für Kinder um. Begrenze das Gedicht auf 8 Zeilen. Du bist ein professioneller Dichter. Sei dabei gerne auch kreativ, was die Wortwahl anbelangt: '{transcript}'"
+    transcript = transcript.strip()
 
-    # llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x7B-Instruct-v0.1")
-    # response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=10000)
+    prompt = f"Erstelle auf Basis des folgenden Texts nach dem Doppelpunkt einen Rapsong, der sich an 13-jährige in Berlin richtet:\n'{transcript}'"
 
-    llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x22B-Instruct-v0.1-4bit")
-    response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000)
+    llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x7B-Instruct-v0.1-4bit")
+    response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000, temp=1)  
+
+    response = response.strip()
+   
+    # llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x22B-Instruct-v0.1-4bit")
+    # response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000)
 
     transcribed_txt_file_path = txt_file_path.replace('.txt', '_llm.txt')
     with open(transcribed_txt_file_path, 'w', encoding='utf-8') as transcribed_txt_file:
@@ -476,6 +486,29 @@ for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
     print(f"Die bearbeitete Datei wurde gespeichert unter: {text_to_speech_file_path}") 
 
     print('====> Text-to-Speech workflow is finished. <====')
+
+############################################################################################################
+# # Alternative text-to-speech part using Suno.ai bark
+
+# # download and load all models
+# preload_models()
+
+# for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
+#     print(f"Verarbeite TXT-Datei: {llm_txt_file_path}")
+
+#     with open(llm_txt_file_path, 'r', encoding='utf-8') as llm_txt_file:
+#        llm_transcript = llm_txt_file.read()
+    
+#     llm_transcript_music = f"♪{llm_transcript}♪"
+
+#     print(llm_transcript_music)
+
+#     text_to_speech_file_path = llm_txt_file_path.replace('.txt', '.wav')
+
+#     audio_array = generate_audio(llm_transcript_music)
+
+#     # save audio to disk
+#     write_wav(text_to_speech_file_path, SAMPLE_RATE, audio_array)
 
 # Print the final message that workflow is finished:
 print('====> Overall workflow is finished. <====')
