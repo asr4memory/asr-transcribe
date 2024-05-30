@@ -448,7 +448,7 @@ for txt_file_path in glob.glob(os.path.join(input_dir, '*.txt')):
 
     transcript = transcript.strip()
 
-    prompt = f"Erstelle auf Basis des folgenden Texts nach dem Doppelpunkt einen Rapsong, der sich an 13-jährige in Berlin richtet:\n'{transcript}'"
+    prompt = f"Erstelle auf Basis des folgenden Texts nach dem Doppelpunkt einen Rapsong mit maximal 8 Zeilen, der sich an 13-jährige in Berlin richtet:\n'{transcript}'"
 
     llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x7B-Instruct-v0.1-4bit")
     response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000, temp=1)  
