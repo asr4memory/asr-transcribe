@@ -29,11 +29,13 @@ from transformers import MarianMTModel, MarianTokenizer
 # Import llm library
 from mlx_lm import load, generate
 
-# Import text-to-speech library
-from TTS.api import TTS
+# Import gTTS text-to-speech library
+from gtts import gTTS
+
+# # Import Coqui TTS text-to-speech library
+# from TTS.api import TTS
 
 # # Import Suno.ai bark libraries
-
 # from bark import SAMPLE_RATE, generate_audio, preload_models
 # from scipy.io.wavfile import write as write_wav
 # from IPython.display import Audio
@@ -450,13 +452,15 @@ for txt_file_path in glob.glob(os.path.join(input_dir, '*.txt')):
 
     prompt = f"Erstelle auf Basis des folgenden Texts nach dem Doppelpunkt einen Rapsong mit maximal 8 Zeilen, der sich an 13-jährige in Berlin richtet:\n'{transcript}'"
 
+    # Start generating text using Mixtral 8x7B 4-bit quantized model (older but quicker model)
     llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x7B-Instruct-v0.1-4bit")
-    response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000, temp=1)  
+    response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000, temp=1) # reduce temperature for more robust results, increase temperature for more creative results (default: temp=0)
 
-    response = response.strip()
-   
+    # # Start generating text using Mixtral 22x7B 4-bit quantized model (latest but slower model)
     # llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x22B-Instruct-v0.1-4bit")
     # response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000)
+
+    response = response.strip()
 
     transcribed_txt_file_path = txt_file_path.replace('.txt', '_llm.txt')
     with open(transcribed_txt_file_path, 'w', encoding='utf-8') as transcribed_txt_file:
@@ -467,10 +471,7 @@ for txt_file_path in glob.glob(os.path.join(input_dir, '*.txt')):
     print('====> LLM workflow is finished. <====')
 
 ############################################################################################################
-# Start text-to-speech part
-
-# Init TTS with the target model name
-tts = TTS(model_name="tts_models/de/thorsten/tacotron2-DDC", progress_bar=False).to(device)
+# Start text-to-speech part using gTTS
 
 for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
     print(f"Verarbeite TXT-Datei: {txt_file_path}")
@@ -480,15 +481,39 @@ for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
     
     text_to_speech_file_path = llm_txt_file_path.replace('.txt', '.wav')
 
-    # Run TTS
-    tts.tts_to_file(text=llm_transcript, file_path=text_to_speech_file_path)
+    # Run gTTS
+    tts = gTTS(llm_transcript, lang='de', slow=False)
+
+    # Save the audio file
+    tts.save(text_to_speech_file_path)
 
     print(f"Die bearbeitete Datei wurde gespeichert unter: {text_to_speech_file_path}") 
 
     print('====> Text-to-Speech workflow is finished. <====')
 
 ############################################################################################################
-# # Alternative text-to-speech part using Suno.ai bark
+# # Alternative 1: text-to-speech part using Coqui TTS
+
+# # Init TTS with the target model name
+# tts = TTS(model_name="tts_models/de/thorsten/tacotron2-DDC", progress_bar=False).to(device)
+
+# for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
+#     print(f"Verarbeite TXT-Datei: {txt_file_path}")
+
+#     with open(llm_txt_file_path, 'r', encoding='utf-8') as llm_txt_file:
+#         llm_transcript = llm_txt_file.read()
+    
+#     text_to_speech_file_path = llm_txt_file_path.replace('.txt', '.wav')
+
+#     # Run TTS
+#     tts.tts_to_file(text=llm_transcript, file_path=text_to_speech_file_path)
+
+#     print(f"Die bearbeitete Datei wurde gespeichert unter: {text_to_speech_file_path}") 
+
+#     print('====> Text-to-Speech workflow is finished. <====')
+
+############################################################################################################
+# # Alternative 2: text-to-speech part using Suno.ai bark
 
 # # download and load all models
 # preload_models()
