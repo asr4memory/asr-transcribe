@@ -29,11 +29,11 @@ from transformers import MarianMTModel, MarianTokenizer
 # Import llm library
 from mlx_lm import load, generate
 
-# Import gTTS text-to-speech library
-from gtts import gTTS
+# # Import gTTS text-to-speech library
+# from gtts import gTTS
 
-# # Import Coqui TTS text-to-speech library
-# from TTS.api import TTS
+# Import Coqui TTS text-to-speech library
+from TTS.api import TTS
 
 # # Import Suno.ai bark libraries
 # from bark import SAMPLE_RATE, generate_audio, preload_models
@@ -86,10 +86,15 @@ title_pattern = re.compile(r'\b(' + '|'.join(titles) + r')[\.,:;!\?]*$', re.IGNO
 num_pattern = re.compile(r'\b([1-9]|[12]\d|3[01])([.])$')
 non_punct_pattern = re.compile(r'[^\.\?!]$')
 
+# Define the base output path and create a timestamped output directory
+base_output_path = '/Users/peterkompiel/python_scripts/asr4memory/processing_files/lndw-pipeline/_output/'
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+output_directory = os.path.join(base_output_path, timestamp)
+os.makedirs(output_directory, exist_ok=True)
+
 # Define input und output folders
 input_path = '/Users/peterkompiel/python_scripts/asr4memory/processing_files/lndw-pipeline/_input/'
 input_directory = os.listdir(path=input_path)
-output_directory = os.path.dirname('/Users/peterkompiel/python_scripts/asr4memory/processing_files/lndw-pipeline/_output/')
 filename_suffix = "_" + language_audio # Filename suffix corresponds to the variable "language_audio" above.
 #filename_suffix = "_de" # Optional: Add a filename suffix to the output files, e.g. "_beam5_threads5_batch28_noinitialprompt" 
 
@@ -130,7 +135,7 @@ try:
             #    sys.exit('==> The script is aborted because the input file does not contain an audio track: ' + str(audio_input)) # If a video does not contain an audio track, the script is aborted.
 
             # Create the extended audio file by concatenating the input file four times
-            extended_audio_file = os.path.join(output_directory, f"extended_{audio_input}")
+            extended_audio_file = output_directory + "/" + timestamp + "_extended_audio_file.wav"
             subprocess.run([
                 "ffmpeg", "-y", "-i", full_audio_path,
                 "-filter_complex", "[0:a][0:a][0:a][0:a]concat=n=4:v=0:a=1[out]",
@@ -145,7 +150,7 @@ try:
             #äif m != None:
             #    continue
             input_file_list.append(audio_input)
-            output_file = output_directory + "/" + audio_input.split(".")[0] + filename_suffix
+            output_file = output_directory + "/" + timestamp + filename_suffix 
             workflowstarttime = datetime.now()
             print(f'--> Whisper workflow for {audio_input} started: {workflowstarttime}')
 
@@ -292,6 +297,14 @@ def translate_to_es(text, num_beams):
 def translate_to_de(text, num_beams):
     return translate_text(text, "Helsinki-NLP/opus-mt-es-de", num_beams)
 
+# Funktion zur Übersetzung eines Textes ins Albanische
+def translate_to_zh(text, num_beams):
+    return translate_text(text, "Helsinki-NLP/opus-mt-en-zh", num_beams)
+
+# Funktion zur Übersetzung eines Textes vom Albanischen ins Deutsche
+def translate_to_de_from_zh(text, num_beams):
+    return translate_text(text, "Helsinki-NLP/opus-mt-zh-de", num_beams)
+
 # Allgemeine Funktion zur Übersetzung eines Textes
 def translate_text(text, model_name, num_beams):
     tokenizer = MarianTokenizer.from_pretrained(model_name)
@@ -395,7 +408,7 @@ def create_combined_vtt(input_dir, output_dir, processed_files):
     segment_duration = duration / 4
 
     combined_lines = ["WEBVTT\n\n"]
-    file_order = ['de', 'en', 'es', 'de_final']
+    file_order = ['de', 'en', 'zh', 'de_final']
     segment_counter = 1
     
     for i, lang_code in enumerate(file_order):
@@ -423,13 +436,13 @@ def create_combined_vtt(input_dir, output_dir, processed_files):
     print(f"Die kombinierte Datei wurde gespeichert unter: {combined_output_file}")
 
 # Pfade zum Eingabe- und Ausgabeverzeichnis
-output_dir = '/Users/peterkompiel/python_scripts/asr4memory/processing_files/lndw-pipeline/_output/'
+output_dir = output_directory
 input_dir = output_dir
 num_beams = 2
 
 # Liste der Übersetzungsfunktionen und der entsprechenden Sprachcodes
-translate_funcs = [translate_to_en, translate_to_es, translate_to_de]
-lang_codes = ["en", "es", "de_final"]
+translate_funcs = [translate_to_en, translate_to_zh, translate_to_de_from_zh]
+lang_codes = ["en", "zh", "de_final"]
 
 # Verarbeite die VTT-Dateien für die mehrfache Übersetzung und erhalte die Liste der erstellten Dateien
 processed_files = process_vtt_file(input_dir, output_dir, translate_funcs, lang_codes, num_beams)
@@ -450,11 +463,26 @@ for txt_file_path in glob.glob(os.path.join(input_dir, '*.txt')):
 
     transcript = transcript.strip()
 
-    prompt = f"Erstelle auf Basis des folgenden Texts nach dem Doppelpunkt einen Rapsong mit maximal 8 Zeilen, der sich an 13-jährige in Berlin richtet:\n'{transcript}'"
+    # prompt = f"Erstelle auf Basis des folgenden Texts nach dem Doppelpunkt einen reimenden Rapsong mit maximal 8 Zeilen, der sich an 13-jährige in Berlin richtet:\n'{transcript}'"
+
+    # prompt = f' Erstelle auf Basis des folgenden Texts nach dem Doppelpunkt ein Gedicht mit maximal 8 Versen, das sich am Versende reimt: \n{transcript}'
+
+    prompt = f'''
+Bitte höre dir die folgende 30-sekündige Audioaufnahme nach dem Delimiter ### aufmerksam an. Analysiere den Inhalt und interpretiere die Aussage des Sprechers. Anschließend generiere eine an den Sprecher gerichtete Antwort von maximal 4 Sätzen, die folgende Kriterien erfüllt:
+1	Die Antwort soll einen klugen, tiefgründigen Gedanken oder eine Erkenntnis in Bezug auf die Aussage des Sprechers enthalten. Zeige dein Verständnis für die Bedeutung und Implikationen der Aussage.
+2	Gleichzeitig soll die Antwort einen humorvollen, witzigen oder kreativen Aspekt enthalten, der die Aussage auf unterhaltsame Weise aufgreift oder umdeutet.
+3	Vermeide oberflächliche Scherze oder Kalauer. Der Humor soll intelligent und geistreich sein, ohne die Ernsthaftigkeit der Aussage zu untergraben.
+4	Passe den Ton deiner Antwort an den Kontext der Aufnahme an, sei es formell, informell, philosophisch oder persönlich.
+Deine Antwort soll den Zuhörer zum Nachdenken anregen und gleichzeitig unterhalten. Sei kreativ, aber respektvoll gegenüber dem Sprecher und seinem Standpunkt.
+
+###
+
+'{transcript}'
+'''
 
     # Start generating text using Mixtral 8x7B 4-bit quantized model (older but quicker model)
     llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x7B-Instruct-v0.1-4bit")
-    response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000, temp=1) # reduce temperature for more robust results, increase temperature for more creative results (default: temp=0)
+    response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000, temp=0.6) # reduce temperature for more robust results, increase temperature for more creative results (default: temp=0)
 
     # # Start generating text using Mixtral 22x7B 4-bit quantized model (latest but slower model)
     # llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x22B-Instruct-v0.1-4bit")
@@ -471,31 +499,7 @@ for txt_file_path in glob.glob(os.path.join(input_dir, '*.txt')):
     print('====> LLM workflow is finished. <====')
 
 ############################################################################################################
-# Start text-to-speech part using gTTS
-
-for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
-    print(f"Verarbeite TXT-Datei: {txt_file_path}")
-
-    with open(llm_txt_file_path, 'r', encoding='utf-8') as llm_txt_file:
-        llm_transcript = llm_txt_file.read()
-    
-    text_to_speech_file_path = llm_txt_file_path.replace('.txt', '.wav')
-
-    # Run gTTS
-    tts = gTTS(llm_transcript, lang='de', slow=False)
-
-    # Save the audio file
-    tts.save(text_to_speech_file_path)
-
-    print(f"Die bearbeitete Datei wurde gespeichert unter: {text_to_speech_file_path}") 
-
-    print('====> Text-to-Speech workflow is finished. <====')
-
-############################################################################################################
-# # Alternative 1: text-to-speech part using Coqui TTS
-
-# # Init TTS with the target model name
-# tts = TTS(model_name="tts_models/de/thorsten/tacotron2-DDC", progress_bar=False).to(device)
+# # Start text-to-speech part using gTTS
 
 # for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
 #     print(f"Verarbeite TXT-Datei: {txt_file_path}")
@@ -505,12 +509,36 @@ for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
     
 #     text_to_speech_file_path = llm_txt_file_path.replace('.txt', '.wav')
 
-#     # Run TTS
-#     tts.tts_to_file(text=llm_transcript, file_path=text_to_speech_file_path)
+#     # Run gTTS
+#     tts = gTTS(llm_transcript, lang='de', slow=False)
+
+#     # Save the audio file
+#     tts.save(text_to_speech_file_path)
 
 #     print(f"Die bearbeitete Datei wurde gespeichert unter: {text_to_speech_file_path}") 
 
 #     print('====> Text-to-Speech workflow is finished. <====')
+
+############################################################################################################
+# Alternative 1: text-to-speech part using Coqui TTS
+
+# Init TTS with the target model name
+tts = TTS(model_name="tts_models/de/thorsten/vits", progress_bar=False).to(device)
+
+for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
+    print(f"Verarbeite TXT-Datei: {txt_file_path}")
+
+    with open(llm_txt_file_path, 'r', encoding='utf-8') as llm_txt_file:
+        llm_transcript = llm_txt_file.read()
+    
+    text_to_speech_file_path = llm_txt_file_path.replace('.txt', '.wav')
+
+    # Run TTS
+    tts.tts_to_file(text=llm_transcript, file_path=text_to_speech_file_path)
+
+    print(f"Die bearbeitete Datei wurde gespeichert unter: {text_to_speech_file_path}") 
+
+    print('====> Text-to-Speech workflow is finished. <====')
 
 ############################################################################################################
 # # Alternative 2: text-to-speech part using Suno.ai bark
@@ -534,6 +562,15 @@ for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
 
 #     # save audio to disk
 #     write_wav(text_to_speech_file_path, SAMPLE_RATE, audio_array)
+
+# Remove input files after processing
+# for file_name in input_directory:
+#     file_path = os.path.join(input_path, file_name)
+#     try:
+#         os.remove(file_path)
+#         print(f"Deleted input file: {file_path}")
+#     except Exception as e:
+#         print(f"Error deleting file {file_path}: {e}")
 
 # Print the final message that workflow is finished:
 print('====> Overall workflow is finished. <====')
