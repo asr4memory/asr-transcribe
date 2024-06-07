@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 import os
 from datetime import datetime
-
-from extending_audio_workflow import create_extended_output_file
+import gc   
+from audio_tools import create_extended_output_file, convert_to_wav
 from transcription_workflow import transcribe_audio
 from translation_workflow import translate_transcriptions
 from llm_workflow import generate_llm_responses
@@ -45,11 +45,9 @@ def upload_file():
     if file.filename == '':
         return 'No selected file'
     if file:
-        # Save the uploaded file
+        # Input and output directories/files
         input_path = '/Users/peterkompiel/python_scripts/asr4memory/processing_files/lndw-pipeline/_input/'
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        # input_file = os.listdir(path=input_path)
-        # os.makedirs(input_file, exist_ok=True)
         input_file = os.path.join(input_path, f'{timestamp}_input_audio.wav')
         file.save(input_file)
 
@@ -57,6 +55,13 @@ def upload_file():
         output_directory = os.path.join(base_output_path, timestamp)
         os.makedirs(output_directory, exist_ok=True)
 
+        # Convert the file to a compatible WAV format using ffmpeg and overwrite the original file
+        temp_converted_file = os.path.join(output_directory, 'temp_converted_audio.wav')
+        convert_to_wav(input_file, temp_converted_file)
+
+        # Replace the original file with the converted file
+        os.replace(temp_converted_file, input_file)
+        
         # Run the workflow
         try:
             create_extended_output_file(output_directory, input_file, timestamp)
@@ -64,9 +69,11 @@ def upload_file():
             translate_transcriptions(output_directory)
             generate_llm_responses(output_directory)
             text_to_speech(output_directory)
+            gc.collect()
             print('====> Overall workflow is finished. <====')
             return jsonify({"message": "Processing completed successfully!", "output_directory": output_directory})
         except Exception as e:
+            gc.collect()
             print('====> Overall workflow is failed. <====')
             return jsonify({"message": f"Error: {str(e)}"})
 

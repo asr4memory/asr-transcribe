@@ -4,7 +4,6 @@ from mlx_lm import load, generate
 
 def generate_llm_responses(output_directory):
     input_dir = output_directory
-    # llm_response_files = []
     for txt_file_path in glob.glob(os.path.join(input_dir, '*.txt')):
         with open(txt_file_path, 'r', encoding='utf-8') as txt_file:
             transcript = txt_file.read().strip()
@@ -25,6 +24,6 @@ Deine Antwort soll den Zuhörer zum Nachdenken anregen und gleichzeitig unterhal
         transcribed_txt_file_path = txt_file_path.replace('.txt', '_llm.txt')
         with open(transcribed_txt_file_path, 'w', encoding='utf-8') as transcribed_txt_file:
             transcribed_txt_file.write(response)
-        #llm_response_files.append(transcribed_txt_file_path)
+        del llm_model, llm_tokenizer
 
     print('====> LLM workflow is finished. <====')

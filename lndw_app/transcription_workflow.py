@@ -61,9 +61,11 @@ def transcribe_audio(input_file, output_directory, timestamp):
     model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size})
     audio = whisperx.load_audio(input_file)
     result = model.transcribe(audio, batch_size=batch_size)
+    del model
 
     model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device)
     result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+    del model_a
 
     custom_segs = []
     sentence_buffer = ""
@@ -126,23 +128,23 @@ def transcribe_audio(input_file, output_directory, timestamp):
             if "sentence" in seg:
                 txt_file.write(f"{seg['sentence']}\n")
 
-        # These lines print the time of the workflow end:
-        workflowendtime = datetime.now()
-        print(f'--> Whisper workflow completed for {input_file}: {workflowendtime}')
+    # These lines print the time of the workflow end:
+    workflowendtime = datetime.now()
+    print(f'--> Whisper workflow completed for {input_file}: {workflowendtime}')
 
-        # Calculate the duration of the workflow:
-        workflowduration = workflowendtime - workflowstarttime
-        print(f'==> Whisper workflow duration for transcribing the file {input_file}: {workflowduration}')
-        workflowduration_list.append(str(workflowduration))
+    # Calculate the duration of the workflow:
+    workflowduration = workflowendtime - workflowstarttime
+    print(f'==> Whisper workflow duration for transcribing the file {input_file}: {workflowduration}')
+    workflowduration_list.append(str(workflowduration))
 
-        # Assume workflowduration is a datetime.timedelta object and print the duration in seconds:
-        workflowduration_in_seconds = workflowduration.total_seconds()
-        print(f"==> Whisper workflow duration for transcribing the file {input_file}:", workflowduration_in_seconds)
-        workflowduration_in_seconds_list.append(str(workflowduration_in_seconds))
+    # Assume workflowduration is a datetime.timedelta object and print the duration in seconds:
+    workflowduration_in_seconds = workflowduration.total_seconds()
+    print(f"==> Whisper workflow duration for transcribing the file {input_file}:", workflowduration_in_seconds)
+    workflowduration_in_seconds_list.append(str(workflowduration_in_seconds))
 
-        # Calculate the real time factor for processing an audio file, i.e. the ratio of workflowduration_in_seconds to audioduration_in_seconds:
-        real_time_factor = workflowduration_in_seconds / audioduration_in_seconds
-        print("==> Whisper real time factor - the ratio of workflow duration compared to audio duration:", real_time_factor)
-        real_time_factor_list.append(str(real_time_factor))
+    # Calculate the real time factor for processing an audio file, i.e. the ratio of workflowduration_in_seconds to audioduration_in_seconds:
+    real_time_factor = workflowduration_in_seconds / audioduration_in_seconds
+    print("==> Whisper real time factor - the ratio of workflow duration compared to audio duration:", real_time_factor)
+    real_time_factor_list.append(str(real_time_factor))
 
-        print('==> The Whisper workflow is completed. <==')
+    print('==> The Whisper workflow is completed. <==')

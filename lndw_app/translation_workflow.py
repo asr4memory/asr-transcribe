@@ -31,6 +31,7 @@ def translate_text(text, model_name, num_beams):
     encoded_text = tokenizer(text, return_tensors="pt", padding=True)
     translated_tokens = model.generate(**encoded_text, num_beams=num_beams)
     translated_text = tokenizer.decode(translated_tokens[0], skip_special_tokens=True)
+    del model, encoded_text, translated_tokens
     return translated_text
 
 # Funktion zum Verarbeiten der VTT-Dateien in einem Verzeichnis

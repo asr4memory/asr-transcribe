@@ -9,3 +9,12 @@ def create_extended_output_file(output_directory, input_file, timestamp):
         "-map", "[out]", extended_audio_file
          ])
     return extended_audio_file
+
+def convert_to_wav(input_path, output_path):
+    command = [
+        'ffmpeg', '-i', input_path,
+        '-ac', '1', '-ar', '44100',  # Set sample rate to 44.1kHz for higher quality
+        '-b:a', '320k',  # Set bitrate to 320kbps for higher quality
+        output_path
+    ]
+    subprocess.run(command, check=True)

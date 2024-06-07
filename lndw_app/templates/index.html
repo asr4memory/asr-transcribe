@@ -1,88 +1,115 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Audio Aufnahme und Upload</title>
-    <script>
-      let mediaRecorder;
-      let recordedChunks = [];
-      let startTime;
-      let timerInterval;
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Audio Aufnahme und Upload</title>
+  <style>
+    #timer {
+      font-size: 2em;
+      margin-top: 20px;
+    }
+    #processing {
+      font-size: 1.5em;
+      color: red;
+      margin-top: 20px;
+      display: none;
+    }
+  </style>
+  <script>
+    let mediaRecorder;
+    let recordedChunks = [];
+    let startTime;
+    let timerInterval;
 
-      function startRecording() {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then(stream => {
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.ondataavailable = function(event) {
-              if (event.data.size > 0) {
-                recordedChunks.push(event.data);
-              }
-            };
-            mediaRecorder.start();
-            startTime = Date.now();
-            timerInterval = setInterval(updateTimer, 1000);
-          });
-      }
+    function startRecording() {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          const options = {
+            mimeType: 'audio/webm',
+            audioBitsPerSecond: 256000 // Set higher bitrate for better quality
+          };
+          mediaRecorder = new MediaRecorder(stream, options);
+          mediaRecorder.ondataavailable = function(event) {
+            if (event.data.size > 0) {
+              recordedChunks.push(event.data);
+            }
+          };
+          mediaRecorder.start();
+          startTimer();
+        });
+    }
 
-      function stopRecording() {
-        mediaRecorder.stop();
-        clearInterval(timerInterval);
-        mediaRecorder.onstop = function() {
-          const blob = new Blob(recordedChunks, { type: 'audio/wav' });
-          const url = URL.createObjectURL(blob);
-          const audio = document.createElement('audio');
-          audio.controls = true;
-          audio.src = url;
-          audio.id = 'recordedAudio'; // Add ID to the audio element
-          document.body.appendChild(audio);
+    function stopRecording() {
+      mediaRecorder.stop();
+      stopTimer(); // Stop the timer when recording stops
+      mediaRecorder.onstop = function() {
+        const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
 
-          const formData = new FormData();
-          formData.append('file', blob, 'audio.wav');
+        const formData = new FormData();
+        formData.append('file', blob, 'audio.wav');
 
-          fetch('/upload', {
-            method: 'POST',
-            body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-            alert(data.message);
-            resetRecording(); // Clear the audio and reset the timer
-          })
-          .catch(error => {
-            console.error('Error:', error);
-          });
-        };
-      }
+        // Display the processing text
+        document.getElementById('processing').style.display = 'block';
 
-      function updateTimer() {
-        const elapsedTime = Date.now() - startTime;
-        const seconds = Math.floor((elapsedTime / 1000) % 60);
-        const minutes = Math.floor((elapsedTime / (1000 * 60)) % 60);
-        const hours = Math.floor((elapsedTime / (1000 * 60 * 60)) % 24);
+        fetch('/upload', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          alert(data.message);
+          // Reset the timer and hide the processing text after the workflow is completed
+          document.getElementById('timer').textContent = '00:00:00';
+          document.getElementById('processing').style.display = 'none';
+          // Clear the recorded chunks
+          recordedChunks = [];
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          document.getElementById('processing').style.display = 'none';
+          // Clear the recorded chunks
+          recordedChunks = [];
+        });
+      };
+    }
 
-        const formattedTime = 
-          (hours > 0 ? String(hours).padStart(2, '0') + ':' : '') +
-          String(minutes).padStart(2, '0') + ':' +
-          String(seconds).padStart(2, '0');
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(updateTimer, 100);
+    }
 
-        document.getElementById('timer').innerText = formattedTime;
-      }
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
 
-      function resetRecording() {
-        recordedChunks = [];
-        document.getElementById('timer').innerText = '00:00';
-        const audioElement = document.getElementById('recordedAudio');
-        if (audioElement) {
-          audioElement.remove();
-        }
-      }
-    </script>
-  </head>
-  <body>
-    <h1>Audio Aufnahme und Upload</h1>
-    <button onclick="startRecording()">Start Recording</button>
-    <button onclick="stopRecording()">Stop Recording</button>
-    <p>Aufnahmezeit: <span id="timer">00:00</span></p>
-  </body>
+    function updateTimer() {
+      const currentTime = Date.now();
+      const elapsedTime = currentTime - startTime;
+      const formattedTime = formatTime(elapsedTime);
+      document.getElementById('timer').textContent = formattedTime;
+    }
+
+    function formatTime(milliseconds) {
+      const totalSeconds = Math.floor(milliseconds / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const centiseconds = Math.floor((milliseconds % 1000) / 10);
+
+      return `${pad(minutes, 2)}:${pad(seconds, 2)}:${pad(centiseconds, 2)}`;
+    }
+
+    function pad(number, length) {
+      return String(number).padStart(length, '0');
+    }
+  </script>
+</head>
+<body>
+  <h1>Audio Aufnahme und Upload</h1>
+  <button onclick="startRecording()">Start Recording</button>
+  <button onclick="stopRecording()">Stop Recording</button>
+  <div id="timer">00:00:00</div>
+  <div id="processing">Processing...</div>
+</body>
 </html>

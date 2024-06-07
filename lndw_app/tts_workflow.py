@@ -17,6 +17,8 @@ def text_to_speech(output_directory):
         # Run TTS
         tts.tts_to_file(text=llm_transcript, file_path=text_to_speech_file_path)
 
+        del tts
+
         print(f"Die bearbeitete Datei wurde gespeichert unter: {text_to_speech_file_path}") 
 
         print('====> Text-to-Speech workflow is finished. <====')
