@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>Audio Aufnahme und Upload</title>
+  <title>Audio-Aufnahme</title>
   <style>
     #timer {
       font-size: 2em;
@@ -23,7 +23,13 @@
     let timerInterval;
 
     function startRecording() {
-      navigator.mediaDevices.getUserMedia({ audio: true })
+      navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true  // Disable AGC
+        } 
+      })
         .then(stream => {
           const options = {
             mimeType: 'audio/webm',
@@ -106,7 +112,7 @@
   </script>
 </head>
 <body>
-  <h1>Audio Aufnahme und Upload</h1>
+  <h1>Audio-Aufnahme und Workflow-Start</h1>
   <button onclick="startRecording()">Start Recording</button>
   <button onclick="stopRecording()">Stop Recording</button>
   <div id="timer">00:00:00</div>
