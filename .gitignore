@@ -1,6 +1,11 @@
-config.toml
-__pycache__
-.mypy_cache
-asr-tools_venv/
-.DS_Store
+# All directories
 *.log
+.DS_Store
+.mypy_cache
+__pycache__
+
+# Specific directories
+/.idea
+/.venv
+/asr-tools_venv
+/config.toml
