@@ -15,19 +15,26 @@ config = get_config()
 USE_SPEAKER_DIARIZATION = config['whisper'].get('use_speaker_diarization', False)
 
 def write_vtt_file(filepath: Path, custom_segs):
-    """
-    Write the processed segments to a VTT file.
-    This file will contain the start and end times of each segment along with
-    the transcribed text.
-    """
-    with open(filepath, "w", encoding="utf-8") as vtt_file:
-        vtt_file.write("WEBVTT\n\n")
+    """Write the processed segments to a VTT subtitle file."""
+    with open(filepath, "w", encoding="utf-8") as file:
+        file.write("WEBVTT\n\n")
         for i, seg in enumerate(custom_segs):
             _, start_time = format_timestamp(seg["start"])
             _, end_time = format_timestamp(seg["end"])
-            vtt_file.write(f"{i + 1}\n")
-            vtt_file.write(f"{start_time} --> {end_time}\n")
-            vtt_file.write(f"{seg['text']}\n\n")
+            file.write(f"{i + 1}\n")
+            file.write(f"{start_time} --> {end_time}\n")
+            file.write(f"{seg['text']}\n\n")
+
+
+def write_srt_file(filepath: Path, custom_segs):
+    """Write the processed segments to an SRT subtitle file."""
+    with open(filepath, "w", encoding="utf-8") as file:
+        for i, seg in enumerate(custom_segs):
+            _, start_time = format_timestamp(seg["start"], milli_separator=',')
+            _, end_time = format_timestamp(seg["end"], milli_separator=',')
+            file.write(f"{i + 1}\n")
+            file.write(f"{start_time} --> {end_time}\n")
+            file.write(f"{seg['text']}\n\n")
 
 
 def write_text_file(filepath: Path, custom_segs):
@@ -97,7 +104,7 @@ def write_csv_word_segments_file(filepath: Path, word_segments, delimiter="\t"):
             writer.writerow(row)
 
 def write_vtt_word_segments_file(filepath: Path, word_segments):
-    """ 
+    """
     Convert processed word segments to VTT format
     """
     with open(filepath, "w", encoding="utf-8") as vtt_file:
@@ -123,6 +130,7 @@ def write_pdf_file(filepath: Path, segments: list):
 def write_output_files(base_path: Path, all: list, segments: list, word_segments: list):
     "Write all types of output files."
     write_vtt_file(base_path.with_suffix('.vtt'), segments)
+    write_srt_file(base_path.with_suffix('.srt'), segments)
     write_text_file(base_path.with_suffix('.txt'), segments)
     write_csv_file(base_path.with_suffix('.csv'),
                     segments,

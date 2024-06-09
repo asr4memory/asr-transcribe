@@ -20,9 +20,9 @@ def should_be_processed(filepath: Path):
         return True
 
 
-def format_timestamp(seconds):
-    """ 
-    Convert seconds to hh:mm:ss and hh:mm:ss.ms format and use decimal for precise arithmetic 
+def format_timestamp(seconds, milli_separator="."):
+    """
+    Convert seconds to hh:mm:ss and hh:mm:ss.ms format and use decimal for precise arithmetic
     """
     time_in_seconds = Decimal(seconds)
     hours = time_in_seconds // 3600
@@ -32,8 +32,8 @@ def format_timestamp(seconds):
     milliseconds = (seconds - int(seconds)) * 1000
 
     formatted_time = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
-    formatted_time_ms = f"{formatted_time}.{int(milliseconds):03}"
-    
+    formatted_time_ms = f"{formatted_time}{milli_separator}{int(milliseconds):03}"
+
     return formatted_time, formatted_time_ms
 
 
