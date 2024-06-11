@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>Audio-Aufnahme</title>
+  <title>Audio Aufnahme und Upload</title>
   <style>
     #timer {
       font-size: 2em;
@@ -27,10 +27,10 @@
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true  // Disable AGC
+          autoGainControl: false  // Disable AGC
         } 
       })
-        .then(stream => {
+      .then(stream => {
           const options = {
             mimeType: 'audio/webm',
             audioBitsPerSecond: 256000 // Set higher bitrate for better quality
@@ -112,7 +112,7 @@
   </script>
 </head>
 <body>
-  <h1>Audio-Aufnahme und Workflow-Start</h1>
+  <h1>Audio Aufnahme und Upload</h1>
   <button onclick="startRecording()">Start Recording</button>
   <button onclick="stopRecording()">Stop Recording</button>
   <div id="timer">00:00:00</div>
