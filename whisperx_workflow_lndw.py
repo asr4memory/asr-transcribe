@@ -40,6 +40,9 @@ from TTS.api import TTS
 # from scipy.io.wavfile import write as write_wav
 # from IPython.display import Audio
 
+# Import garbage collection library
+import gc
+
 # The following lines are to capture the stdout/terminal output
 import sys
 import io
@@ -178,11 +181,13 @@ try:
             #model = whisperx.load_model(model_name, device, language=language_audio, compute_type=compute_type, asr_options={"beam_size": beam_size, "initial_prompt": initial_prompt}) # WITH  "initial_prompt": initial_prompt
             audio = whisperx.load_audio(audio_file)
             result = model.transcribe(audio, batch_size=batch_size)
+            del model
 
             # Align transcribed segments to original audio and get time stamps for start and end of each segment
             model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device) # With default align model
             #model_a, metadata = whisperx.load_align_model(model_name="WAV2VEC2_ASR_LARGE_LV60K_960H",language_code=result["language"], device=device) # WITH greater align model which uses more computing ressources.
             result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+            del model_a
 
             # Initialize processing variables
             custom_segs = []
@@ -312,6 +317,7 @@ def translate_text(text, model_name, num_beams):
     encoded_text = tokenizer(text, return_tensors="pt", padding=True)
     translated_tokens = model.generate(**encoded_text, num_beams=num_beams)
     translated_text = tokenizer.decode(translated_tokens[0], skip_special_tokens=True)
+    del tokenizer, model, encoded_text, translated_tokens
     return translated_text
 
 # Funktion zum Verarbeiten der VTT-Dateien in einem Verzeichnis
@@ -482,7 +488,7 @@ Deine Antwort soll den Zuhörer zum Nachdenken anregen und gleichzeitig unterhal
 
     # Start generating text using Mixtral 8x7B 4-bit quantized model (older but quicker model)
     llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x7B-Instruct-v0.1-4bit")
-    response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000, temp=0.6) # reduce temperature for more robust results, increase temperature for more creative results (default: temp=0)
+    response = generate(llm_model, llm_tokenizer, prompt=prompt, verbose=True, max_tokens=1000, temp=0.6).strip() # reduce temperature for more robust results, increase temperature for more creative results (default: temp=0)
 
     # # Start generating text using Mixtral 22x7B 4-bit quantized model (latest but slower model)
     # llm_model, llm_tokenizer = load("mlx-community/Mixtral-8x22B-Instruct-v0.1-4bit")
@@ -492,7 +498,9 @@ Deine Antwort soll den Zuhörer zum Nachdenken anregen und gleichzeitig unterhal
 
     transcribed_txt_file_path = txt_file_path.replace('.txt', '_llm.txt')
     with open(transcribed_txt_file_path, 'w', encoding='utf-8') as transcribed_txt_file:
-        transcribed_txt_file.write(response)  
+        transcribed_txt_file.write(response)
+
+    del llm_model, llm_tokenizer  
 
     print(f"Die bearbeitete Datei wurde gespeichert unter: {transcribed_txt_file_path}") 
 
@@ -536,6 +544,8 @@ for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
     # Run TTS
     tts.tts_to_file(text=llm_transcript, file_path=text_to_speech_file_path)
 
+    del tts
+
     print(f"Die bearbeitete Datei wurde gespeichert unter: {text_to_speech_file_path}") 
 
     print('====> Text-to-Speech workflow is finished. <====')
@@ -571,6 +581,8 @@ for llm_txt_file_path in glob.glob(os.path.join(input_dir, '*_llm.txt')):
 #         print(f"Deleted input file: {file_path}")
 #     except Exception as e:
 #         print(f"Error deleting file {file_path}: {e}")
+
+gc.collect()
 
 # Print the final message that workflow is finished:
 print('====> Overall workflow is finished. <====')

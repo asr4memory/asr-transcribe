@@ -31,6 +31,7 @@ stderr_buffer = Tee(original_stderr)
 sys.stdout = stdout_buffer
 sys.stderr = stdout_buffer
 
+# Create the Flask app
 app = Flask(__name__)
 
 @app.route('/')
