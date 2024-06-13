@@ -77,6 +77,7 @@ def transcribe(audio):
     """
     model = get_transcription_model()
     result = model.transcribe(audio, batch_size=batch_size)
+    del model
     return result
 
 
@@ -88,6 +89,7 @@ def align(audio, segments, language: str):
     model, metadata = get_alignment_model(language)
     result = whisperx.align(segments, model, metadata, audio, device,
                             return_char_alignments=False)
+    del model
     return result
 
 
@@ -101,4 +103,5 @@ def diarize(audio, result):
     diarize_segments = diarize_model(audio, min_speakers=min_speakers,
                                      max_speakers=max_speakers)
     result = whisperx.assign_word_speakers(diarize_segments, result)
+    del diarize_model
     return result
