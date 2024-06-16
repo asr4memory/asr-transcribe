@@ -134,7 +134,9 @@ def write_vtt_word_segments_file(filepath: Path, word_segments):
 
 def write_pdf_file(filepath: Path, segments: list):
     "Write a PDF file with the transcript text."
-    mytemplate = Template(filename="pdf_template.html")
+    mytemplate = Template(
+        filename="pdf_template.html", output_encoding="utf-8", encoding_errors="replace"
+    )
     paragraphs = [segment["text"] for segment in segments]
     html_content = mytemplate.render(filename=filepath.stem, paragraphs=paragraphs)
     with open(filepath, "wb") as pdf_file:
