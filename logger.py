@@ -3,9 +3,9 @@ import io
 import logging
 import colorlog
 
-DATE_FORMAT = datefmt="%Y-%m-%dT%H:%M:%S%z"
+DATE_FORMAT = datefmt = "%Y-%m-%dT%H:%M:%S%z"
 
-logger = logging.getLogger('asr-transcribe')
+logger = logging.getLogger("asr-transcribe")
 
 fmt = logging.Formatter(
     fmt="%(asctime)s | %(levelname)s | %(message)s",
@@ -26,7 +26,7 @@ memoryHandler = logging.StreamHandler(stream=memory_stream)
 memoryHandler.setLevel(logging.INFO)
 memoryHandler.setFormatter(fmt)
 
-filehandler = logging.FileHandler('asr-transcribe.log')
+filehandler = logging.FileHandler("asr-transcribe.log")
 filehandler.setLevel(logging.INFO)
 filehandler.setFormatter(fmt)
 

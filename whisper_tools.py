@@ -5,36 +5,41 @@ from datetime import timedelta
 config = get_config()
 
 # Set the number of threads used by PyTorch (only relevant when CPU as device is used)
-number_threads = config['whisper']['thread_count']
+number_threads = config["whisper"]["thread_count"]
 
 # Define parameters for WhisperX model
-model_name = config['whisper']['model']
-device = config['whisper']['device']
-batch_size = config['whisper']['batch_size']
-beam_size = config['whisper']['beam_size']
-compute_type = config['whisper']['compute_type']
-language_audio = config['whisper']['language']
-initial_prompt = config['whisper']['initial_prompt']
-use_initial_prompt = config['whisper'].get('use_initial_prompt', False)
-min_speakers = config['whisper']['min_speakers']
-max_speakers = config['whisper']['max_speakers']
-hf_token = config['whisper']['hf_token']
+model_name = config["whisper"]["model"]
+device = config["whisper"]["device"]
+batch_size = config["whisper"]["batch_size"]
+beam_size = config["whisper"]["beam_size"]
+compute_type = config["whisper"]["compute_type"]
+language_audio = config["whisper"]["language"]
+initial_prompt = config["whisper"]["initial_prompt"]
+use_initial_prompt = config["whisper"].get("use_initial_prompt", False)
+min_speakers = config["whisper"]["min_speakers"]
+max_speakers = config["whisper"]["max_speakers"]
+hf_token = config["whisper"]["hf_token"]
 
 SAMPLING_RATE = 16000
 
 torch.set_num_threads(number_threads)
 
+
 def get_transcription_model():
     """
     Load WhisperX transcription model.
     """
-    asr_options = {'beam_size': beam_size}
-    if use_initial_prompt: asr_options['initial_prompt'] = initial_prompt
+    asr_options = {"beam_size": beam_size}
+    if use_initial_prompt:
+        asr_options["initial_prompt"] = initial_prompt
 
-    model = whisperx.load_model(model_name, device,
-                                language=language_audio,
-                                compute_type=compute_type,
-                                asr_options=asr_options)
+    model = whisperx.load_model(
+        model_name,
+        device,
+        language=language_audio,
+        compute_type=compute_type,
+        asr_options=asr_options,
+    )
     return model
 
 
@@ -45,12 +50,13 @@ def get_alignment_model(language_code: str, large_model=False):
     ressources.
     """
     if large_model:
-        result = whisperx.load_align_model(model_name="WAV2VEC2_ASR_LARGE_LV60K_960H",
-                                           language_code=language_code,
-                                           device=device)
+        result = whisperx.load_align_model(
+            model_name="WAV2VEC2_ASR_LARGE_LV60K_960H",
+            language_code=language_code,
+            device=device,
+        )
     else:
-        result = whisperx.load_align_model(language_code=language_code,
-                                           device=device)
+        result = whisperx.load_align_model(language_code=language_code, device=device)
 
     return result
 
@@ -87,8 +93,9 @@ def align(audio, segments, language: str):
     for start and end of each segment.
     """
     model, metadata = get_alignment_model(language)
-    result = whisperx.align(segments, model, metadata, audio, device,
-                            return_char_alignments=False)
+    result = whisperx.align(
+        segments, model, metadata, audio, device, return_char_alignments=False
+    )
     del model
     return result
 
@@ -98,10 +105,10 @@ def diarize(audio, result):
     Diarize transcribed segments using
     WhisperX' implemenation of pyannote.
     """
-    diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token,
-                                                 device=device)
-    diarize_segments = diarize_model(audio, min_speakers=min_speakers,
-                                     max_speakers=max_speakers)
+    diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
+    diarize_segments = diarize_model(
+        audio, min_speakers=min_speakers, max_speakers=max_speakers
+    )
     result = whisperx.assign_word_speakers(diarize_segments, result)
     del diarize_model
     return result

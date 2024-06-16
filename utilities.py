@@ -1,9 +1,11 @@
 """
 Utilities and helper functions for the main ASR script.
 """
+
 import re
 from pathlib import Path
 from decimal import Decimal
+
 
 def should_be_processed(filepath: Path):
     "Checks whether the file should be processed. File has which type?"
@@ -45,7 +47,7 @@ def check_for_hallucination_warnings(text: str) -> list:
     hallucination_regexp = r'Failed to align segment \((".*")\)'
     match = re.search(hallucination_regexp, text)
 
-    if (match):
+    if match:
         return list(match.groups())
     else:
         return None

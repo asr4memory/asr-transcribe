@@ -1,10 +1,12 @@
 from utilities import format_timestamp
 
+
 class ProcessInfo:
     """
     Stores information about the transcription process.
     """
-    def __init__(self, filename, start = 0, end = 0):
+
+    def __init__(self, filename, start=0, end=0):
         self.filename = filename
 
     def process_duration(self):
