@@ -31,11 +31,20 @@
         } 
       })
       .then(stream => {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const source = audioContext.createMediaStreamSource(stream);
+          const gainNode = audioContext.createGain();
+          gainNode.gain.value = 2;  // Increase the gain (1 is default, so 2 doubles the volume)
+
+          const destination = audioContext.createMediaStreamDestination();
+          source.connect(gainNode);
+          gainNode.connect(destination);
+
           const options = {
             mimeType: 'audio/webm',
             audioBitsPerSecond: 256000 // Set higher bitrate for better quality
           };
-          mediaRecorder = new MediaRecorder(stream, options);
+          mediaRecorder = new MediaRecorder(destination.stream, options);
           mediaRecorder.ondataavailable = function(event) {
             if (event.data.size > 0) {
               recordedChunks.push(event.data);
@@ -50,11 +59,11 @@
       mediaRecorder.stop();
       stopTimer(); // Stop the timer when recording stops
       mediaRecorder.onstop = function() {
-        const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+        const blob = new Blob(recordedChunks, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
 
         const formData = new FormData();
-        formData.append('file', blob, 'audio.wav');
+        formData.append('file', blob, 'audio.webm');
 
         // Display the processing text
         document.getElementById('processing').style.display = 'block';
