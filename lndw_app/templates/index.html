@@ -23,6 +23,9 @@
     let timerInterval;
 
     function startRecording() {
+      // Disable the start recording button
+      document.getElementById('startButton').disabled = true;
+
       navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -80,12 +83,16 @@
           document.getElementById('processing').style.display = 'none';
           // Clear the recorded chunks
           recordedChunks = [];
+          // Enable the start recording button
+          document.getElementById('startButton').disabled = false;
         })
         .catch(error => {
           console.error('Error:', error);
           document.getElementById('processing').style.display = 'none';
           // Clear the recorded chunks
           recordedChunks = [];
+          // Enable the start recording button
+          document.getElementById('startButton').disabled = false;
         });
       };
     }
@@ -122,7 +129,7 @@
 </head>
 <body>
   <h1>Audio Aufnahme und Upload</h1>
-  <button onclick="startRecording()">Start Recording</button>
+  <button id="startButton" onclick="startRecording()">Start Recording</button>
   <button onclick="stopRecording()">Stop Recording</button>
   <div id="timer">00:00:00</div>
   <div id="processing">Processing...</div>
