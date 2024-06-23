@@ -1,8 +1,14 @@
 <!DOCTYPE html>
 <html lang="{{ lang }}">
   <head>
-    <title>${filename}</title>
+    <meta charset="utf-8">
+    <title>{{filename}}</title>
     <style>
+      @font-face {
+        font-family: "NotoSans";
+        src: url('NotoSans-Regular.ttf');
+      }
+
       @page {
         size: A4 portrait;
         @frame header_frame {           /* Static Frame */
@@ -18,6 +24,10 @@
           -pdf-frame-content: footer_content;
           left: 2.5cm; width: 16cm; top: 28cm; height: 1.5cm;
         }
+      }
+
+      body {
+        font-family: "NotoSans", sans-serif;
       }
 
       h1  { font-size: 24pt; }
