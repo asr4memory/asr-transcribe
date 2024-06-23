@@ -54,8 +54,12 @@
 
     <h1>{{ filename }}</h1>
 
-    {% for paragraph in paragraphs %}
-      <p>{{ paragraph }}</p>
+    {% for segment in segments %}
+      {% if "speaker" in segment %}
+        <p>{{ segment.speaker }}:<br>{{ segment.text }}</p>
+      {% else %}
+        <p>{{ segment.text }}</p>
+      {% endif %}
     {% endfor %}
   </body>
 </html>
