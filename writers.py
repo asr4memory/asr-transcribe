@@ -6,10 +6,12 @@ import csv
 import json
 from datetime import datetime
 from pathlib import Path
+from jinja2 import Environment, PackageLoader, select_autoescape
 from xhtml2pdf import pisa
-from mako.template import Template
 from app_config import get_config
 from utilities import format_timestamp
+
+env = Environment(loader=PackageLoader("writers"), autoescape=select_autoescape())
 
 config = get_config()
 
@@ -133,14 +135,16 @@ def write_vtt_word_segments_file(filepath: Path, word_segments):
 
 
 def write_pdf_file(filepath: Path, segments: list):
-    "Write a PDF file with the transcript text."
-    mytemplate = Template(
-        filename="pdf_template.html", output_encoding="utf-8", encoding_errors="replace"
-    )
+    """Write a PDF file with the transcript text."""
     paragraphs = [segment["text"] for segment in segments]
-    html_content = mytemplate.render(filename=filepath.stem, paragraphs=paragraphs)
-    with open(filepath, "wb") as pdf_file:
-        pisa.CreatePDF(html_content, dest=pdf_file)
+
+    template = env.get_template("pdf_template.html")
+    html_content = template.render(
+        lang="en", filename=filepath.stem, paragraphs=paragraphs
+    )
+
+    with open(filepath, "wb") as file:
+        pisa.CreatePDF(html_content, dest=file)
 
 
 def write_output_files(base_path: Path, all: list, segments: list, word_segments: list):
