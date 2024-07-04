@@ -6,6 +6,7 @@ emails.
 
 from datetime import datetime
 from pathlib import Path
+from os import mkdir
 from email_notifications import (
     send_success_email,
     send_failure_email,
@@ -61,7 +62,9 @@ def process_file(filepath: Path, output_directory: Path):
         word_segments_filled = process_whisperx_word_segments(result["word_segments"])
 
         new_filename = f"{filename.split('.')[0]}_{language_audio}"
-        output_base_path = output_directory / new_filename
+        dir_path = output_directory / new_filename
+        mkdir(dir_path)
+        output_base_path = dir_path / new_filename
 
         write_output_files(
             base_path=output_base_path,
