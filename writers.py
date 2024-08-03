@@ -60,7 +60,6 @@ def write_csv_file(
     delimiter="\t",
     speaker_column=False,
     write_header=False,
-    use_speaker_diarization=False,
 ):
     """
     Write the processed segments to a CSV file.
@@ -81,14 +80,16 @@ def write_csv_file(
         for seg in custom_segs:
             _, timecode = format_timestamp(seg["start"])
             text = seg["text"]
-            if use_speaker_diarization is True and speaker_column is True:
-                speaker = seg["speaker"]
-                row = {"IN": timecode, "SPEAKER": speaker, "TRANSCRIPT": text}
-            elif use_speaker_diarization is False and speaker_column is False:
+
+            if speaker_column:
+                row = {
+                    "IN": timecode,
+                    "SPEAKER": seg.get("speaker", ""),
+                    "TRANSCRIPT": text,
+                }
+            else:
                 row = {"IN": timecode, "TRANSCRIPT": text}
-            # Leave the "SPEAKER" column empty if USE_SPEAKER_DIARIZATION option is false
-            elif use_speaker_diarization is False and speaker_column is True:
-                row = {"IN": timecode, "SPEAKER": "", "TRANSCRIPT": text}
+
             writer.writerow(row)
 
 
@@ -161,7 +162,6 @@ def write_output_files(base_path: Path, all: list, segments: list, word_segments
         delimiter="\t",  # Use tab as delimiter
         speaker_column=False,
         write_header=False,
-        use_speaker_diarization=False,
     )
     write_csv_file(
         base_path.with_name(base_path.name + "_speaker.csv"),
@@ -169,7 +169,6 @@ def write_output_files(base_path: Path, all: list, segments: list, word_segments
         delimiter="\t",  # Use tab as delimiter
         speaker_column=True,
         write_header=True,
-        use_speaker_diarization=USE_SPEAKER_DIARIZATION,
     )
     write_json_file(base_path.with_suffix(".json"), segments)
     write_json_file(base_path.with_name(base_path.name + "_unprocessed.json"), all)
