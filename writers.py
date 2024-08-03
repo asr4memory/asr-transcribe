@@ -4,10 +4,12 @@ Exporter functions.
 
 import csv
 import json
-from datetime import datetime
 from pathlib import Path
+from unicodedata import normalize
+
 from jinja2 import Environment, PackageLoader, select_autoescape
 from xhtml2pdf import pisa
+
 from app_config import get_config
 from utilities import format_timestamp
 
@@ -137,7 +139,12 @@ def write_vtt_word_segments_file(filepath: Path, word_segments):
 def write_pdf_file(filepath: Path, segments: list):
     """Write a PDF file with the transcript text."""
     template = env.get_template("pdf_template.html")
-    html_content = template.render(lang="en", filename=filepath.stem, segments=segments)
+
+    normalized_filename = normalize("NFC", filepath.stem)
+
+    html_content = template.render(
+        lang="en", filename=normalized_filename, segments=segments
+    )
 
     with open(filepath, "wb") as file:
         pisa.CreatePDF(html_content, dest=file)

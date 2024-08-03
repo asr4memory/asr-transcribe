@@ -63,6 +63,8 @@ def process_file(filepath: Path, output_directory: Path):
 
         new_filename = f"{filename.split('.')[0]}_{language_audio}"
         dir_path = output_directory / new_filename
+
+        # TODO:  Check if file exists!!
         mkdir(dir_path)
         output_base_path = dir_path / new_filename
 
