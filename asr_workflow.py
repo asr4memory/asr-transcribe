@@ -13,7 +13,11 @@ from email_notifications import (
     send_warning_email,
 )
 from app_config import get_config, log_config
-from utilities import should_be_processed, check_for_hallucination_warnings
+from utilities import (
+    should_be_processed,
+    check_for_hallucination_warnings,
+    create_output_files_directory_path,
+)
 from writers import write_output_files
 from stats import ProcessInfo
 from whisper_tools import get_audio, transcribe, align, get_audio_length, diarize
@@ -62,9 +66,8 @@ def process_file(filepath: Path, output_directory: Path):
         word_segments_filled = process_whisperx_word_segments(result["word_segments"])
 
         new_filename = f"{filename.split('.')[0]}_{language_audio}"
-        dir_path = output_directory / new_filename
 
-        # TODO:  Check if file exists!!
+        dir_path = create_output_files_directory_path(output_directory, new_filename)
         mkdir(dir_path)
         output_base_path = dir_path / new_filename
 

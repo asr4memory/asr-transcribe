@@ -2,6 +2,7 @@
 Utilities and helper functions for the main ASR script.
 """
 
+from datetime import datetime, timezone
 import re
 from pathlib import Path
 from decimal import Decimal
@@ -51,3 +52,13 @@ def check_for_hallucination_warnings(text: str) -> list:
         return list(match.groups())
     else:
         return None
+
+
+def create_output_files_directory_path(
+    output_directory: Path, filename_base: str
+) -> Path:
+    now = datetime.now(tz=timezone.utc)
+    date_suffix = now.strftime(".%Y-%m-%dT%H%M%SZ")
+    dir_path = output_directory / filename_base
+    result = dir_path.with_suffix(date_suffix)
+    return result
