@@ -140,19 +140,39 @@ def write_vtt_word_segments_file(filepath: Path, word_segments):
 def write_pdf_file(filepath: Path, segments: list):
     """Write a PDF file with the transcript text."""
     template = env.get_template("pdf_template.html")
-
     normalized_filename = normalize("NFC", filepath.stem)
+    segments_for_template = prepare_segments_for_template(segments)
 
     html_content = template.render(
-        lang="en", filename=normalized_filename, segments=segments
+        lang="en", filename=normalized_filename, segments=segments_for_template
     )
 
     with open(filepath, "wb") as file:
         pisa.CreatePDF(html_content, dest=file)
 
 
+def prepare_segments_for_template(segments: list) -> list:
+    """
+    Transform the segment data for the template that is used for
+    creating the PDF file.
+    """
+    segments_for_template = []
+    last_speaker = ""
+    for segment in segments:
+        new_segment = {
+            "text": segment["text"]
+        }
+        speaker = segment.get("speaker", "")
+        if speaker != last_speaker:
+            new_segment["speaker"] = speaker
+            last_speaker = speaker
+        segments_for_template.append(new_segment)
+
+    return segments_for_template
+
+
 def write_output_files(base_path: Path, all: list, segments: list, word_segments: list):
-    "Write all types of output files."
+    """Write all types of output files."""
     write_vtt_file(base_path.with_suffix(".vtt"), segments)
     write_srt_file(base_path.with_suffix(".srt"), segments)
     write_text_file(base_path.with_suffix(".txt"), segments)
