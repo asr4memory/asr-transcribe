@@ -25,7 +25,6 @@ from post_processing import process_whisperx_segments, process_whisperx_word_seg
 
 from app_config import get_config
 from logger import logger, memoryHandler
-import gc
 
 config = get_config()
 stats = []
@@ -105,8 +104,6 @@ def process_file(filepath: Path, output_directory: Path):
     except Exception as e:
         logger.error(e, exc_info=True)
         send_failure_email(stats=stats, audio_input=filename, exception=e)
-
-    gc.collect()
 
 
 def process_directory(input_directory: Path, output_directory: Path):
