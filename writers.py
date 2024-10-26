@@ -2,12 +2,14 @@
 Exporter functions.
 """
 
+from collections import OrderedDict
 import csv
 import json
 from pathlib import Path
 from unicodedata import normalize
 
 from jinja2 import Environment, PackageLoader, select_autoescape
+from pyexcel_ods3 import save_data
 from xhtml2pdf import pisa
 
 from app_config import get_config
@@ -169,6 +171,30 @@ def prepare_segments_for_template(segments: list) -> list:
     return segments_for_template
 
 
+def write_ods_file(
+    path_without_ext: Path,
+    custom_segs: list,
+):
+    """
+    Write the processed segments to an ODS file.
+    """
+    fieldnames = ["IN", "SPEAKER", "TRANSCRIPT"]
+
+    rows = []
+    rows.append(fieldnames)
+
+    for seg in custom_segs:
+        _, timecode = format_timestamp(seg["start"])
+        row = [timecode, seg.get("speaker", ""), seg["text"]]
+        rows.append(row)
+
+    data = OrderedDict()
+    data.update({"Sheet 1": rows})
+
+    full_path = path_without_ext.with_suffix(".ods")
+    save_data(str(full_path), data)
+
+
 def write_output_files(base_path: Path, all: list, segments: list, word_segments: list):
     """Write all types of output files."""
     write_vtt_file(base_path.with_suffix(".vtt"), segments)
@@ -199,3 +225,4 @@ def write_output_files(base_path: Path, all: list, segments: list, word_segments
         base_path.with_name(base_path.name + "_word_segments.vtt"), word_segments
     )
     write_pdf_file(base_path.with_suffix(".pdf"), segments)
+    write_ods_file(base_path, segments)
