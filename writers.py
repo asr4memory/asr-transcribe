@@ -159,9 +159,7 @@ def prepare_segments_for_template(segments: list) -> list:
     segments_for_template = []
     last_speaker = ""
     for segment in segments:
-        new_segment = {
-            "text": segment["text"]
-        }
+        new_segment = {"text": segment["text"]}
         speaker = segment.get("speaker", "")
         if speaker != last_speaker:
             new_segment["speaker"] = speaker
