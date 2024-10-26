@@ -22,11 +22,12 @@ config = get_config()
 USE_SPEAKER_DIARIZATION = config["whisper"].get("use_speaker_diarization", False)
 
 
-def write_vtt_file(filepath: Path, custom_segs):
+def write_vtt(path_without_ext: Path, segments: list):
     """Write the processed segments to a VTT subtitle file."""
-    with open(filepath, "w", encoding="utf-8") as file:
+    full_path = path_without_ext.with_suffix(".vtt")
+    with open(full_path, "w", encoding="utf-8") as file:
         file.write("WEBVTT\n\n")
-        for i, seg in enumerate(custom_segs):
+        for i, seg in enumerate(segments):
             _, start_time = format_timestamp(seg["start"])
             _, end_time = format_timestamp(seg["end"])
             file.write(f"{i + 1}\n")
@@ -34,10 +35,25 @@ def write_vtt_file(filepath: Path, custom_segs):
             file.write(f"{seg['text']}\n\n")
 
 
-def write_srt_file(filepath: Path, custom_segs):
+def write_word_segments_vtt(path_without_ext: Path, word_segments: list):
+    """Convert processed word segments to VTT format."""
+    full_path = path_without_ext.with_suffix(".vtt")
+    with open(full_path, "w", encoding="utf-8") as vtt_file:
+        vtt_file.write("WEBVTT\n\n")
+        for i, word_seg in enumerate(word_segments):
+            _, timecode_start = format_timestamp(word_seg["start"])
+            _, timecode_end = format_timestamp(word_seg["end"])
+            word = word_seg["word"]
+            vtt_file.write(f"{i + 1}\n")
+            vtt_file.write(f"{timecode_start} --> {timecode_end}\n")
+            vtt_file.write(f"{word}\n\n")
+
+
+def write_srt(path_without_ext: Path, segments: list):
     """Write the processed segments to an SRT subtitle file."""
-    with open(filepath, "w", encoding="utf-8") as file:
-        for i, seg in enumerate(custom_segs):
+    full_path = path_without_ext.with_suffix(".srt")
+    with open(full_path, "w", encoding="utf-8") as file:
+        for i, seg in enumerate(segments):
             _, start_time = format_timestamp(seg["start"], milli_separator=",")
             _, end_time = format_timestamp(seg["end"], milli_separator=",")
             file.write(f"{i + 1}\n")
@@ -45,20 +61,21 @@ def write_srt_file(filepath: Path, custom_segs):
             file.write(f"{seg['text']}\n\n")
 
 
-def write_text_file(filepath: Path, custom_segs):
+def write_text(path_without_ext: Path, segments: list):
     """
     Write the processed segments to a text file.
     This file will contain only the transcribed text of each segment.
     """
-    with open(filepath, "w", encoding="utf-8") as txt_file:
-        for seg in custom_segs:
+    full_path = path_without_ext.with_suffix(".txt")
+    with open(full_path, "w", encoding="utf-8") as txt_file:
+        for seg in segments:
             if "text" in seg:
                 txt_file.write(f"{seg['text']}\n")
 
 
-def write_csv_file(
-    filepath,
-    custom_segs,
+def write_csv(
+    path_without_ext: Path,
+    segments: list,
     delimiter="\t",
     speaker_column=False,
     write_header=False,
@@ -73,13 +90,14 @@ def write_csv_file(
         ["IN", "SPEAKER", "TRANSCRIPT"] if speaker_column else ["IN", "TRANSCRIPT"]
     )
 
-    with open(filepath, "w", newline="", encoding="utf-8") as csvfile:
+    full_path = path_without_ext.with_suffix(".csv")
+    with open(full_path, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=delimiter)
 
         if write_header:
             writer.writeheader()
 
-        for seg in custom_segs:
+        for seg in segments:
             _, timecode = format_timestamp(seg["start"])
             text = seg["text"]
 
@@ -95,18 +113,13 @@ def write_csv_file(
             writer.writerow(row)
 
 
-def write_json_file(filepath: Path, data):
-    """Write a dictionary as a JSON file."""
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-
-def write_csv_word_segments_file(filepath: Path, word_segments, delimiter="\t"):
-    """
-    Write the processed word segments to a CSV file.
-    """
+def write_word_segments_csv(
+    path_without_ext: Path, word_segments: list, delimiter="\t"
+):
+    """Write the processed word segments to a CSV file."""
     fieldnames = ["WORD", "START", "END", "SCORE"]
-    with open(filepath, "w", newline="", encoding="utf-8") as csvfile:
+    full_path = path_without_ext.with_suffix(".csv")
+    with open(full_path, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=delimiter)
         writer.writeheader()
 
@@ -124,32 +137,25 @@ def write_csv_word_segments_file(filepath: Path, word_segments, delimiter="\t"):
             writer.writerow(row)
 
 
-def write_vtt_word_segments_file(filepath: Path, word_segments):
-    """
-    Convert processed word segments to VTT format
-    """
-    with open(filepath, "w", encoding="utf-8") as vtt_file:
-        vtt_file.write("WEBVTT\n\n")
-        for i, word_seg in enumerate(word_segments):
-            _, timecode_start = format_timestamp(word_seg["start"])
-            _, timecode_end = format_timestamp(word_seg["end"])
-            word = word_seg["word"]
-            vtt_file.write(f"{i + 1}\n")
-            vtt_file.write(f"{timecode_start} --> {timecode_end}\n")
-            vtt_file.write(f"{word}\n\n")
+def write_json(path_without_ext: Path, segments: list):
+    """Write a dictionary as a JSON file."""
+    full_path = path_without_ext.with_suffix(".json")
+    with open(full_path, "w", encoding="utf-8") as f:
+        json.dump(segments, f, indent=4, ensure_ascii=False)
 
 
-def write_pdf_file(filepath: Path, segments: list):
+def write_pdf(path_without_ext: Path, segments: list):
     """Write a PDF file with the transcript text."""
     template = env.get_template("pdf_template.html")
-    normalized_filename = normalize("NFC", filepath.stem)
+    normalized_filename = normalize("NFC", path_without_ext.stem)
     segments_for_template = prepare_segments_for_template(segments)
 
     html_content = template.render(
         lang="en", filename=normalized_filename, segments=segments_for_template
     )
 
-    with open(filepath, "wb") as file:
+    full_path = path_without_ext.with_suffix(".pdf")
+    with open(full_path, "wb") as file:
         pisa.CreatePDF(html_content, dest=file)
 
 
@@ -171,10 +177,7 @@ def prepare_segments_for_template(segments: list) -> list:
     return segments_for_template
 
 
-def write_ods_file(
-    path_without_ext: Path,
-    custom_segs: list,
-):
+def write_ods(path_without_ext: Path, segments: list):
     """
     Write the processed segments to an ODS file.
     """
@@ -183,9 +186,9 @@ def write_ods_file(
     rows = []
     rows.append(fieldnames)
 
-    for seg in custom_segs:
-        _, timecode = format_timestamp(seg["start"])
-        row = [timecode, seg.get("speaker", ""), seg["text"]]
+    for segment in segments:
+        _, timecode = format_timestamp(segment["start"])
+        row = [timecode, segment.get("speaker", ""), segment["text"]]
         rows.append(row)
 
     data = OrderedDict()
@@ -197,32 +200,32 @@ def write_ods_file(
 
 def write_output_files(base_path: Path, all: list, segments: list, word_segments: list):
     """Write all types of output files."""
-    write_vtt_file(base_path.with_suffix(".vtt"), segments)
-    write_srt_file(base_path.with_suffix(".srt"), segments)
-    write_text_file(base_path.with_suffix(".txt"), segments)
-    write_csv_file(
-        base_path.with_suffix(".csv"),
+    write_vtt(base_path, segments)
+    write_word_segments_vtt(
+        base_path.with_stem(base_path.stem + "_word_segments"), word_segments
+    )
+    write_srt(base_path, segments)
+    write_text(base_path, segments)
+    write_csv(
+        base_path,
         segments,
-        delimiter="\t",  # Use tab as delimiter
+        delimiter="\t",
         speaker_column=False,
         write_header=False,
     )
-    write_csv_file(
-        base_path.with_name(base_path.name + "_speaker.csv"),
+    write_csv(
+        base_path.with_stem(base_path.stem + "_speaker"),
         segments,
-        delimiter="\t",  # Use tab as delimiter
+        delimiter="\t",
         speaker_column=True,
         write_header=True,
     )
-    write_json_file(base_path.with_suffix(".json"), segments)
-    write_json_file(base_path.with_name(base_path.name + "_unprocessed.json"), all)
-    write_csv_word_segments_file(
-        base_path.with_name(base_path.name + "_word_segments.csv"),
+    write_word_segments_csv(
+        base_path.with_stem(base_path.stem + "_word_segments"),
         word_segments,
         delimiter="\t",
     )
-    write_vtt_word_segments_file(
-        base_path.with_name(base_path.name + "_word_segments.vtt"), word_segments
-    )
-    write_pdf_file(base_path.with_suffix(".pdf"), segments)
-    write_ods_file(base_path, segments)
+    write_json(base_path, segments)
+    write_json(base_path.with_stem(base_path.stem + "_unprocessed"), all)
+    write_pdf(base_path, segments)
+    write_ods(base_path, segments)
