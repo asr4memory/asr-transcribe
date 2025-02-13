@@ -662,24 +662,25 @@ For more information on this, and how to apply and follow the GNU AGPL, see
 
 ---
 
-Additional Notice
+                    Additional Notice
 
-This repository incorporates components (WhisperX) licensed under the BSD 2-Clause License:
+  This repository incorporates components (WhisperX) licensed under the BSD 
+2-Clause License:
 
-BSD 2-Clause License
+                    BSD 2-Clause License
 
 Copyright (c) 2024, Max Bain (https://github.com/m-bain/whisperX)
 
-Redistribution and use in source and binary forms, with or without
+  Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-1. Redistributions of source code must retain the above copyright notice, this
+  1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
+  2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
@@ -691,7 +692,10 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
+    
+                    Summary
 
-Summary
-
-This repository is licensed under the AGPL-3.0 license for the majority of the code, with certain components integrating code under the BSD 2-Clause License. For clarity, ensure you comply with both licenses when using or redistributing this code.
+  This repository is licensed under the AGPL-3.0 license for the majority of 
+the code, with certain components integrating code under the BSD 2-Clause License. 
+For clarity, ensure you comply with both licenses when using or redistributing 
+this code.
