@@ -1,8 +1,9 @@
 import copy
+
 from post_processing import (
     sentence_is_incomplete,
-    uppercase_sentences,
     split_long_sentences,
+    uppercase_sentences,
 )
 
 
@@ -82,7 +83,7 @@ def test_split_sentences():
         "end": 31.157894736842106,
     }
     segment2b = {
-        "text": ("and so in the end we have two sentences instead " "of one."),
+        "text": ("and so in the end we have two sentences instead of one."),
         "start": 31.157894736842106,
         "end": 40.0,
     }

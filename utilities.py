@@ -2,10 +2,10 @@
 Utilities and helper functions for the main ASR script.
 """
 
-from datetime import datetime, timezone
 import re
-from pathlib import Path
+from datetime import datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 
 
 def should_be_processed(filepath: Path):

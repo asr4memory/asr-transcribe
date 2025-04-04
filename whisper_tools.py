@@ -1,7 +1,9 @@
-import whisperx, torch
-from app_config import get_config
-from datetime import timedelta
 import gc
+
+import torch
+import whisperx
+
+from app_config import get_config
 
 config = get_config()
 

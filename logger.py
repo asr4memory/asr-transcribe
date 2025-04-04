@@ -1,6 +1,7 @@
-import sys
 import io
 import logging
+import sys
+
 import colorlog
 
 DATE_FORMAT = datefmt = "%Y-%m-%dT%H:%M:%S%z"

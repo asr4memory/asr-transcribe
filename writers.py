@@ -2,9 +2,9 @@
 Exporter functions.
 """
 
-from collections import OrderedDict
 import csv
 import json
+from collections import OrderedDict
 from pathlib import Path
 from unicodedata import normalize
 

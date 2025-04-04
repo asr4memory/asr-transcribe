@@ -5,26 +5,25 @@ emails.
 """
 
 from datetime import datetime
-from pathlib import Path
 from os import mkdir
+from pathlib import Path
+
+from app_config import get_config, log_config
 from email_notifications import (
-    send_success_email,
     send_failure_email,
+    send_success_email,
     send_warning_email,
 )
-from app_config import get_config, log_config
+from logger import logger, memoryHandler
+from post_processing import process_whisperx_segments, process_whisperx_word_segments
+from stats import ProcessInfo
 from utilities import (
-    should_be_processed,
     check_for_hallucination_warnings,
     create_output_files_directory_path,
+    should_be_processed,
 )
+from whisper_tools import align, diarize, get_audio, get_audio_length, transcribe
 from writers import write_output_files
-from stats import ProcessInfo
-from whisper_tools import get_audio, transcribe, align, get_audio_length, diarize
-from post_processing import process_whisperx_segments, process_whisperx_word_segments
-
-from app_config import get_config
-from logger import logger, memoryHandler
 
 config = get_config()
 stats = []
