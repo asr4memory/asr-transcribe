@@ -7,7 +7,7 @@
 - Python >= 3.10
 - ffmpeg
 
-## Installation
+## Traditional installation
 
 Install Pytorch [according to your system,](https://pytorch.org/get-started/locally/) e.g. for Linux with only CPU support:
 
@@ -25,6 +25,26 @@ Install the rest of the dependencies:
 
 ```shell
 pip install -r requirements.txt
+```
+
+Create the configuration file.
+
+```shell
+cp config.example.toml config.toml
+```
+
+## Installation with uv
+
+Install with GPU support:
+
+```shell
+uv sync --extra cu124
+```
+
+Or install with CPU support only:
+
+```shell
+uv sync --extra cpu
 ```
 
 Create the configuration file.
