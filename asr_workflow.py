@@ -62,7 +62,8 @@ def process_file(filepath: Path, output_directory: Path):
             result = diarize(audio=audio, result=result)
 
         custom_segs = process_whisperx_segments(result["segments"])
-        word_segments_filled = process_whisperx_word_segments(result["word_segments"])
+        # word_segments_filled = process_whisperx_word_segments(result["word_segments"])
+        word_segments_filled = result["word_segments"]
 
         new_filename = f"{filename.split('.')[0]}_{language_audio}"
 
