@@ -21,7 +21,8 @@ from utilities import (
 from writers import write_output_files
 from stats import ProcessInfo
 from whisper_tools import get_audio, transcribe, align, get_audio_length, diarize
-from post_processing import process_whisperx_segments, process_whisperx_word_segments
+#from post_processing import process_whisperx_segments, process_whisperx_word_segments
+from post_processing import process_whisperx_segments
 
 from app_config import get_config
 from logger import logger, memoryHandler
