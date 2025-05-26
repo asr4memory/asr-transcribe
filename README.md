@@ -15,13 +15,7 @@ Install Pytorch [according to your system,](https://pytorch.org/get-started/loca
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 ```
 
-Install WhisperX (this is best done directly through its git repository):
-
-```shell
-pip install git+https://github.com/m-bain/whisperx.git --upgrade
-```
-
-Install the rest of the dependencies:
+Install dependencies:
 
 ```shell
 pip install -r requirements.txt
