@@ -9,12 +9,6 @@
 
 ## Installation
 
-Install Pytorch [according to your system,](https://pytorch.org/get-started/locally/) e.g. for Linux with only CPU support:
-
-```shell
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-```
-
 Install dependencies:
 
 ```shell

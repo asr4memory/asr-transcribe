@@ -112,7 +112,7 @@ def diarize(audio, result):
     Diarize transcribed segments using
     WhisperX' implemenation of pyannote.
     """
-    diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
+    diarize_model = whisperx.diarize.DiarizationPipeline(use_auth_token=hf_token, device=device)
     diarize_segments = diarize_model(
         audio, min_speakers=min_speakers, max_speakers=max_speakers
     )
