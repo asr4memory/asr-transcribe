@@ -37,6 +37,7 @@ def llm_summarization(segments):
     outputs = pipeline(
     messages,
     max_new_tokens=10000,
+    temperature=0.7,
     )
 
     output = outputs[0]['generated_text']
