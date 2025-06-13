@@ -23,6 +23,7 @@ from stats import ProcessInfo
 from whisper_tools import get_audio, transcribe, align, get_audio_length, diarize
 #from post_processing import process_whisperx_segments, process_whisperx_word_segments
 from post_processing import process_whisperx_segments
+from llm_processing import llm_summarization
 
 from app_config import get_config
 from logger import logger, memoryHandler
@@ -62,10 +63,13 @@ def process_file(filepath: Path, output_directory: Path):
         if use_speaker_diarization:
             result = diarize(audio=audio, result=result)
 
+        # Post-processing 
         custom_segs = process_whisperx_segments(result["segments"])
         # word_segments_filled = process_whisperx_word_segments(result["word_segments"])
         word_segments_filled = result["word_segments"]
+        summary = llm_summarization(result["segments"])
 
+        # Create output directory and write files.
         new_filename = f"{filename.split('.')[0]}_{language_audio}"
 
         dir_path = create_output_files_directory_path(output_directory, new_filename)
@@ -77,6 +81,7 @@ def process_file(filepath: Path, output_directory: Path):
             all=result,
             segments=custom_segs,
             word_segments=word_segments_filled,
+            summary=summary,
         )
 
         process_info.end = datetime.now()
