@@ -17,6 +17,7 @@ from utilities import (
     should_be_processed,
     check_for_hallucination_warnings,
     create_output_files_directory_path,
+    cleanup_cuda_memory,
 )
 from writers import write_output_files
 from stats import ProcessInfo
@@ -111,6 +112,10 @@ def process_file(filepath: Path, output_directory: Path):
     except Exception as e:
         logger.error(e, exc_info=True)
         send_failure_email(stats=stats, audio_input=filename, exception=e)
+
+    finally:
+        # Aggressive memory cleanup after each file
+        cleanup_cuda_memory()
 
 
 def process_directory(input_directory: Path, output_directory: Path):
