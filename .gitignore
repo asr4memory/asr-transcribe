@@ -10,3 +10,9 @@ __pycache__
 /asr-tools_venv
 /config.toml
 models 
+asr_watch_DE.py
+asr_watch_EN.py
+asr_watch_FR.py
+asr_watch_ES.py
+asr_watch_PL.py
+asr_watch_AUTO.py
