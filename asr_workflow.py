@@ -16,7 +16,7 @@ from app_config import get_config, log_config
 from utilities import (
     should_be_processed,
     check_for_hallucination_warnings,
-    create_output_files_directory_path,
+    create_output_files_directory_path
 )
 from writers import write_output_files
 from stats import ProcessInfo
@@ -25,7 +25,6 @@ from whisper_tools import get_audio, transcribe, align, get_audio_length, diariz
 from post_processing import process_whisperx_segments
 from llm_processing import llm_summarization
 
-from app_config import get_config
 from logger import logger, memoryHandler
 
 config = get_config()
@@ -38,6 +37,11 @@ use_speaker_diarization = config["whisper"]["use_speaker_diarization"]
 def process_file(filepath: Path, output_directory: Path):
     global warning_count, warning_audio_inputs, stats
     language_audio = config["whisper"]["language"]
+    custom_model = config["whisper"].get("custom_model", False)
+    if not custom_model:
+        model_name = config["whisper"]["model"]
+    else:
+        model_name = "custom"
     filename = filepath.name
 
     try:
@@ -69,8 +73,7 @@ def process_file(filepath: Path, output_directory: Path):
         word_segments_filled = result["word_segments"]
         summary = llm_summarization(result["segments"])
 
-        # Create output directory and write files.
-        new_filename = f"{filename.split('.')[0]}_{language_audio}"
+        new_filename = f"{filename.split('.')[0]}_{model_name}_{language_audio}"
 
         dir_path = create_output_files_directory_path(output_directory, new_filename)
         mkdir(dir_path)

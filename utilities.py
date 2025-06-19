@@ -6,6 +6,12 @@ from datetime import datetime, timezone
 import re
 from pathlib import Path
 from decimal import Decimal
+import gc
+import torch
+from app_config import get_config
+
+config = get_config()
+device = config["whisper"]["device"]
 
 
 def should_be_processed(filepath: Path):
@@ -62,3 +68,11 @@ def create_output_files_directory_path(
     dir_path = output_directory / filename_base
     result = dir_path.with_suffix(date_suffix)
     return result
+
+def cleanup_cuda_memory():
+    """Aggressive CUDA memory cleanup."""
+    gc.collect()
+    if device == "cuda":
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect() 
+        torch.cuda.synchronize()

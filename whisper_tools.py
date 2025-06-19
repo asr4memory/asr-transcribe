@@ -1,7 +1,6 @@
 import whisperx, torch
 from app_config import get_config
-from datetime import timedelta
-import gc
+from utilities import cleanup_cuda_memory
 
 config = get_config()
 
@@ -10,6 +9,8 @@ number_threads = config["whisper"]["thread_count"]
 
 # Define parameters for WhisperX model
 model_name = config["whisper"]["model"]
+custom_model = config["whisper"].get("custom_model", False)
+model_dir = config["whisper"]["model_dir"]
 device = config["whisper"]["device"]
 batch_size = config["whisper"]["batch_size"]
 beam_size = config["whisper"]["beam_size"]
@@ -34,13 +35,24 @@ def get_transcription_model():
     if use_initial_prompt:
         asr_options["initial_prompt"] = initial_prompt
 
-    model = whisperx.load_model(
-        model_name,
-        device,
-        language=language_audio,
-        compute_type=compute_type,
-        asr_options=asr_options,
-    )
+    if not custom_model:
+        model = whisperx.load_model(
+            model_name, 
+            device,
+            language=language_audio,
+            compute_type=compute_type,
+            asr_options=asr_options,
+        )
+    else:
+        model = whisperx.load_model(
+            model_name,      
+            device,
+            language=language_audio,
+            compute_type=compute_type,
+            asr_options=asr_options,
+            download_root=model_dir,      
+        )
+
     return model
 
 
@@ -84,10 +96,8 @@ def transcribe(audio):
     """
     model = get_transcription_model()
     result = model.transcribe(audio, batch_size=batch_size)
-    gc.collect()
     del model
-    if device == "cuda":
-        torch.cuda.empty_cache()
+    cleanup_cuda_memory()
     return result
 
 
@@ -100,10 +110,8 @@ def align(audio, segments, language: str):
     result = whisperx.align(
         segments, model, metadata, audio, device, return_char_alignments=False
     )
-    gc.collect()
-    del model
-    if device == "cuda":
-        torch.cuda.empty_cache()
+    del model, metadata
+    cleanup_cuda_memory()
     return result
 
 
@@ -117,8 +125,6 @@ def diarize(audio, result):
         audio, min_speakers=min_speakers, max_speakers=max_speakers
     )
     result = whisperx.assign_word_speakers(diarize_segments, result)
-    gc.collect()
     del diarize_model
-    if device == "cuda":
-        torch.cuda.empty_cache()
+    cleanup_cuda_memory()
     return result
