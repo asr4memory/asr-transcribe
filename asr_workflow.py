@@ -113,10 +113,6 @@ def process_file(filepath: Path, output_directory: Path):
         logger.error(e, exc_info=True)
         send_failure_email(stats=stats, audio_input=filename, exception=e)
 
-    finally:
-        # Aggressive memory cleanup after each file
-        cleanup_cuda_memory()
-
 
 def process_directory(input_directory: Path, output_directory: Path):
     """

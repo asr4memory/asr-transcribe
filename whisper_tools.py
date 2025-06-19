@@ -2,6 +2,7 @@ import whisperx, torch
 from app_config import get_config
 from datetime import timedelta
 import gc
+from utilities import cleanup_cuda_memory
 
 config = get_config()
 
@@ -97,10 +98,8 @@ def transcribe(audio):
     """
     model = get_transcription_model()
     result = model.transcribe(audio, batch_size=batch_size)
-    gc.collect()
     del model
-    if device == "cuda":
-        torch.cuda.empty_cache()
+    cleanup_cuda_memory()
     return result
 
 
@@ -113,10 +112,8 @@ def align(audio, segments, language: str):
     result = whisperx.align(
         segments, model, metadata, audio, device, return_char_alignments=False
     )
-    gc.collect()
-    del model
-    if device == "cuda":
-        torch.cuda.empty_cache()
+    del model, metadata
+    cleanup_cuda_memory()
     return result
 
 
@@ -130,8 +127,6 @@ def diarize(audio, result):
         audio, min_speakers=min_speakers, max_speakers=max_speakers
     )
     result = whisperx.assign_word_speakers(diarize_segments, result)
-    gc.collect()
     del diarize_model
-    if device == "cuda":
-        torch.cuda.empty_cache()
+    cleanup_cuda_memory()
     return result
