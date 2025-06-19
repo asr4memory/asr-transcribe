@@ -1,7 +1,5 @@
 import whisperx, torch
 from app_config import get_config
-from datetime import timedelta
-import gc
 from utilities import cleanup_cuda_memory
 
 config = get_config()
@@ -37,7 +35,7 @@ def get_transcription_model():
     if use_initial_prompt:
         asr_options["initial_prompt"] = initial_prompt
 
-    if custom_model == False:
+    if not custom_model:
         model = whisperx.load_model(
             model_name, 
             device,
