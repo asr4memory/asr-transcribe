@@ -37,11 +37,7 @@ use_speaker_diarization = config["whisper"]["use_speaker_diarization"]
 def process_file(filepath: Path, output_directory: Path):
     global warning_count, warning_audio_inputs, stats
     language_audio = config["whisper"]["language"]
-    custom_model = config["whisper"].get("custom_model", False)
-    if not custom_model:
-        model_name = config["whisper"]["model"]
-    else:
-        model_name = "custom"
+    model_name = config["whisper"]["model"]
     filename = filepath.name
 
     try:

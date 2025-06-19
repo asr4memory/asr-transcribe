@@ -35,23 +35,13 @@ def get_transcription_model():
     if use_initial_prompt:
         asr_options["initial_prompt"] = initial_prompt
 
-    if not custom_model:
-        model = whisperx.load_model(
-            model_name, 
-            device,
-            language=language_audio,
-            compute_type=compute_type,
-            asr_options=asr_options,
-        )
-    else:
-        model = whisperx.load_model(
-            model_name,      
-            device,
-            language=language_audio,
-            compute_type=compute_type,
-            asr_options=asr_options,
-            download_root=model_dir,      
-        )
+    model = whisperx.load_model(
+        model_name, 
+        device,
+        language=language_audio,
+        compute_type=compute_type,
+        asr_options=asr_options,
+    )
 
     return model
 
