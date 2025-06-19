@@ -37,6 +37,11 @@ use_speaker_diarization = config["whisper"]["use_speaker_diarization"]
 def process_file(filepath: Path, output_directory: Path):
     global warning_count, warning_audio_inputs, stats
     language_audio = config["whisper"]["language"]
+    custom_model = config["whisper"].get("custom_model", False)
+    if custom_model == False:
+        model_name = config["whisper"]["model"]
+    else:
+        model_name = "custom"
     filename = filepath.name
 
     try:
@@ -66,7 +71,7 @@ def process_file(filepath: Path, output_directory: Path):
         # word_segments_filled = process_whisperx_word_segments(result["word_segments"])
         word_segments_filled = result["word_segments"]
 
-        new_filename = f"{filename.split('.')[0]}_{language_audio}"
+        new_filename = f"{filename.split('.')[0]}_{model_name}_{language_audio}"
 
         dir_path = create_output_files_directory_path(output_directory, new_filename)
         mkdir(dir_path)

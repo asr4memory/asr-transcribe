@@ -38,16 +38,16 @@ def get_transcription_model():
 
     if custom_model == False:
         model = whisperx.load_model(
-            model=model_name, 
-            device=device,
+            model_name, 
+            device,
             language=language_audio,
             compute_type=compute_type,
             asr_options=asr_options,
         )
     else:
         model = whisperx.load_model(
-            whisper_arch=model_name,      
-            device=device,
+            model_name,      
+            device,
             language=language_audio,
             compute_type=compute_type,
             asr_options=asr_options,
