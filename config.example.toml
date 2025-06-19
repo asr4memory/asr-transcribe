@@ -5,6 +5,8 @@ email_notifications = false
 
 [whisper]
 model = "large-v3"
+custom_model = "false"
+model_dir = "/path/to/custom/model"
 device = "cpu"
 thread_count = 5  # 5 is default
 batch_size = 28

@@ -10,6 +10,8 @@ number_threads = config["whisper"]["thread_count"]
 
 # Define parameters for WhisperX model
 model_name = config["whisper"]["model"]
+custom_model = config["whisper"].get("custom_model", False)
+model_dir = config["whisper"]["model_dir"]
 device = config["whisper"]["device"]
 batch_size = config["whisper"]["batch_size"]
 beam_size = config["whisper"]["beam_size"]
@@ -34,13 +36,24 @@ def get_transcription_model():
     if use_initial_prompt:
         asr_options["initial_prompt"] = initial_prompt
 
-    model = whisperx.load_model(
-        model_name,
-        device,
-        language=language_audio,
-        compute_type=compute_type,
-        asr_options=asr_options,
-    )
+    if custom_model == False:
+        model = whisperx.load_model(
+            model=model_name, 
+            device=device,
+            language=language_audio,
+            compute_type=compute_type,
+            asr_options=asr_options,
+        )
+    else:
+        model = whisperx.load_model(
+            whisper_arch=model_name,      
+            device=device,
+            language=language_audio,
+            compute_type=compute_type,
+            asr_options=asr_options,
+            download_root=model_dir,      
+        )
+
     return model
 
 
