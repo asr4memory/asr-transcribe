@@ -10,7 +10,6 @@ number_threads = config["whisper"]["thread_count"]
 # Define parameters for WhisperX model
 model_name = config["whisper"]["model"]
 custom_model = config["whisper"].get("custom_model", False)
-model_dir = config["whisper"]["model_dir"]
 device = config["whisper"]["device"]
 batch_size = config["whisper"]["batch_size"]
 beam_size = config["whisper"]["beam_size"]
