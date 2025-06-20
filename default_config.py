@@ -8,8 +8,6 @@ CONST_DEFAULT_CONFIG = {
     "system": {"input_path": "", "output_path": "", "email_notifications": False},
     "whisper": {
         "model": "large-v3",
-        "custom_model": False,
-        "model_dir": "",
         "device": "cpu",
         "thread_count": 5,
         "batch_size": 28,
