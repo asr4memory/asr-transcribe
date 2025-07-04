@@ -18,6 +18,7 @@ use_speaker_diarization = true
 min_speakers = 1
 max_speakers = 2
 hf_token = "add your Huggingface Token here"
+api_key = "add your KISSKI api key here"
 
 [email]
 smtp_server = "mail.example.com"

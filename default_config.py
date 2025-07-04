@@ -21,6 +21,7 @@ CONST_DEFAULT_CONFIG = {
         "min_speakers": None,
         "max_speakers": None,
         "hf_token": None,
+        "api_key": None,
     },
     "email": {
         "smtp_server": "",
