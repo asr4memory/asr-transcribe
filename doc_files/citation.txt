@@ -1,0 +1,3 @@
+Please acknowledge the use of ASR4Memory as follows: 
+
+The transcript(s) was (were) generated in <{year}> using the transcription application ASR4Memory (https://www.fu-berlin.de/asr4memory) provided by the University Library of Freie Universität Berlin.

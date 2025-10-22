@@ -1,9 +1,13 @@
 import copy
+import pytest
+from pathlib import Path
+import hashlib
 from post_processing import (
     sentence_is_incomplete,
     uppercase_sentences,
     split_long_sentences,
 )
+from utilities import prepare_bag_directory, finalize_bag, sha512
 
 
 class TestSentenceIsIncomplete:
@@ -91,3 +95,121 @@ def test_split_sentences():
     actual_segments = list(split_long_sentences(original_segments))
 
     assert expected_segments == actual_segments
+
+
+# --- BagIt Tests ---
+
+@pytest.fixture
+def bagit_test_structure(tmp_path):
+    """Creates a temporary directory for BagIt tests."""
+    bag_root = tmp_path / "test_bag"
+    return bag_root
+
+def test_prepare_bag_directory(bagit_test_structure):
+    """Tests the creation of the BagIt directory structure."""
+    bag_root = bagit_test_structure
+    transcripts_dir = prepare_bag_directory(bag_root)
+
+    assert bag_root.exists() and bag_root.is_dir()
+    data_dir = bag_root / "data"
+    assert data_dir.exists() and data_dir.is_dir()
+    transcripts_dir = bag_root / "data" / "transcripts"
+    assert transcripts_dir.exists() and transcripts_dir.is_dir()
+    assert transcripts_dir.name == "transcripts"
+    assert transcripts_dir.parent == data_dir
+    
+    # Test documentation directory
+    documentation_dir = bag_root / "documentation"
+    assert documentation_dir.exists() and documentation_dir.is_dir()
+    assert documentation_dir.name == "documentation"
+    assert documentation_dir.parent == bag_root
+
+def test_finalize_bag_manifests_and_info(bagit_test_structure):
+    """
+    Tests the creation of bagit.txt, manifest-sha512.txt, and bag-info.txt.
+    """
+    bag_root = bagit_test_structure
+    transcripts_dir = prepare_bag_directory(bag_root)
+
+    # Create dummy payload files
+    file1_content = "This is file one."
+    file2_content = "This is file two, which is different."
+    file1 = transcripts_dir / "file1.txt"
+    file2 = transcripts_dir / "file2.txt"
+    file1.write_text(file1_content, encoding="utf-8")
+    file2.write_text(file2_content, encoding="utf-8")
+    payload_files = [file1, file2]
+
+    # Calculate expected checksums
+    sha512_file1 = sha512(file1)
+    sha512_file2 = sha512(file2)
+
+    # Define extra info for bag-info.txt
+    extra_info = {
+        "Source-Filename": "test.wav",
+        "Internal-Sender-Identifier": "test-sender",
+    }
+
+    finalize_bag(bag_root, payload_files, extra_info)
+
+    # 1. Test manifest-sha512.txt
+    manifest_path = bag_root / "manifest-sha512.txt"
+    assert manifest_path.exists()
+    manifest_content = manifest_path.read_text(encoding="utf-8")
+    assert f"{sha512_file1}  data/transcripts/file1.txt" in manifest_content
+    assert f"{sha512_file2}  data/transcripts/file2.txt" in manifest_content
+
+    # 2. Test bag-info.txt
+    bag_info_path = bag_root / "bag-info.txt"
+    assert bag_info_path.exists()
+    bag_info_content = bag_info_path.read_text(encoding="utf-8")
+    assert "Source-Filename: test.wav" in bag_info_content
+    assert "Internal-Sender-Identifier: test-sender" in bag_info_content
+    assert "Payload-Oxum:" in bag_info_content
+    assert "Bagging-Date:" in bag_info_content
+
+    # 3. Test bagit.txt
+    bagit_txt_path = bag_root / "bagit.txt"
+    assert bagit_txt_path.exists()
+    bagit_txt_content = bagit_txt_path.read_text(encoding="utf-8")
+    assert "BagIt-Version: 1.0" in bagit_txt_content
+    assert "Tag-File-Character-Encoding: UTF-8" in bagit_txt_content
+
+
+def test_docu_directory_in_tag_manifest(bagit_test_structure):
+    """
+    Tests that files in documentation/ directory are included in tagmanifest-sha512.txt.
+    """
+    bag_root = bagit_test_structure
+    transcripts_dir = prepare_bag_directory(bag_root)
+
+    # Create payload files
+    file1 = transcripts_dir / "payload.txt"
+    file1.write_text("Payload content", encoding="utf-8")
+    payload_files = [file1]
+
+    # Create documentation files in documentation/
+    documentation_dir = bag_root / "documentation"
+    readme = documentation_dir / "README.md"
+    readme.write_text("# Documentation\nThis is a test bag.", encoding="utf-8")
+    
+    license_file = documentation_dir / "LICENSE.txt"
+    license_file.write_text("MIT License", encoding="utf-8")
+
+    # Calculate checksums
+    sha512_readme = sha512(readme)
+    sha512_license = sha512(license_file)
+
+    finalize_bag(bag_root, payload_files, {})
+
+    # Test that documentation files are NOT in payload manifest
+    manifest_path = bag_root / "manifest-sha512.txt"
+    manifest_content = manifest_path.read_text(encoding="utf-8")
+    assert "documentation/" not in manifest_content
+
+    # Test that documentation files ARE in tag manifest
+    tag_manifest_path = bag_root / "tagmanifest-sha512.txt"
+    assert tag_manifest_path.exists()
+    tag_manifest_content = tag_manifest_path.read_text(encoding="utf-8")
+    assert f"{sha512_readme}  documentation/README.md" in tag_manifest_content
+    assert f"{sha512_license}  documentation/LICENSE.txt" in tag_manifest_content
