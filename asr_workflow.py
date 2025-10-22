@@ -55,19 +55,47 @@ def process_file(filepath: Path, output_directory: Path):
         logger.info(start_message)
 
         transcription_result = transcribe(audio)
+
+        intermediate_message_1 = "Transcription completed for {0}, starting alignment...".format(
+            process_info.filename
+        )
+        logger.info(intermediate_message_1)
+
         result = align(
             audio=audio,
             segments=transcription_result["segments"],
             language=transcription_result["language"],
         )
         if use_speaker_diarization:
+            intermediate_message_2 = "Alignment completed for {0}, starting diarization...".format(
+            process_info.filename
+            )
+            logger.info(intermediate_message_2)
             result = diarize(audio=audio, result=result)
+            intermediate_message_3 = "Diarization completed for {0}, starting post-processing...".format(
+                process_info.filename
+            )
+            logger.info(intermediate_message_3)
+        else:
+            intermediate_message_3 = "Alignment completed for {0}, starting post-processing...".format(
+                process_info.filename
+            )
+            logger.info(intermediate_message_3)
 
         # Post-processing 
         custom_segs = process_whisperx_segments(result["segments"])
         # word_segments_filled = process_whisperx_word_segments(result["word_segments"])
         word_segments_filled = result["word_segments"]
+
+        intermediate_message_4 = "Post-processing completed for {0}, starting summarization...".format(
+            process_info.filename
+        )
+        logger.info(intermediate_message_4)
         summary = llm_summarization(result["segments"])
+        intermediate_message_5 = "Summarization completed for {0}.".format(
+            process_info.filename
+        )
+        logger.info(intermediate_message_5)
 
         new_filename = f"{filename.split('.')[0]}_{model_name}_{language_audio}"
 
@@ -86,7 +114,7 @@ def process_file(filepath: Path, output_directory: Path):
         process_info.end = datetime.now()
         stats.append(process_info)
 
-        end_message = "Completed transcription of {0} after {1} (rtf {2:.2f})".format(
+        end_message = "Completed transcription process of {0} after {1} (rtf {2:.2f})".format(
             process_info.filename,
             process_info.formatted_process_duration(),
             process_info.realtime_factor(),
