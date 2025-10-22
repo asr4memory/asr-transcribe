@@ -5,6 +5,7 @@ from app_config import get_config
 import json
 import logging
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from utilities import cleanup_cuda_memory
 
 def load_llm_model():
     """Load an LLM model for summarization."""
@@ -190,5 +191,8 @@ def llm_summarization(segments):
     input_length = inputs.input_ids.shape[1]
     generated_tokens = output[0][input_length:]
     assistant_content = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+
+    del tokenizer, quantized_model
+    cleanup_cuda_memory()
 
     return assistant_content
