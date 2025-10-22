@@ -8,9 +8,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 def load_llm_model():
     """Load an LLM model for summarization."""
-    model_id = "meta-llama/Llama-3.3-70B-Instruct"
+    model_id = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
+        load_in_8bit=True,
     )
     quantized_model = AutoModelForCausalLM.from_pretrained(
         model_id, device_map="auto", torch_dtype=torch.bfloat16, quantization_config=quantization_config)
@@ -186,6 +186,9 @@ def llm_summarization(segments):
 
     output = quantized_model.generate(**inputs, max_new_tokens=10000, temperature=0.7)
 
-    assistant_content = tokenizer.decode(output[0], skip_special_tokens=True)
+    # Extract only the newly generated tokens (exclude the input prompt)
+    input_length = inputs.input_ids.shape[1]
+    generated_tokens = output[0][input_length:]
+    assistant_content = tokenizer.decode(generated_tokens, skip_special_tokens=True)
 
     return assistant_content
