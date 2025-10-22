@@ -6,7 +6,7 @@ emails.
 
 from datetime import datetime
 from pathlib import Path
-from os import mkdir
+import shutil
 from email_notifications import (
     send_success_email,
     send_failure_email,
@@ -16,7 +16,9 @@ from app_config import get_config, log_config
 from utilities import (
     should_be_processed,
     check_for_hallucination_warnings,
-    create_output_files_directory_path
+    create_output_files_directory_path,
+    prepare_bag_directory,
+    finalize_bag,
 )
 from writers import write_output_files
 from stats import ProcessInfo
@@ -69,8 +71,30 @@ def process_file(filepath: Path, output_directory: Path):
         new_filename = f"{filename.split('.')[0]}_{model_name}_{language_audio}"
 
         dir_path = create_output_files_directory_path(output_directory, new_filename)
-        mkdir(dir_path)
-        output_base_path = dir_path / new_filename
+        transcripts_dir = prepare_bag_directory(dir_path)
+        
+        # Copy documentation files to documentation/ directory
+        documentation_dir = dir_path / "documentation"
+        doc_files = [
+            "asr_export_formats.rtf",
+            "citation.txt",
+            "ohd_upload.txt"
+        ]
+        doc_files_dir = Path(__file__).parent / "doc_files"
+        current_year = datetime.now().year
+        for doc_filename in doc_files:
+            doc_file = doc_files_dir / doc_filename
+            if doc_file.exists():
+                dest_file = documentation_dir / doc_file.name
+                # Special handling for citation.txt: replace <{year}> with current year
+                if doc_filename == "citation.txt":
+                    content = doc_file.read_text(encoding="utf-8")
+                    content = content.replace("<{year}>", str(current_year))
+                    dest_file.write_text(content, encoding="utf-8")
+                else:
+                    shutil.copy2(doc_file, dest_file)
+        
+        output_base_path = transcripts_dir / new_filename
 
         write_output_files(
             base_path=output_base_path,
@@ -78,6 +102,33 @@ def process_file(filepath: Path, output_directory: Path):
             segments=custom_segs,
             word_segments=word_segments_filled,
         )
+
+        data_dir = dir_path / "data"
+        payload_files = [p for p in data_dir.rglob("*") if p.is_file()]
+        bag_info = {
+            "Source-Filename": filename,
+            "Model": model_name,
+            "Language": language_audio,
+            "Audio-Length-Seconds": f"{audio_length:.2f}",
+        }
+        bag_config = config.get("bag", {}) or {}
+        group_identifier = bag_config.get("group_identifier")
+        if group_identifier:
+            bag_info["Bag-Group-Identifier"] = group_identifier
+
+        bag_count = bag_config.get("bag_count")
+        if bag_count:
+            bag_info["Bag-Count"] = bag_count
+
+        sender_identifier = bag_config.get("internal_sender_identifier")
+        if sender_identifier:
+            bag_info["Internal-Sender-Identifier"] = sender_identifier
+
+        sender_description = bag_config.get("internal_sender_description")
+        if sender_description:
+            bag_info["Internal-Sender-Description"] = sender_description
+
+        finalize_bag(dir_path, payload_files, bag_info)
 
         process_info.end = datetime.now()
         stats.append(process_info)

@@ -9,6 +9,10 @@ __pycache__
 /.venv
 /asr-tools_venv
 /config.toml
+_input
+_output
+.env
+
 models 
 asr_watch_DE.py
 asr_watch_EN.py

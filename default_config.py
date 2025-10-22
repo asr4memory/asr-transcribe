@@ -30,4 +30,10 @@ CONST_DEFAULT_CONFIG = {
         "from": "notifications@example.com",
         "to": ["alice@example.com"],
     },
+    "bag": {
+        "group_identifier": None,
+        "bag_count": None,
+        "internal_sender_identifier": None,
+        "internal_sender_description": None,
+    },
 }

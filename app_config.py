@@ -18,9 +18,10 @@ def initialize_config():
     with open(config_file_path) as f:
         data = toml.load(f)
         combined_config = {
-            "system": CONST_DEFAULT_CONFIG["system"] | data["system"],
-            "whisper": CONST_DEFAULT_CONFIG["whisper"] | data["whisper"],
-            "email": CONST_DEFAULT_CONFIG["email"] | data["email"],
+            "system": CONST_DEFAULT_CONFIG["system"] | data.get("system", {}),
+            "whisper": CONST_DEFAULT_CONFIG["whisper"] | data.get("whisper", {}),
+            "email": CONST_DEFAULT_CONFIG["email"] | data.get("email", {}),
+            "bag": CONST_DEFAULT_CONFIG["bag"] | data.get("bag", {}),
         }
 
 
