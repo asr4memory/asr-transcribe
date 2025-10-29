@@ -82,11 +82,10 @@ def get_audio_length(audio):
 def transcribe(audio):
     """
     Transcribe audio data with whisper model.
+    Note: Memory cleanup is handled by subprocess lifecycle in production.
     """
     model = get_transcription_model()
     result = model.transcribe(audio, batch_size=batch_size)
-    del model
-    cleanup_cuda_memory()
     return result
 
 
@@ -94,13 +93,12 @@ def align(audio, segments, language: str):
     """
     Align transcribed segments to original audio and get time stamps
     for start and end of each segment.
+    Note: Memory cleanup is handled by subprocess lifecycle in production.
     """
     model, metadata = get_alignment_model(language)
     result = whisperx.align(
         segments, model, metadata, audio, device, return_char_alignments=False
     )
-    del model, metadata
-    cleanup_cuda_memory()
     return result
 
 
@@ -108,12 +106,11 @@ def diarize(audio, result):
     """
     Diarize transcribed segments using
     WhisperX' implemenation of pyannote.
+    Note: Memory cleanup is handled by subprocess lifecycle in production.
     """
     diarize_model = whisperx.diarize.DiarizationPipeline(use_auth_token=hf_token, device=device)
     diarize_segments = diarize_model(
         audio, min_speakers=min_speakers, max_speakers=max_speakers
     )
     result = whisperx.assign_word_speakers(diarize_segments, result)
-    del diarize_model
-    cleanup_cuda_memory()
     return result
