@@ -1,32 +1,19 @@
 import torch
 import json
 import logging
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import pipeline
 from utilities import cleanup_cuda_memory
 
 def load_llm_model():
     """Load an LLM model for summarization."""
-    model_id = "meta-llama/Llama-3.3-70B-Instruct"
-    quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.bfloat16,
-        bnb_4bit_use_double_quant=False,  # Nested quantization for extra memory savings
-        bnb_4bit_quant_type="nf4",  # Normal Float 4-bit
-        llm_int8_enable_fp32_cpu_offload=True,  # Enable CPU offloading
-    )
-
-    # Load model with CPU offloading support
-    quantized_model = AutoModelForCausalLM.from_pretrained(
-        model_id,
-        device_map="auto",  # Automatically distribute across GPU and CPU
-        dtype=torch.bfloat16,  # Fixed: use 'dtype' instead of deprecated 'torch_dtype'
-        quantization_config=quantization_config,
-        low_cpu_mem_usage=True,  # Optimize CPU memory usage
-        max_memory={0: "22GiB", "cpu": "70GiB"},  # Adjust based on your hardware
-    )
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-
-    return quantized_model, tokenizer
+    model_id = "meta-llama/Llama-3.1-8B-Instruct"
+    pipe = pipeline(
+        "text-generation",
+        model=model_id,
+        torch_dtype="auto",
+        device_map="auto",
+)
+    return pipe
 
 def json_dictionary_parser(llm_output):
     """Parse a JSON string and return a dictionary."""
@@ -47,7 +34,7 @@ def llm_summarization(segments): ## add: Mehrsprachigkeit
     Summarize the given text using a pre-trained LLM model.
     Note: In production, this is called from llm_subprocess.py which handles memory cleanup.
     """
-    quantized_model, tokenizer = load_llm_model()
+    pipe = load_llm_model()
     # Build the system prompt
     system_prompt = (
         "Erstelle eine präzise Zusammenfassung (max. 200 Wörter) auf Deutsch.\n\n"
@@ -73,27 +60,14 @@ def llm_summarization(segments): ## add: Mehrsprachigkeit
         {"role": "user", "content": user_content},
     ]
 
-    # Use the chat template to format the messages properly
-    prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    inputs = tokenizer(prompt, return_tensors="pt").to("cuda")
-
-    output = quantized_model.generate(
-        **inputs,
-        max_new_tokens=512,  # ~200 words ≈ 300-400 tokens with buffer
-        temperature=0.3,     # Lower temperature for more factual, consistent output
-        top_p=0.9,           # Nucleus sampling for quality
-        do_sample=True,
-        repetition_penalty=1.2  # Prevent repetitions
+    outputs = pipe(
+            messages,
+            max_new_tokens=500,
     )
+    assistant_content = outputs[0]['generated_text'][-1]
+    summarized_text = assistant_content["content"]
 
-    # Extract only the newly generated tokens (exclude the input prompt)
-    input_length = inputs.input_ids.shape[1]
-    generated_tokens = output[0][input_length:]
-    assistant_content = tokenizer.decode(generated_tokens, skip_special_tokens=True)
-
-    # Memory cleanup handled by subprocess lifecycle in production
-    # Keeping these for backwards compatibility when called directly
-    del tokenizer, quantized_model
+    del pipe
     cleanup_cuda_memory()
 
-    return assistant_content
+    return summarized_text
