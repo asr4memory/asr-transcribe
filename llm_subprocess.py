@@ -13,8 +13,8 @@ def generate_summary(segments):
     """Generate summary using llama_cpp."""
     # Load model with GPU offloading    
     llm = Llama(
-    model_path="/home/kompiel/python_scripts/llm-experiments/models/Llama-3.3-70B-Instruct-Q4_K_M.gguf",  # Need GGUF format
-    n_gpu_layers=20,  # Number of layers to offload to GPU (adjust based on VRAM)
+    model_path="models/gpt-oss-120b-GGUF/Q4_K_M/gpt-oss-120b-Q4_K_M-00001-of-00002.gguf",  # Need GGUF format
+    n_gpu_layers=5,  # Number of layers to offload to GPU (adjust based on VRAM)
     n_ctx=32768,  # Context window
     n_batch=512,
     verbose=True,
@@ -45,7 +45,7 @@ def generate_summary(segments):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
         ],
-        max_tokens=512,
+        max_tokens=4000,
         temperature=0.3,
         top_p=0.9,
         repeat_penalty=1.2,
