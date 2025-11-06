@@ -123,7 +123,8 @@ def finalize_bag(bag_root: Path, payload_files: list[Path], extra_info: dict | N
         "Bag-Description",
         (
             "The bag contains multiple transcript formats and derivatives "
-            "for varied use scenarios in the /data directory. Further details: "
+            "for varied use scenarios in the /data directory. "
+            "More information can be found in the /documentation directory. Further details: "
             "https://www.fu-berlin.de/asr4memory"
         ),
     )
@@ -138,16 +139,24 @@ def finalize_bag(bag_root: Path, payload_files: list[Path], extra_info: dict | N
             manifest_file.write(f"{checksum}  {relative_path}\n")
 
     tag_manifest_path = bag_root / "tagmanifest-sha512.txt"
+    data_dir = bag_root / "data"
 
     def _current_tag_files(include_tag_manifest: bool = False) -> list[Path]:
-        tag_files = [bagit_path, bag_info_path, manifest_path]
-        
-        # Include all files from documentation/ directory
-        documentation_dir = bag_root / "documentation"
-        if documentation_dir.exists():
-            documentation_files = [p for p in documentation_dir.rglob("*") if p.is_file()]
-            tag_files.extend(sorted(documentation_files))
-        
+        tag_files = []
+        for file_path in sorted(bag_root.rglob("*")):
+            if not file_path.is_file():
+                continue
+            if file_path == tag_manifest_path:
+                continue
+            try:
+                if file_path.is_relative_to(data_dir):
+                    continue
+            except AttributeError:
+                # Fallback for Python < 3.9 (not expected but keeps compatibility)
+                if str(file_path).startswith(str(data_dir) + "/"):
+                    continue
+            tag_files.append(file_path)
+
         if include_tag_manifest and tag_manifest_path.exists():
             tag_files.append(tag_manifest_path)
         return tag_files
