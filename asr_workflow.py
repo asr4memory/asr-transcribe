@@ -174,6 +174,7 @@ def process_file(filepath: Path, output_directory: Path):
         
         # Copy documentation files to documentation/ directory
         documentation_dir = dir_path / "documentation"
+        documentation_dir.mkdir(parents=True, exist_ok=True)
         doc_files = [
             "asr_export_formats.rtf",
             "citation.txt",
