@@ -18,7 +18,11 @@ use_speaker_diarization = true
 min_speakers = 1
 max_speakers = 2
 hf_token = "add your Huggingface Token here"
-api_key = "add your KISSKI api key here"
+
+[llm]
+use_summarization = true
+model_path = path/to/model # Needs to be in llama_ccp compatible GGUF format
+n_gpu_layers = 5
 
 [email]
 smtp_server = "mail.example.com"

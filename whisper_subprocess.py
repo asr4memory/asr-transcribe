@@ -8,7 +8,6 @@ import sys
 import pickle
 import whisperx
 from app_config import get_config
-from whisper_tools import get_audio
 
 config = get_config()
 
@@ -25,6 +24,22 @@ min_speakers = config["whisper"]["min_speakers"]
 max_speakers = config["whisper"]["max_speakers"]
 hf_token = config["whisper"]["hf_token"]
 use_speaker_diarization = config["whisper"]["use_speaker_diarization"]
+
+def get_audio(path: str):
+    """
+    Load audio file on path.
+    Returns numpy rank-1 tensor with 16,000 values per second
+    (16kHz).
+    """
+    result = whisperx.load_audio(path)
+    return result
+
+
+def get_audio_length(audio):
+    "Gets audio length in seconds."
+    sampling_rate = 16000  
+    seconds = len(audio) / sampling_rate
+    return seconds
 
 
 def load_transcription_model():

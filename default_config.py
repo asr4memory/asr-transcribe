@@ -23,6 +23,11 @@ CONST_DEFAULT_CONFIG = {
         "hf_token": None,
         "api_key": None,
     },
+    "llm": {
+        "use_summarization": False,
+        "model_path": "",
+        "n_gpu_layers": 5,
+    },
     "email": {
         "smtp_server": "",
         "smtp_port": 25,

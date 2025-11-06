@@ -503,4 +503,5 @@ def write_output_files(base_path: Path, all: list, segments: list, word_segments
     write_json(base_path, segments)
     write_json(base_path.with_stem(base_path.stem + "_unprocessed"), all)
     write_ods(base_path, segments)
-    write_summary(base_path, summary)
+    if summary:
+        write_summary(base_path, summary)

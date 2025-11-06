@@ -28,7 +28,7 @@ from utilities import (
 )
 from writers import write_output_files
 from stats import ProcessInfo
-from whisper_tools import get_audio, get_audio_length
+from whisper_subprocess import get_audio, get_audio_length
 from post_processing import process_whisperx_segments
 
 from logger import logger, memoryHandler
@@ -38,6 +38,7 @@ stats = []
 warning_count = 0
 warning_audio_inputs = []
 use_speaker_diarization = config["whisper"]["use_speaker_diarization"]
+use_summarization = config["llm"]["use_summarization"]
 
 
 def run_whisper_subprocess(audio_path: str):
@@ -92,8 +93,14 @@ def run_llm_subprocess(segments):
         # LLM is optional, so we return None instead of raising
         return None
 
-    # Deserialize result
-    summary = pickle.loads(result.stdout)
+    # Deserialize result - subprocess returns a tuple (summary, trials)
+    summary, trials = pickle.loads(result.stdout)
+
+    if trials == 1:
+        logger.info("LLM subprocess succeeded on first trial with 32k context window with faster processing")
+    elif trials == 2:
+        logger.info("LLM subprocess succeeded on second trial with 64k context window with slower processing")
+
     logger.info("LLM subprocess completed successfully")
 
     return summary
@@ -133,23 +140,30 @@ def process_file(filepath: Path, output_directory: Path):
         custom_segs = process_whisperx_segments(result["segments"])
         word_segments_filled = result["word_segments"]
 
-        intermediate_message_4 = "Post-processing completed for {0}, starting summarization...".format(
-            process_info.filename
-        )
-        logger.info(intermediate_message_4)
+        if use_summarization:
+            intermediate_message_4 = "Post-processing completed for {0}, starting summarization...".format(
+                process_info.filename
+            )
+            logger.info(intermediate_message_4)
 
-        # Run LLM summarization in subprocess
-        # Memory is guaranteed freed when subprocess exits
-        summary = run_llm_subprocess(result["segments"])
+            # Run LLM summarization in subprocess
+            # Memory is guaranteed freed when subprocess exits
+            summary = run_llm_subprocess(result["segments"])
 
-        if summary is not None:
-            intermediate_message_5 = "Summarization completed for {0}.".format(
+            if summary is not None:
+                intermediate_message_5 = "Summarization completed for {0}.".format(
+                    process_info.filename
+                )
+                logger.info(intermediate_message_5)
+            else:
+                logger.warning(f"Summarization skipped for {process_info.filename} (subprocess failed)")
+                summary = ""  # Use empty string as fallback
+        else:
+            intermediate_message_5 = "Post-processing completed for {0}.".format(
                 process_info.filename
             )
             logger.info(intermediate_message_5)
-        else:
-            logger.warning(f"Summarization skipped for {process_info.filename} (subprocess failed)")
-            summary = ""  # Use empty string as fallback
+            summary = ""  # No summarization requested
 
         new_filename = f"{filename.split('.')[0]}_{model_name}_{language_audio}"
 

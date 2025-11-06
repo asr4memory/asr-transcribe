@@ -20,6 +20,7 @@ def initialize_config():
         combined_config = {
             "system": CONST_DEFAULT_CONFIG["system"] | data["system"],
             "whisper": CONST_DEFAULT_CONFIG["whisper"] | data["whisper"],
+            "llm": CONST_DEFAULT_CONFIG["llm"] | data["llm"],
             "email": CONST_DEFAULT_CONFIG["email"] | data["email"],
         }
 
@@ -32,7 +33,7 @@ def get_config() -> dict:
 def log_config(blacklist=["hf_token"]):
     "Logs configuration items."
     config = get_config()
-    config_items = config["system"] | config["whisper"]
+    config_items = config["system"] | config["whisper"] | config["llm"] 
 
     for key, value in config_items.items():
         if key in blacklist:
