@@ -12,6 +12,10 @@
 Install dependencies:
 
 ```shell
+conda install -c conda-forge cairo pycairo
+```
+
+```shell
 pip install -r requirements.txt
 ```
 

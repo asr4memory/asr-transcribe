@@ -6,8 +6,25 @@ Models stay loaded within the subprocess for efficiency, then all memory is free
 
 import sys
 import pickle
+import logging
+import warnings
 import whisperx
 from app_config import get_config
+
+# Suppress whisperx and its dependencies' logging to keep stdout clean for pickle
+logging.getLogger("whisperx").setLevel(logging.WARNING)
+logging.getLogger("pyannote").setLevel(logging.WARNING)
+logging.getLogger("speechbrain").setLevel(logging.WARNING)
+logging.getLogger("torch").setLevel(logging.WARNING)
+logging.getLogger("torchaudio").setLevel(logging.WARNING)
+
+# Suppress specific warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
+# Save original stdout and redirect to stderr to prevent any output from contaminating the pickle data
+# This ensures stdout is clean for the pickled result only
+_original_stdout = sys.stdout
+sys.stdout = sys.stderr
 
 config = get_config()
 
@@ -126,7 +143,8 @@ def main():
         # Process the audio file
         result = process_audio_file(audio_path)
 
-        # Serialize result to stdout
+        # Restore stdout and serialize result to clean stdout
+        sys.stdout = _original_stdout
         sys.stdout.buffer.write(pickle.dumps(result))
         sys.exit(0)
 
