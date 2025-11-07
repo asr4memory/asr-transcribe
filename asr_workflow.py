@@ -96,6 +96,7 @@ def process_file(filepath: Path, output_directory: Path):
                     shutil.copy2(doc_file, dest_file)
         
         output_base_path = transcripts_dir / new_filename
+        data_dir = dir_path / "data"
 
         write_output_files(
             base_path=output_base_path,
@@ -104,7 +105,12 @@ def process_file(filepath: Path, output_directory: Path):
             word_segments=word_segments_filled,
         )
 
-        data_dir = dir_path / "data"
+        # Duplicate the speaker CSV into the ohd_import directory for downstream ingestion.
+        ohd_import_dir = data_dir / "ohd_import"
+        speaker_csv = output_base_path.with_stem(output_base_path.stem + "_speaker").with_suffix(".csv")
+        if speaker_csv.exists():
+            shutil.copy2(speaker_csv, ohd_import_dir / speaker_csv.name)
+
         payload_files = [p for p in data_dir.rglob("*") if p.is_file()]
         bag_info = {
             "Source-Filename": filename,

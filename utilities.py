@@ -91,6 +91,8 @@ def prepare_bag_directory(bag_root: Path) -> Path:
     transcripts_dir.mkdir()
     extractions_dir = data_dir / "extractions"
     extractions_dir.mkdir()
+    ohd_import_dir = data_dir / "ohd_import"
+    ohd_import_dir.mkdir()
     documentation_dir = bag_root / "documentation"
     documentation_dir.mkdir()
     return transcripts_dir
