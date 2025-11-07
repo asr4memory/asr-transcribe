@@ -117,6 +117,9 @@ def test_prepare_bag_directory(bagit_test_structure):
     assert transcripts_dir.exists() and transcripts_dir.is_dir()
     assert transcripts_dir.name == "transcripts"
     assert transcripts_dir.parent == data_dir
+    ohd_import_dir = bag_root / "data" / "ohd_import"
+    assert ohd_import_dir.exists() and ohd_import_dir.is_dir()
+    assert ohd_import_dir.parent == data_dir
     
     # Test documentation directory
     documentation_dir = bag_root / "documentation"
