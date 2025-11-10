@@ -21,6 +21,12 @@ CONST_DEFAULT_CONFIG = {
         "min_speakers": None,
         "max_speakers": None,
         "hf_token": None,
+        "api_key": None,
+    },
+    "llm": {
+        "use_summarization": False,
+        "model_path": "",
+        "n_gpu_layers": 5,
     },
     "email": {
         "smtp_server": "",

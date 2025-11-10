@@ -456,7 +456,17 @@ def write_odt(path_without_ext: Path, segments: list):
         odt_zip.writestr('content.xml', content_buffer.getvalue())
 
 
-def write_output_files(base_path: Path, all: list, segments: list, word_segments: list):
+def write_summary(path_without_ext: Path, summary: str):
+    """
+    Write the summary to a text file.
+    This file will contain the summarized text of the transcription.
+    """
+    full_path = path_without_ext.with_stem(path_without_ext.stem + "_summary").with_suffix(".txt")
+    with open(full_path, "w", encoding="utf-8") as txt_file:
+        txt_file.write(summary)
+
+
+def write_output_files(base_path: Path, all: list, segments: list, word_segments: list, summary: str):
     """Write all types of output files."""
     write_vtt(base_path, segments)
     write_word_segments_vtt(
@@ -493,3 +503,5 @@ def write_output_files(base_path: Path, all: list, segments: list, word_segments
     write_json(base_path, segments)
     write_json(base_path.with_stem(base_path.stem + "_unprocessed"), all)
     write_ods(base_path, segments)
+    if summary:
+        write_summary(base_path, summary)

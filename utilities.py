@@ -69,6 +69,7 @@ def create_output_files_directory_path(
     result = dir_path.with_suffix(date_suffix)
     return result
 
+
 def cleanup_cuda_memory():
     """Aggressive CUDA memory cleanup."""
     gc.collect()

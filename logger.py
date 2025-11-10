@@ -17,7 +17,7 @@ fmt_col = colorlog.ColoredFormatter(
     datefmt=DATE_FORMAT,
 )
 
-stdoutHandler = colorlog.StreamHandler(stream=sys.stdout)
+stdoutHandler = colorlog.StreamHandler(stream=sys.stderr)
 stdoutHandler.setLevel(logging.DEBUG)
 stdoutHandler.setFormatter(fmt_col)
 

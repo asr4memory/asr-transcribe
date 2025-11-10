@@ -12,6 +12,10 @@
 Install dependencies:
 
 ```shell
+conda install -c conda-forge cairo pycairo
+```
+
+```shell
 pip install -r requirements.txt
 ```
 
@@ -47,3 +51,4 @@ pytest
 - To speed up processing, it is possible to change the calculation type to "int8" and the beam size to 4 or less (default = 5), but there is a risk of quality loss.
 - Sends an success or failed email if the workflow is (not) completed successfully.
 - Captures the stdout/terminal output and sends an email if the word "failed" is found in the output.
+- Automatically summarizes transcripts via LLMs
