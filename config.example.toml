@@ -31,3 +31,9 @@ smtp_port = 25
 #password = "password"
 from = "notifications@example.com"
 to = ["alice@example.com", "bob@example.com"]
+
+[bag]
+group_identifier = "asr-transcribe-bags"
+bag_count = "1 of 1"
+internal_sender_identifier = "internal-identifier"
+internal_sender_description = "Automatic Transcription by ASR4Memory"

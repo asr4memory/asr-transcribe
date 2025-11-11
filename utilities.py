@@ -3,6 +3,7 @@ Utilities and helper functions for the main ASR script.
 """
 
 from datetime import datetime, timezone
+import hashlib
 import re
 from pathlib import Path
 from decimal import Decimal
@@ -77,3 +78,148 @@ def cleanup_cuda_memory():
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect() 
         torch.cuda.synchronize()
+
+
+def prepare_bag_directory(bag_root: Path) -> Path:
+    """Create the BagIt directory structure and return the payload directory."""
+    if bag_root.exists():
+        raise FileExistsError(f"Bag directory already exists: {bag_root}")
+
+    bag_root.mkdir(parents=True)
+    data_dir = bag_root / "data"
+    data_dir.mkdir()
+    transcripts_dir = data_dir / "transcripts"
+    transcripts_dir.mkdir()
+    extractions_dir = data_dir / "extractions"
+    extractions_dir.mkdir()
+    ohd_import_dir = data_dir / "ohd_import"
+    ohd_import_dir.mkdir()
+    documentation_dir = bag_root / "documentation"
+    documentation_dir.mkdir()
+    return transcripts_dir
+
+
+def finalize_bag(bag_root: Path, payload_files: list[Path], extra_info: dict | None = None):
+    """Write BagIt tag files, manifests and metadata for the generated outputs."""
+    payload_files_sorted = sorted(
+        payload_files, key=lambda path: path.relative_to(bag_root).as_posix()
+    )
+
+    bagit_path = bag_root / "bagit.txt"
+    bagit_path.write_text(
+        "BagIt-Version: 1.0\nTag-File-Character-Encoding: UTF-8\n",
+        encoding="utf-8",
+    )
+
+    total_bytes = sum(p.stat().st_size for p in payload_files_sorted)
+    file_count = len(payload_files_sorted)
+    now = datetime.now(tz=timezone.utc)
+
+    bag_info = {
+        "Bagging-Date": now.strftime("%Y-%m-%d"),
+        "Payload-Oxum": f"{total_bytes}.{file_count}",
+    }
+    if extra_info:
+        bag_info.update(extra_info)
+
+    bag_info.setdefault(
+        "Bag-Description",
+        (
+            "The bag contains multiple transcript formats and derivatives "
+            "for varied use scenarios in the /data directory. "
+            "More information can be found in the /documentation directory. Further details: "
+            "https://www.fu-berlin.de/asr4memory"
+        ),
+    )
+
+    bag_info_path = bag_root / "bag-info.txt"
+
+    manifest_path = bag_root / "manifest-sha512.txt"
+    with manifest_path.open("w", encoding="utf-8") as manifest_file:
+        for path in payload_files_sorted:
+            checksum = sha512(path)
+            relative_path = path.relative_to(bag_root).as_posix()
+            manifest_file.write(f"{checksum}  {relative_path}\n")
+
+    tag_manifest_path = bag_root / "tagmanifest-sha512.txt"
+    data_dir = bag_root / "data"
+
+    def _current_tag_files(include_tag_manifest: bool = False) -> list[Path]:
+        tag_files = []
+        for file_path in sorted(bag_root.rglob("*")):
+            if not file_path.is_file():
+                continue
+            if file_path == tag_manifest_path:
+                continue
+            try:
+                if file_path.is_relative_to(data_dir):
+                    continue
+            except AttributeError:
+                # Fallback for Python < 3.9 (not expected but keeps compatibility)
+                if str(file_path).startswith(str(data_dir) + "/"):
+                    continue
+            tag_files.append(file_path)
+
+        if include_tag_manifest and tag_manifest_path.exists():
+            tag_files.append(tag_manifest_path)
+        return tag_files
+
+    def _compute_bag_size(include_tag_manifest: bool = False) -> str:
+        tag_files = _current_tag_files(include_tag_manifest)
+        bag_size_bytes = total_bytes + sum(path.stat().st_size for path in tag_files)
+        return _format_size(bag_size_bytes)
+
+    bag_size_value = None
+    # The Bag-Size influences the size of bag-info.txt and tagmanifest-sha512.txt.
+    # This loop recalculates the total size until it is stable.
+    while True:
+        if bag_size_value is None:
+            bag_info.pop("Bag-Size", None)
+        else:
+            bag_info["Bag-Size"] = bag_size_value
+
+        _write_bag_info_file(bag_info_path, bag_info)
+        _write_tag_manifest(tag_manifest_path, _current_tag_files())
+
+        new_size = _compute_bag_size(include_tag_manifest=True)
+        if new_size == bag_size_value:
+            break
+        bag_size_value = new_size
+
+
+def _format_size(num_bytes: int) -> str:
+    """Return human-readable size string for Bag-Size."""
+    if num_bytes < 1024:
+        return f"{num_bytes} B"
+    size = float(num_bytes)
+    units = ["KB", "MB", "GB", "TB", "PB"]
+    for unit in units:
+        size /= 1024.0
+        if size < 1024.0 or unit == units[-1]:
+            return f"{size:.2f} {unit}"
+    return f"{size:.2f} PB"
+
+
+def _write_bag_info_file(path: Path, info: dict):
+    """Write key/value pairs to bag-info.txt in insertion order."""
+    with path.open("w", encoding="utf-8") as info_file:
+        for key, value in info.items():
+            info_file.write(f"{key}: {value}\n")
+
+
+def _write_tag_manifest(path: Path, tag_files: list[Path]):
+    """Write tagmanifest-sha512.txt for the given tag files."""
+    with path.open("w", encoding="utf-8") as tag_manifest:
+        for file_path in tag_files:
+            checksum = sha512(file_path)
+            relative_path = file_path.relative_to(path.parent).as_posix()
+            tag_manifest.write(f"{checksum}  {relative_path}\n")
+
+
+def sha512(path: Path) -> str:
+    """Calculate the SHA-512 checksum for a file."""
+    digest = hashlib.sha512()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(8192), b""):
+            digest.update(chunk)
+    return digest.hexdigest()

@@ -33,6 +33,19 @@ Run the workflow script.
 python asr_workflow.py
 ```
 
+## Configuration
+
+The `config.toml` file is used to configure the application. You can copy the `config.example.toml` to create your own `config.toml`.
+
+### BagIt Options (`[bag]`)
+
+The application uses the BagIt specification to package the output files. The following options are available to add metadata to the `bag-info.txt` file.
+
+- **`group_identifier`**: A persistent, globally unique identifier for a logical set of bags.
+- **`bag_count`**: The number of bags in a set (e.g., "1 of 3").
+- **`internal_sender_identifier`**: An identifier for the creator of the bag.
+- **`internal_sender_description`**: A description of the creator of the bag.
+
 ## Tests
 - Run automated tests with pytest.
 
