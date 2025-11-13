@@ -43,6 +43,18 @@ The `config.toml` file is used to configure the application. You can copy the `c
 - **`email_notifications`**: Enables success/failure/warning emails via the settings in `[email]`.
 - **`zip_bags`**: When `true`, each generated bag directory is also written as a `.zip` archive in the same output folder.
 
+### Whisper Options (`[whisper]`)
+
+- **`model` / `device` / `compute_type` / `beam_size` / `batch_size`**: Core WhisperX transcription settings.
+- **`language`**: Force a language or omit the key for auto-detection (remove the entry entirely to let Whisper detect automatically).
+- **`use_speaker_diarization`**, **`min_speakers`**, **`max_speakers`**: Control diarization; when enabled you must supply **`hf_token`** so WhisperX can download the diarization model from Hugging Face.
+- **`use_initial_prompt`**, **`initial_prompt`**, **`max_sentence_length`**: Fine-tune segmentation and prompt injection.
+
+### Email Options (`[email]`)
+
+- **`smtp_server` / `smtp_port` / `username` / `password`**: SMTP host and credentials used for notifications.
+- **`from` / `to`**: Sender and recipient list for success, warning, and failure emails triggered by the workflow.
+
 ### LLM Options (`[llm]`)
 
 - **`use_summarization`**: Toggles the LLM subprocess that generates summaries after transcription finishes.
