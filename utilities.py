@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from decimal import Decimal
 import gc
+import shutil
 import torch
 from app_config import get_config
 
@@ -90,13 +91,32 @@ def prepare_bag_directory(bag_root: Path) -> Path:
     data_dir.mkdir()
     transcripts_dir = data_dir / "transcripts"
     transcripts_dir.mkdir()
-    extractions_dir = data_dir / "extractions"
-    extractions_dir.mkdir()
+    abstracts_dir = data_dir / "abstracts"
+    abstracts_dir.mkdir()
     ohd_import_dir = data_dir / "ohd_import"
     ohd_import_dir.mkdir()
     documentation_dir = bag_root / "documentation"
     documentation_dir.mkdir()
     return transcripts_dir
+
+
+def zip_bag_directory(bag_root: Path) -> Path:
+    """Create a ZIP archive of the bag directory and return the archive path."""
+    if not bag_root.exists():
+        raise FileNotFoundError(f"Bag directory does not exist: {bag_root}")
+
+    base_name = str(bag_root)
+    archive_path = Path(f"{base_name}.zip")
+    if archive_path.exists():
+        archive_path.unlink()
+
+    shutil.make_archive(
+        base_name,
+        "zip",
+        root_dir=str(bag_root.parent),
+        base_dir=bag_root.name,
+    )
+    return archive_path
 
 
 def finalize_bag(bag_root: Path, payload_files: list[Path], extra_info: dict | None = None):
@@ -126,7 +146,10 @@ def finalize_bag(bag_root: Path, payload_files: list[Path], extra_info: dict | N
         "Bag-Description",
         (
             "The bag contains multiple transcript formats and derivatives "
-            "for varied use scenarios in the /data directory. "
+            "for varied use scenarios in the /data directory: "
+            "In the /abstracts directory, summaries in german and english are stored. "
+            "The /ohd_import directory contains the transcript for import into Oral-History.Digital. "
+            "The /transcripts directory contains all transcripts. "
             "More information can be found in the /documentation directory. Further details: "
             "https://www.fu-berlin.de/asr4memory"
         ),

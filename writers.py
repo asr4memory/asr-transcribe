@@ -456,17 +456,26 @@ def write_odt(path_without_ext: Path, segments: list):
         odt_zip.writestr('content.xml', content_buffer.getvalue())
 
 
-def write_summary(path_without_ext: Path, summary: str):
+def write_summary(path_without_ext: Path, summary: str, language_code: str = "de"):
     """
-    Write the summary to a text file.
-    This file will contain the summarized text of the transcription.
+    Write the summary to a localized text file in the abstracts directory.
     """
-    full_path = path_without_ext.with_stem(path_without_ext.stem + "_summary").with_suffix(".txt")
+    bag_data_dir = path_without_ext.parent.parent
+    abstracts_dir = bag_data_dir / "abstracts"
+    abstracts_dir.mkdir(parents=True, exist_ok=True)
+    summary_filename = f"{path_without_ext.stem}_summary_{language_code}.txt"
+    full_path = abstracts_dir / summary_filename
     with open(full_path, "w", encoding="utf-8") as txt_file:
         txt_file.write(summary)
 
 
-def write_output_files(base_path: Path, all: list, segments: list, word_segments: list, summary: str):
+def write_output_files(
+    base_path: Path,
+    all: list,
+    segments: list,
+    word_segments: list,
+    summaries: dict[str, str] | None = None,
+):
     """Write all types of output files."""
     write_vtt(base_path, segments)
     write_word_segments_vtt(
@@ -503,5 +512,7 @@ def write_output_files(base_path: Path, all: list, segments: list, word_segments
     write_json(base_path, segments)
     write_json(base_path.with_stem(base_path.stem + "_unprocessed"), all)
     write_ods(base_path, segments)
-    if summary:
-        write_summary(base_path, summary)
+    if summaries:
+        for language_code, text in summaries.items():
+            if text:
+                write_summary(base_path, text, language_code=language_code)

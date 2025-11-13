@@ -5,7 +5,12 @@ if present.
 """
 
 CONST_DEFAULT_CONFIG = {
-    "system": {"input_path": "", "output_path": "", "email_notifications": False},
+    "system": {
+        "input_path": "",
+        "output_path": "",
+        "email_notifications": False,
+        "zip_bags": True,
+    },
     "whisper": {
         "model": "large-v3",
         "device": "cpu",
@@ -27,6 +32,7 @@ CONST_DEFAULT_CONFIG = {
         "use_summarization": False,
         "model_path": "",
         "n_gpu_layers": 5,
+        "summary_languages": ["de", "en"],
     },
     "email": {
         "smtp_server": "",

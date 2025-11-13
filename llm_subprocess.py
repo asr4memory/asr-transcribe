@@ -6,35 +6,63 @@ This allows large models (20GB+) to be loaded and fully cleaned up between files
 
 import sys
 import pickle
+from typing import Dict
 from llama_cpp import Llama
 from app_config import get_config
 
 config = get_config()
 n_gpu_layers = config["llm"]["n_gpu_layers"]
-model_path = config["llm"]["model_path"] 
+model_path = config["llm"]["model_path"]
 
-def generate_summary(segments, trials):
-    """Generate summary using llama_cpp."""
-    # Load model with GPU offloading
-    if trials == 1:    
-        llm = Llama(
+
+def get_summary_languages() -> list[str]:
+    languages = config["llm"].get("summary_languages", ["de", "en"])
+    if isinstance(languages, str):
+        languages = [languages]
+    cleaned = []
+    for lang in languages:
+        if isinstance(lang, str) and lang.strip():
+            cleaned.append(lang.strip().lower())
+    return cleaned
+
+
+def load_model(trial: int) -> Llama:
+    """Initialise the Llama model with trial-specific context settings."""
+    if trial == 1:
+        return Llama(
+            model_path=model_path,
+            n_gpu_layers=n_gpu_layers,
+            n_ctx=32768,
+            n_batch=512,
+            verbose=True,
+        )
+    return Llama(
         model_path=model_path,
         n_gpu_layers=n_gpu_layers,
-        n_ctx=32768,  # Context window
-        n_batch=512,
-        verbose=True,
-        )
-    else:
-        llm = Llama(
-        model_path=model_path,  # Need GGUF format
-        n_gpu_layers=n_gpu_layers,
-        n_ctx=65536,  # Context window
+        n_ctx=65536,
         n_batch=256,
         verbose=True,
+    )
+
+
+def build_system_prompt(language: str) -> str:
+    """Create a language-specific system prompt."""
+    if language == "en":
+        return (
+            "Produce a concise summary (max. 200 words) in English.\n\n"
+            "Processing:\n"
+            "– Fix ASR issues silently; ignore filler words.\n"
+            "– Focus on central topics and facts; omit small talk and repetition.\n"
+            "– Mention each fact once; aggressively deduplicate.\n\n"
+            "Style:\n"
+            "– Use third person only, neutral register, present tense.\n"
+            "– No quotes, no direct speech, no subjective judgments.\n"
+            "– For unclear references, insert placeholders such as [PERSON] or [PLACE].\n\n"
+            "Output: single paragraph, no heading, start directly with the content.\n"
         )
 
-    # Build the system prompt
-    system_prompt = (
+    # Default to German instructions.
+    return (
         "Erstelle eine präzise Zusammenfassung (max. 200 Wörter) auf Deutsch.\n\n"
         "Verarbeitung:\n"
         "– Korrigiere ASR-Fehler stillschweigend; ignoriere Füllwörter.\n"
@@ -47,51 +75,61 @@ def generate_summary(segments, trials):
         "Ausgabe: Ein Absatz, ohne Überschrift, direkt mit Inhalt beginnen.\n"
     )
 
-    # Build the user prompt with the interview content
-    user_content = ""
-    for segment in segments:
-        user_content += f"{segment['text']}\n"
 
-    # Generate
+def build_user_prompt(segments) -> str:
+    """Concatenate all segment texts for the user prompt."""
+    return "\n".join(segment["text"] for segment in segments)
+
+
+def generate_summary(llm: Llama, system_prompt: str, user_prompt: str) -> str:
+    """Generate a summary using llama_cpp for a given prompt."""
     output = llm.create_chat_completion(
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content}
+            {"role": "user", "content": user_prompt},
         ],
         max_tokens=4000,
         temperature=0.3,
         top_p=0.9,
         repeat_penalty=1.2,
     )
-    summary = output['choices'][0]['message']['content']
+    summary = output["choices"][0]["message"]["content"]
 
-    # Extract only the final message if the model includes reasoning/analysis
-    # Look for the pattern: |end|><|start|>assistant<|channel|>final<|message|>
-    if "|end|><|start|>assistant<|channel|>final<|message|>" in summary:
-        summary_no_reasoning = summary.split("|end|><|start|>assistant<|channel|>final<|message|>")[1]
+    delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
+    if delimiter in summary:
+        summary = summary.split(delimiter, 1)[1]
 
-    return summary_no_reasoning.strip()
+    return summary.strip()
 
 
 def main():
     """Main subprocess entry point."""
     max_trials = 2
-    summary = None
-    
+    summaries: Dict[str, str] | None = None
+    languages = get_summary_languages()
+
+    if not languages:
+        sys.stdout.buffer.write(pickle.dumps(({}, 0)))
+        sys.exit(0)
+
     for trial in range(1, max_trials + 1):
         try:
             # Read pickled segments from stdin (nur beim ersten Versuch)
             if trial == 1:
                 input_data = sys.stdin.buffer.read()
                 segments = pickle.loads(input_data)
-            
-            # Generate summary
-            summary = generate_summary(segments, trial)
-            
+
+            llm = load_model(trial)
+            user_prompt = build_user_prompt(segments)
+            summaries = {}
+            for language in languages:
+                system_prompt = build_system_prompt(language)
+                summaries[language] = generate_summary(llm, system_prompt, user_prompt)
+
             # Erfolgreich - Ergebnis ausgeben
-            sys.stdout.buffer.write(pickle.dumps((summary, trial)))
+            sys.stdout.buffer.write(pickle.dumps((summaries, trial)))
             sys.exit(0)
-            
+
         except Exception as e:
             if trial < max_trials:
                 print(f"LLM subprocess error on trial {trial}. Retrying with trial {trial + 1}...", file=sys.stderr)

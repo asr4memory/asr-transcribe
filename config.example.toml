@@ -2,6 +2,7 @@
 input_path = "/Users/ahenderson/Documents/Whisper_Test_Files/_input/"
 output_path = "/Users/ahenderson/Documents/Whisper_Test_Files/_output/"
 email_notifications = false
+zip_bags = true  # Create a ZIP archive of every output bag
 
 [whisper]
 model = "large-v3"
@@ -23,6 +24,7 @@ hf_token = "add your Huggingface Token here"
 use_summarization = true
 model_path = path/to/model # Needs to be in llama_ccp compatible GGUF format
 n_gpu_layers = 5
+summary_languages = ["de", "en"]  # Choose any subset of ["de", "en"]
 
 [email]
 smtp_server = "mail.example.com"

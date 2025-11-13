@@ -27,6 +27,7 @@ from utilities import (
     create_output_files_directory_path,
     prepare_bag_directory,
     finalize_bag,
+    zip_bag_directory,
 )
 from writers import write_output_files
 from stats import ProcessInfo
@@ -41,6 +42,20 @@ warning_count = 0
 warning_audio_inputs = []
 use_speaker_diarization = config["whisper"]["use_speaker_diarization"]
 use_summarization = config["llm"]["use_summarization"]
+
+
+def get_summary_languages():
+    languages = config["llm"].get("summary_languages", ["de", "en"])
+    if isinstance(languages, str):
+        languages = [languages]
+    cleaned = []
+    for lang in languages:
+        if isinstance(lang, str) and lang.strip():
+            cleaned.append(lang.strip().lower())
+    return cleaned
+
+
+SUMMARY_LANGUAGES = get_summary_languages()
 
 
 def run_whisper_subprocess(audio_path: str):
@@ -73,7 +88,7 @@ def run_whisper_subprocess(audio_path: str):
 def run_llm_subprocess(segments):
     """
     Run LLM summarization in isolated subprocess.
-    Returns: str (summary text)
+    Returns: dict with language codes mapped to summary text.
 
     Memory is guaranteed to be freed when subprocess exits.
     """
@@ -95,8 +110,8 @@ def run_llm_subprocess(segments):
         # LLM is optional, so we return None instead of raising
         return None
 
-    # Deserialize result - subprocess returns a tuple (summary, trials)
-    summary, trials = pickle.loads(result.stdout)
+    # Deserialize result - subprocess returns a tuple (summaries, trials)
+    summaries, trials = pickle.loads(result.stdout)
 
     if trials == 1:
         logger.info("LLM subprocess succeeded on first trial with 32k context window with faster processing")
@@ -105,7 +120,7 @@ def run_llm_subprocess(segments):
 
     logger.info("LLM subprocess completed successfully")
 
-    return summary
+    return summaries
 
 
 def process_file(filepath: Path, output_directory: Path):
@@ -142,7 +157,8 @@ def process_file(filepath: Path, output_directory: Path):
         custom_segs = process_whisperx_segments(result["segments"])
         word_segments_filled = result["word_segments"]
 
-        if use_summarization:
+        summaries = {lang: "" for lang in SUMMARY_LANGUAGES}
+        if use_summarization and SUMMARY_LANGUAGES:
             intermediate_message_4 = "Post-processing completed for {0}, starting summarization...".format(
                 process_info.filename
             )
@@ -150,22 +166,27 @@ def process_file(filepath: Path, output_directory: Path):
 
             # Run LLM summarization in subprocess
             # Memory is guaranteed freed when subprocess exits
-            summary = run_llm_subprocess(result["segments"])
+            summary_payload = run_llm_subprocess(result["segments"])
 
-            if summary is not None:
+            if summary_payload is not None:
+                summaries.update(summary_payload)
                 intermediate_message_5 = "Summarization completed for {0}.".format(
                     process_info.filename
                 )
                 logger.info(intermediate_message_5)
             else:
                 logger.warning(f"Summarization skipped for {process_info.filename} (subprocess failed)")
-                summary = ""  # Use empty string as fallback
+        elif use_summarization and not SUMMARY_LANGUAGES:
+            logger.info("Summarization enabled but no languages configured; skipping.")
+            intermediate_message_5 = "Post-processing completed for {0}.".format(
+                process_info.filename
+            )
+            logger.info(intermediate_message_5)
         else:
             intermediate_message_5 = "Post-processing completed for {0}.".format(
                 process_info.filename
             )
             logger.info(intermediate_message_5)
-            summary = ""  # No summarization requested
 
         new_filename = f"{filename.split('.')[0]}_{model_name}_{language_audio}"
 
@@ -202,7 +223,7 @@ def process_file(filepath: Path, output_directory: Path):
             all=result,
             segments=custom_segs,
             word_segments=word_segments_filled,
-            summary=summary,
+            summaries=summaries,
         )
 
         # Duplicate the speaker CSV into the ohd_import directory for downstream ingestion.
@@ -236,6 +257,12 @@ def process_file(filepath: Path, output_directory: Path):
             bag_info["Internal-Sender-Description"] = sender_description
 
         finalize_bag(dir_path, payload_files, bag_info)
+
+        if config["system"].get("zip_bags", True):
+            try:
+                zip_bag_directory(dir_path)
+            except Exception as zip_error:
+                logger.warning("Failed to create ZIP archive for %s: %s", dir_path, zip_error)
 
         process_info.end = datetime.now()
         stats.append(process_info)

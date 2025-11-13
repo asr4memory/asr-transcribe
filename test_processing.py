@@ -2,12 +2,14 @@ import copy
 import pytest
 from pathlib import Path
 import hashlib
+import zipfile
 from post_processing import (
     sentence_is_incomplete,
     uppercase_sentences,
     split_long_sentences,
 )
-from utilities import prepare_bag_directory, finalize_bag, sha512
+from utilities import prepare_bag_directory, finalize_bag, sha512, zip_bag_directory
+from writers import write_summary
 
 
 class TestSentenceIsIncomplete:
@@ -216,3 +218,41 @@ def test_docu_directory_in_tag_manifest(bagit_test_structure):
     tag_manifest_content = tag_manifest_path.read_text(encoding="utf-8")
     assert f"{sha512_readme}  documentation/README.md" in tag_manifest_content
     assert f"{sha512_license}  documentation/LICENSE.txt" in tag_manifest_content
+
+
+def test_zip_bag_directory_creates_archive(bagit_test_structure):
+    """Ensures that a ZIP archive of the bag directory is created."""
+    bag_root = bagit_test_structure
+    transcripts_dir = prepare_bag_directory(bag_root)
+
+    payload_file = transcripts_dir / "payload.txt"
+    payload_file.write_text("Payload content", encoding="utf-8")
+    finalize_bag(bag_root, [payload_file], {})
+
+    archive_path = zip_bag_directory(bag_root)
+    assert archive_path.exists()
+    assert archive_path.suffix == ".zip"
+
+    with zipfile.ZipFile(archive_path) as zip_file:
+        names = zip_file.namelist()
+        assert any(name.startswith(f"{bag_root.name}/") for name in names)
+
+
+def test_write_summary_multiple_languages(tmp_path):
+    """Ensure summary files for DE and EN are written into abstracts."""
+    bag_root = tmp_path / "bag"
+    data_transcripts = bag_root / "data" / "transcripts"
+    data_transcripts.mkdir(parents=True)
+    base_path = data_transcripts / "sample"
+
+    write_summary(base_path, "Zusammenfassung DE")
+    write_summary(base_path, "Summary EN", language_code="en")
+
+    abstracts_dir = bag_root / "data" / "abstracts"
+    de_file = abstracts_dir / "sample_summary_de.txt"
+    en_file = abstracts_dir / "sample_summary_en.txt"
+
+    assert de_file.exists()
+    assert en_file.exists()
+    assert "Zusammenfassung" in de_file.read_text(encoding="utf-8")
+    assert "Summary EN" in en_file.read_text(encoding="utf-8")

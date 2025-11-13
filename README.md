@@ -37,6 +37,20 @@ python asr_workflow.py
 
 The `config.toml` file is used to configure the application. You can copy the `config.example.toml` to create your own `config.toml`.
 
+### System Options (`[system]`)
+
+- **`input_path` / `output_path`**: Source and destination folders the workflow watches and populates.
+- **`email_notifications`**: Enables success/failure/warning emails via the settings in `[email]`.
+- **`zip_bags`**: When `true`, each generated bag directory is also written as a `.zip` archive in the same output folder.
+
+### LLM Options (`[llm]`)
+
+- **`use_summarization`**: Toggles the LLM subprocess that generates summaries after transcription finishes.
+- **`model_path`**: Filesystem path to a llama-cpp-compatible GGUF model (e.g., stored under `models/`).
+- **`n_gpu_layers`**: GPU offloading depth for llama-cpp; adjust based on your hardware.  
+  The model is loaded inside `llm_subprocess.py`, so no additional services are required.
+- **`summary_languages`**: List of language codes (currently `["de", "en"]`) that should receive summaries. Remove or limit entries to skip specific languages.
+
 ### BagIt Options (`[bag]`)
 
 The application uses the BagIt specification to package the output files. The following options are available to add metadata to the `bag-info.txt` file.
@@ -45,6 +59,29 @@ The application uses the BagIt specification to package the output files. The fo
 - **`bag_count`**: The number of bags in a set (e.g., "1 of 3").
 - **`internal_sender_identifier`**: An identifier for the creator of the bag.
 - **`internal_sender_description`**: A description of the creator of the bag.
+
+## Summaries
+
+If `llm.use_summarization` is enabled, the workflow runs an LLM subprocess that produces per-language summaries according to `llm.summary_languages`.
+
+For example, with the default `["de", "en"]` configuration:
+
+- `_summary_de.txt` contains the German abstract.
+- `_summary_en.txt` contains the English abstract.
+
+Both files are stored inside each bag’s `data/abstracts/` directory. The prompts favour concise, third-person prose and silently correct minor ASR issues. When the LLM step fails, transcription continues without summaries.
+
+## Output
+
+For every processed file a timestamped bag directory is created under the configured output path. Each bag contains:
+
+- `data/transcripts/`: All transcript formats (TXT, RTF, CSV, VTT, SRT, JSON, ODT, PDF, etc.).
+- `data/abstracts/`: Language-specific summaries (currently `_summary_de.txt` and `_summary_en.txt`).
+- `data/ohd_import/`: Copies of the speaker CSV exports for downstream ingestion.
+- `documentation/`: Reference material copied from `doc_files/` (export formats, citation text, upload instructions).
+- `bagit.txt`, `bag-info.txt`, `manifest-sha512.txt`, `tagmanifest-sha512.txt`: Files required by the BagIt specification.
+
+If `zip_bags` is `true`, the complete bag directory is additionally written as `<bag-name>.zip` alongside the folder.
 
 ## Tests
 - Run automated tests with pytest.
