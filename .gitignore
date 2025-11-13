@@ -19,7 +19,10 @@ asr_watch_EN.py
 asr_watch_FR.py
 asr_watch_ES.py
 asr_watch_PL.py
+asr_watch_RU.py
 asr_watch_AUTO.py
+
+whisper_tools_finetuned.py
 
 /asr_venv
 /doc_files

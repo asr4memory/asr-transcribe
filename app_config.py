@@ -42,7 +42,7 @@ def log_config(blacklist=["hf_token"]):
         logger.debug(f"Config: {key} -> {value}")
 
 
-def whisper_config_html(blacklist=["initial_prompt", "hf_token"]):
+def whisper_config_html(blacklist=["initial_prompt", "hf_token", "api_key"]):
     "Returns Whisper configuration as HTML."
     config = get_config()
 
