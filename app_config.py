@@ -44,12 +44,31 @@ def log_config(blacklist=["hf_token"]):
 
 def whisper_config_html(blacklist=["initial_prompt", "hf_token", "api_key"]):
     "Returns Whisper configuration as HTML."
+    return _section_config_html("whisper", blacklist)
+
+
+def llm_config_html():
+    "Returns LLM configuration as HTML."
+    return _section_config_html("llm")
+
+
+def bag_config_html():
+    "Returns bag metadata configuration as HTML."
+    return _section_config_html("bag")
+
+
+def _section_config_html(section_name, blacklist=None):
+    "Helper to convert a config section into HTML key/value rows."
+    blacklist = set(blacklist or [])
     config = get_config()
+    section_items = config.get(section_name, {})
 
     result = ""
-    for key, value in config["whisper"].items():
+    for key, value in section_items.items():
         if key in blacklist:
             continue
+        if isinstance(value, list):
+            value = ", ".join(str(item) for item in value)
         result += f"{key.capitalize()}: {value}<br>"
 
     return result

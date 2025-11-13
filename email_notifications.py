@@ -8,7 +8,12 @@ from email.mime.text import MIMEText
 from datetime import datetime
 import socket, getpass
 
-from app_config import get_config, whisper_config_html
+from app_config import (
+    get_config,
+    whisper_config_html,
+    llm_config_html,
+    bag_config_html,
+)
 from logger import logger
 
 computer_host_name = socket.gethostname()
@@ -77,6 +82,8 @@ def send_success_email(stats, warning_count, warning_audio_inputs):
     email_body = "<b>ASR Process successfully completed:</b> " + "<br>"
     email_body += process_date_html() + "<br><br>"
     email_body += "<b>Whisper configuration:</b><br>" + whisper_config_html() + "<br>"
+    email_body += "<b>LLM configuration:</b><br>" + llm_config_html() + "<br>"
+    email_body += "<b>Bag configuration:</b><br>" + bag_config_html() + "<br>"
 
     email_body += "<ul>"
 
