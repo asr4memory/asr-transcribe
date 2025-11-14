@@ -13,6 +13,7 @@ from app_config import get_config
 config = get_config()
 n_gpu_layers = config["llm"]["n_gpu_layers"]
 model_path = config["llm"]["model_path"]
+verbose = config["llm"].get("verbose", False)
 
 
 def get_summary_languages() -> list[str]:
@@ -34,14 +35,14 @@ def load_model(trial: int) -> Llama:
             n_gpu_layers=n_gpu_layers,
             n_ctx=32768,
             n_batch=512,
-            verbose=True,
+            verbose=verbose,
         )
     return Llama(
         model_path=model_path,
         n_gpu_layers=n_gpu_layers,
         n_ctx=65536,
         n_batch=256,
-        verbose=True,
+        verbose=verbose,
     )
 
 

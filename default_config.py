@@ -33,6 +33,7 @@ CONST_DEFAULT_CONFIG = {
         "model_path": "",
         "n_gpu_layers": 5,
         "summary_languages": ["de", "en"],
+        "verbose": False,
     },
     "email": {
         "smtp_server": "",

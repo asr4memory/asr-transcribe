@@ -11,10 +11,7 @@ Uses subprocess architecture for memory isolation:
 
 from datetime import datetime
 from pathlib import Path
-import pickle
 import shutil
-import subprocess
-import sys
 from email_notifications import (
     send_success_email,
     send_failure_email,
@@ -28,6 +25,10 @@ from utilities import (
     prepare_bag_directory,
     finalize_bag,
     zip_bag_directory,
+)
+from subprocess_handler import (
+    run_whisper_subprocess,
+    run_llm_subprocess,
 )
 from writers import write_output_files
 from stats import ProcessInfo
@@ -56,71 +57,6 @@ def get_summary_languages():
 
 
 SUMMARY_LANGUAGES = get_summary_languages()
-
-
-def run_whisper_subprocess(audio_path: str):
-    """
-    Run complete Whisper pipeline in isolated subprocess.
-    Returns: dict with 'segments', 'word_segments', and 'language' keys
-
-    Memory is guaranteed to be freed when subprocess exits.
-    """
-    logger.info("Starting Whisper subprocess...")
-
-    result = subprocess.run(
-        [sys.executable, "whisper_subprocess.py", str(audio_path)],
-        capture_output=True,
-        check=False  # Don't raise exception, we'll handle errors manually
-    )
-
-    if result.returncode != 0:
-        error_msg = result.stderr.decode('utf-8') if result.stderr else "Unknown error"
-        logger.error(f"Whisper subprocess failed: {error_msg}")
-        raise RuntimeError(f"Whisper subprocess failed: {error_msg}")
-
-    # Deserialize result
-    whisper_result = pickle.loads(result.stdout)
-    logger.info("Whisper subprocess completed successfully")
-
-    return whisper_result
-
-
-def run_llm_subprocess(segments):
-    """
-    Run LLM summarization in isolated subprocess.
-    Returns: dict with language codes mapped to summary text.
-
-    Memory is guaranteed to be freed when subprocess exits.
-    """
-    logger.info("Starting LLM subprocess...")
-
-    # Serialize segments and pass via stdin
-    input_data = pickle.dumps(segments)
-
-    result = subprocess.run(
-        [sys.executable, "llm_subprocess.py"],
-        input=input_data,
-        capture_output=True,
-        check=False  # Don't raise exception, we'll handle errors manually
-    )
-
-    if result.returncode != 0:
-        error_msg = result.stderr.decode('utf-8') if result.stderr else "Unknown error"
-        logger.warning(f"LLM subprocess failed: {error_msg}")
-        # LLM is optional, so we return None instead of raising
-        return None
-
-    # Deserialize result - subprocess returns a tuple (summaries, trials)
-    summaries, trials = pickle.loads(result.stdout)
-
-    if trials == 1:
-        logger.info("LLM subprocess succeeded on first trial with 32k context window with faster processing")
-    elif trials == 2:
-        logger.info("LLM subprocess succeeded on second trial with 64k context window with slower processing")
-
-    logger.info("LLM subprocess completed successfully")
-
-    return summaries
 
 
 def process_file(filepath: Path, output_directory: Path):
