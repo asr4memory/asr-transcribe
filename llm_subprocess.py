@@ -9,6 +9,7 @@ import pickle
 from typing import Dict
 from llama_cpp import Llama
 from app_config import get_config
+from utilities import cleanup_cuda_memory
 
 config = get_config()
 n_gpu_layers = config["llm"]["n_gpu_layers"]
@@ -108,6 +109,7 @@ def main():
     max_trials = 2
     summaries: Dict[str, str] | None = None
     languages = get_summary_languages()
+    llm = None
 
     if not languages:
         sys.stdout.buffer.write(pickle.dumps(({}, 0)))
@@ -132,6 +134,11 @@ def main():
             sys.exit(0)
 
         except Exception as e:
+            # Cleanup the failed model and free GPU memory
+            if llm is not None:
+                del llm
+            cleanup_cuda_memory()
+
             if trial < max_trials:
                 print(f"LLM subprocess error on trial {trial}. Retrying with trial {trial + 1}...", file=sys.stderr)
             else:
