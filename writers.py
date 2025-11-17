@@ -121,6 +121,44 @@ def write_text_speaker_tab(path_without_ext: Path, segments: list):
             txt_file.write(f"{start_time}\t{speaker}\t{text}\n")
 
 
+def _format_maxqda_timestamp(seconds: float) -> str:
+    """Format timestamps as h:mm:ss.x for MAXQDA exports."""
+    formatted_time, formatted_time_ms = format_timestamp(seconds, milli_separator=".")
+    hours_str, minutes, seconds_str = formatted_time.split(":")
+    fractional = formatted_time_ms.split(".")[1] if "." in formatted_time_ms else ""
+    tenths = fractional[0] if fractional else "0"
+    hours = str(int(hours_str))
+    return f"{hours}:{minutes}:{seconds_str}.{tenths}"
+
+
+def write_text_speaker_maxqda(path_without_ext: Path, segments: list):
+    """
+    Write the processed segments to a tab-delimited text file for MAXQDA imports.
+    Uses truncated timestamps (h:mm:ss.x), omits headers, and appends a colon to speaker labels.
+    """
+    full_path = path_without_ext.with_stem(path_without_ext.stem + "_speaker_maxqda").with_suffix(".txt")
+    with open(full_path, "w", encoding="utf-8") as txt_file:
+        for seg in segments:
+            timestamp = _format_maxqda_timestamp(seg["start"])
+            speaker = seg.get("speaker", "")
+            speaker_label = f"{speaker}:" if speaker else ""
+            text = seg["text"]
+            txt_file.write(f"{timestamp}\t{speaker_label}\t{text}\n")
+
+
+def write_text_maxqda(path_without_ext: Path, segments: list):
+    """
+    Write the processed segments to a tab-delimited text file for MAXQDA without speaker labels.
+    Each line contains the truncated timestamp and transcript text.
+    """
+    full_path = path_without_ext.with_stem(path_without_ext.stem + "_maxqda").with_suffix(".txt")
+    with open(full_path, "w", encoding="utf-8") as txt_file:
+        for seg in segments:
+            timestamp = _format_maxqda_timestamp(seg["start"])
+            text = seg["text"]
+            txt_file.write(f"{timestamp}\t{text}\n")
+
+
 def write_rtf(path_without_ext: Path, segments: list):
     """
     Write the processed segments to an RTF file.
@@ -485,6 +523,8 @@ def write_output_files(
     write_text(base_path, segments)
     write_text_speaker(base_path, segments)
     write_text_speaker_tab(base_path, segments)
+    write_text_speaker_maxqda(base_path, segments)
+    write_text_maxqda(base_path, segments)
     write_rtf(base_path, segments)
     write_rtf_speaker(base_path, segments)
     write_odt(base_path, segments)  # Added new ODT function
