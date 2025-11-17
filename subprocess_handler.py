@@ -5,10 +5,11 @@ import threading
 import pickle
 from logger import logger
 
-def stream_subprocess_output(process, subprocess_name: str):
+def stream_subprocess_output(process, subprocess_name: str, log_stderr_to_logger: bool = False):
     """
     Stream subprocess stderr in real-time while collecting stdout/stderr safely.
-    Uses threading to avoid deadlock with pipes.
+    Uses threading to avoid deadlock with pipes. Optionally mirrors captured
+    stderr into the main logger for persistent logging.
 
     Args:
         process: subprocess.Popen object with stdout/stderr pipes
@@ -57,6 +58,13 @@ def stream_subprocess_output(process, subprocess_name: str):
     # Wait for threads to finish reading
     stdout_thread.join(timeout=5)
     stderr_thread.join(timeout=5)
+
+    if log_stderr_to_logger and stderr_data[0]:
+        stderr_text = stderr_data[0].decode('utf-8', errors='ignore')
+        for line in stderr_text.splitlines():
+            stripped = line.rstrip()
+            if stripped:
+                logger.info("[%s subprocess] %s", subprocess_name, stripped)
 
     return stdout_data[0], stderr_data[0]
 
@@ -116,7 +124,7 @@ def run_llm_subprocess(segments):
     process.stdin.write(input_data)
     process.stdin.close()
 
-    stdout_data, stderr_data = stream_subprocess_output(process, "LLM")
+    stdout_data, stderr_data = stream_subprocess_output(process, "LLM", log_stderr_to_logger=True)
 
     if process.returncode != 0:
         error_msg = stderr_data.decode('utf-8', errors='ignore') if stderr_data else "Unknown error"
