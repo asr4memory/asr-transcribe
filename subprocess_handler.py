@@ -72,7 +72,7 @@ def stream_subprocess_output(process, subprocess_name: str, log_stderr_to_logger
 def run_whisper_subprocess(audio_path: str):
     """
     Run complete Whisper pipeline in isolated subprocess.
-    Returns: dict with 'segments', 'word_segments', and 'language' keys
+    Returns: dict with segments, word segments, and language/translation metadata.
 
     Memory is guaranteed to be freed when subprocess exits.
     """
