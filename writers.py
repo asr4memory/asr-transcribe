@@ -3,6 +3,7 @@ Exporter functions.
 """
 
 from collections import OrderedDict
+from decimal import Decimal, ROUND_HALF_UP
 import csv
 import json
 from pathlib import Path
@@ -136,35 +137,184 @@ def _format_maxqda_timestamp(seconds: float) -> str:
     return f"{hours}:{minutes}:{seconds_str}.{tenths}"
 
 
-def write_text_speaker_maxqda(path_without_ext: Path, segments: list):
+def _format_pause_marker(seconds: float) -> str:
+    """Format pause duration with decimal comma, rounded to 1 decimal place."""
+    if seconds is None:
+        return "[Pause ? s]"
+    quantized = Decimal(str(seconds)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    seconds_str = format(quantized, "f").replace(".", ",")
+    return f"[Pause {seconds_str} s]"
+
+
+def _build_segment_text_with_pauses(
+    segments: list, word_segments: list | None
+):
+    """Build per-segment text enriched with pause markers based on word timings."""
+    if not word_segments:
+        return None
+
+    parts_per_segment: list[list[str]] = [[] for _ in segments]
+    word_idx = 0
+    total_words = len(word_segments)
+    last_word_end = None
+    last_segment_parts: list[str] | None = None
+
+    for seg_idx, seg in enumerate(segments):
+        if word_idx >= total_words:
+            break
+
+        seg_start = seg.get("start")
+        seg_end = seg.get("end")
+        if seg_start is None or seg_end is None:
+            continue
+
+        parts = parts_per_segment[seg_idx]
+
+        while word_idx < total_words:
+            word_seg = word_segments[word_idx]
+            w_start = word_seg.get("start")
+            w_end = word_seg.get("end")
+
+            if w_start is None:
+                word_idx += 1
+                continue
+
+            if w_start >= seg_end:
+                break
+
+            gap = None
+            if last_word_end is not None:
+                gap = w_start - last_word_end
+
+            if gap is not None and gap >= 2.0 and last_segment_parts is not None:
+                last_segment_parts.append(_format_pause_marker(gap))
+
+            word_text = word_seg.get("word", "").strip()
+            if word_text:
+                parts.append(word_text)
+            last_segment_parts = parts
+            last_word_end = w_end if w_end is not None else last_word_end
+            word_idx += 1
+
+    return [" ".join(parts).strip() for parts in parts_per_segment]
+
+
+def write_text_speaker_maxqda(path_without_ext: Path, segments: list, word_segments: list | None = None):
     """
     Write the processed segments to a tab-delimited text file for MAXQDA imports.
     Uses truncated timestamps (h:mm:ss.x), omits headers, and appends a colon to speaker labels.
     """
-    full_path = path_without_ext.with_stem(
-        path_without_ext.stem + "_speaker_maxqda"
-    ).with_suffix(".txt")
+    full_path = path_without_ext.with_stem(path_without_ext.stem + "_speaker_maxqda").with_suffix(".txt")
+    enriched_texts = _build_segment_text_with_pauses(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
-        for seg in segments:
+        for idx, seg in enumerate(segments):
             timestamp = _format_maxqda_timestamp(seg["start"])
             speaker = seg.get("speaker", "")
             speaker_label = f"{speaker}:" if speaker else ""
-            text = seg["text"]
+            text = (
+                enriched_texts[idx]
+                if enriched_texts and enriched_texts[idx]
+                else seg["text"]
+            )
             txt_file.write(f"{timestamp}\t{speaker_label}\t{text}\n")
 
 
-def write_text_maxqda(path_without_ext: Path, segments: list):
+def write_text_speaker_segment_maxqda(
+    path_without_ext: Path, segments: list, word_segments: list | None = None
+):
+    """
+    Write MAXQDA-ready text with timestamps only when the speaker changes.
+    Consecutive segments from the same speaker are merged into one line.
+    Inserts break markers for intra-speech pauses >=2s based on word-level timing.
+    """
+    full_path = (
+        path_without_ext.with_stem(path_without_ext.stem + "_speaker_segment_maxqda")
+        .with_suffix(".txt")
+    )
+    with open(full_path, "w", encoding="utf-8") as txt_file:
+        last_speaker = ""
+        block_start = None
+        block_text_parts: list[str] = []
+        last_word_end = None
+
+        def flush_block():
+            if block_start is None or not block_text_parts:
+                return
+            timestamp = _format_maxqda_timestamp(block_start)
+            speaker_label = f"{last_speaker}:" if last_speaker else ""
+            combined_text = " ".join(block_text_parts).strip()
+            txt_file.write(f"{timestamp}\t{speaker_label}\t{combined_text}\n")
+
+        if word_segments:
+            for word_seg in word_segments:
+                word = word_seg.get("word", "").strip()
+                start = word_seg.get("start")
+                end = word_seg.get("end")
+                raw_speaker = word_seg.get("speaker", "")
+                speaker = raw_speaker if raw_speaker else last_speaker
+
+                if block_start is None:
+                    block_start = start
+                    last_speaker = speaker
+
+                gap = None
+                if last_word_end is not None and start is not None:
+                    gap = start - last_word_end
+
+                speaker_changed = speaker != last_speaker
+
+                if speaker_changed:
+                    if gap is not None and gap >= 2.0:
+                        block_text_parts.append(_format_pause_marker(gap))
+                    flush_block()
+                    block_start = start
+                    last_speaker = speaker
+                    block_text_parts = [word] if word else []
+                else:
+                    if gap is not None and gap >= 2.0:
+                        block_text_parts.append(_format_pause_marker(gap))
+                    if word:
+                        block_text_parts.append(word)
+
+                last_word_end = end if end is not None else last_word_end
+
+            flush_block()
+        else:
+            # Fallback: merge by segments without word-level breaks.
+            for seg in segments:
+                raw_speaker = seg.get("speaker", "")
+                speaker = raw_speaker if raw_speaker else last_speaker
+
+                if block_start is None:
+                    block_start = seg["start"]
+                    last_speaker = speaker
+
+                if speaker == last_speaker:
+                    block_text_parts.append(seg["text"])
+                else:
+                    flush_block()
+                    block_start = seg["start"]
+                    last_speaker = speaker
+                    block_text_parts = [seg["text"]]
+
+            flush_block()
+
+
+def write_text_maxqda(path_without_ext: Path, segments: list, word_segments: list | None = None):
     """
     Write the processed segments to a tab-delimited text file for MAXQDA without speaker labels.
     Each line contains the truncated timestamp and transcript text.
     """
-    full_path = path_without_ext.with_stem(
-        path_without_ext.stem + "_maxqda"
-    ).with_suffix(".txt")
+    full_path = path_without_ext.with_stem(path_without_ext.stem + "_maxqda").with_suffix(".txt")
+    enriched_texts = _build_segment_text_with_pauses(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
-        for seg in segments:
+        for idx, seg in enumerate(segments):
             timestamp = _format_maxqda_timestamp(seg["start"])
-            text = seg["text"]
+            text = (
+                enriched_texts[idx]
+                if enriched_texts and enriched_texts[idx]
+                else seg["text"]
+            )
             txt_file.write(f"{timestamp}\t{text}\n")
 
 
@@ -279,6 +429,7 @@ def write_csv(
     )
 
     full_path = path_without_ext.with_suffix(".csv")
+
     with open(full_path, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=delimiter)
 
@@ -577,8 +728,9 @@ def write_output_files(
     write_text(base_path, segments)
     write_text_speaker(base_path, segments)
     write_text_speaker_tab(base_path, segments)
-    write_text_speaker_maxqda(base_path, segments)
-    write_text_maxqda(base_path, segments)
+    write_text_speaker_maxqda(base_path, segments, word_segments)
+    write_text_speaker_segment_maxqda(base_path, segments, word_segments)
+    write_text_maxqda(base_path, segments, word_segments)
     write_rtf(base_path, segments)
     write_rtf_speaker(base_path, segments)
     write_odt(base_path, segments)  # Added new ODT function

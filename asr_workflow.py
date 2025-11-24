@@ -59,10 +59,42 @@ def get_summary_languages():
 SUMMARY_LANGUAGES = get_summary_languages()
 
 
+def _normalize_language(value, default="auto"):
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return default
+
+
+def get_language_descriptor(result: dict):
+    """
+    Build language metadata for filenames/bag info.
+    Returns (source_language, output_language, descriptor_string, target_language).
+    """
+    configured_language = config["whisper"].get("language")
+    translation_enabled = result.get("translation_enabled", False)
+    source_language = result.get("source_language") or configured_language
+    output_language = result.get("output_language") or source_language
+    target_language = (
+        result.get("translation_target_language")
+        or result.get("translation_output_language")
+        or output_language
+    )
+
+    normalized_source = _normalize_language(source_language)
+    normalized_output = _normalize_language(output_language, default=normalized_source)
+    normalized_target = _normalize_language(
+        target_language, default=normalized_output
+    )
+
+    descriptor = normalized_output
+    if translation_enabled:
+        descriptor = f"{normalized_source}_to_{normalized_target}"
+
+    return normalized_source, normalized_output, descriptor, normalized_target
+
+
 def process_file(filepath: Path, output_directory: Path):
     global warning_count, warning_audio_inputs, stats
-    language_audio = config["whisper"]["language"]
-    model_name = Path(config["whisper"]["model"]).name
     filename = filepath.name
 
     try:
@@ -83,6 +115,7 @@ def process_file(filepath: Path, output_directory: Path):
         # Includes: transcription + alignment + (optional) diarization
         # Memory is guaranteed freed when subprocess exits
         result = run_whisper_subprocess(filepath)
+        translation_payload = result.get("translation_result")
 
         intermediate_message_3 = (
             "Whisper pipeline completed for {0}, starting post-processing...".format(
@@ -93,6 +126,21 @@ def process_file(filepath: Path, output_directory: Path):
 
         # Post-processing (runs in main process, lightweight)
         processed_whisperx_output = process_whisperx_segments(result["segments"])
+        translation_processed_output = None
+        if translation_payload:
+            translation_processed_output = process_whisperx_segments(
+                translation_payload["segments"]
+            )
+
+        (
+            source_language,
+            output_language,
+            language_descriptor,
+            target_language,
+        ) = get_language_descriptor(result)
+
+        model_used = result.get("model_name") or config["whisper"]["model"]
+        model_name = Path(str(model_used)).name if model_used else "unknown-model"
 
         summaries = {lang: "" for lang in SUMMARY_LANGUAGES}
         if use_summarization and SUMMARY_LANGUAGES:
@@ -129,9 +177,11 @@ def process_file(filepath: Path, output_directory: Path):
             )
             logger.info(intermediate_message_5)
 
-        new_filename = f"{filename.split('.')[0]}_{model_name}_{language_audio}"
+        file_stem = filename.split(".")[0]
+        transcript_filename = f"{file_stem}_{model_name}_{output_language}"
+        translation_filename = f"{file_stem}_{model_name}_{language_descriptor}"
 
-        dir_path = create_output_files_directory_path(output_directory, new_filename)
+        dir_path = create_output_files_directory_path(output_directory, translation_filename)
         transcripts_dir = prepare_bag_directory(dir_path)
 
         # Copy documentation files to documentation/ directory
@@ -152,8 +202,9 @@ def process_file(filepath: Path, output_directory: Path):
                 else:
                     shutil.copy2(doc_file, dest_file)
 
-        output_base_path = transcripts_dir / new_filename
+        output_base_path = transcripts_dir / transcript_filename
         data_dir = dir_path / "data"
+        translations_dir = data_dir / "translations"
 
         write_output_files(
             base_path=output_base_path,
@@ -161,6 +212,25 @@ def process_file(filepath: Path, output_directory: Path):
             processed_whisperx_output=processed_whisperx_output,
             summaries=summaries,
         )
+
+        if translation_payload:
+            translations_dir.mkdir(parents=True, exist_ok=True)
+            translation_base_path = translations_dir / translation_filename
+            translation_unprocessed = translation_payload
+            if (
+                translation_processed_output
+                and "word_segments" not in translation_unprocessed
+            ):
+                translation_unprocessed = dict(translation_payload)
+                translation_unprocessed["word_segments"] = translation_processed_output[
+                    "word_segments"
+                ]
+            write_output_files(
+                base_path=translation_base_path,
+                unprocessed_whisperx_output=translation_unprocessed,
+                processed_whisperx_output=translation_processed_output,
+                summaries=None,
+            )
 
         # Duplicate the speaker CSV into the ohd_import directory for downstream ingestion.
         ohd_import_dir = data_dir / "ohd_import"
@@ -174,9 +244,12 @@ def process_file(filepath: Path, output_directory: Path):
         bag_info = {
             "Source-Filename": filename,
             "Model": model_name,
-            "Language": language_audio,
+            "Language": language_descriptor,
             "Audio-Length-Seconds": f"{audio_length:.2f}",
         }
+        if result.get("translation_enabled"):
+            bag_info["Source-Language"] = source_language
+            bag_info["Target-Language"] = target_language
         bag_config = config.get("bag", {}) or {}
         group_identifier = bag_config.get("group_identifier")
         if group_identifier:

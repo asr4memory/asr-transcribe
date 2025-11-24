@@ -72,6 +72,8 @@ The `config.toml` file is used to configure the application. You can copy the `c
 
 - **`model` / `device` / `compute_type` / `beam_size` / `batch_size`**: Core WhisperX transcription settings.
 - **`language`**: Force a language or omit the key for auto-detection (remove the entry entirely to let Whisper detect automatically).
+- **`translation_enabled` / `translation_target_language`**: Toggle Whisper’s translate task and pick the output language (defaults to English). Keep this disabled for pure transcription.
+- **`translation_model`**: When translation is enabled and the configured `model` is not multilingual (e.g., the turbo variants), this fallback model is loaded automatically. By default the workflow uses `large-v3`, which yields the best translation quality.
 - **`use_speaker_diarization`**, **`min_speakers`**, **`max_speakers`**: Control diarization; when enabled you must supply **`hf_token`** so WhisperX can download the diarization model from Hugging Face.
 - **`use_initial_prompt`**, **`initial_prompt`**, **`max_sentence_length`**: Fine-tune segmentation and prompt injection.
 
@@ -113,6 +115,7 @@ Both files are stored inside each bag’s `data/abstracts/` directory. The promp
 For every processed file a timestamped bag directory is created under the configured output path. Each bag contains:
 
 - `data/transcripts/`: All transcript formats (TXT, RTF, CSV, VTT, SRT, JSON, ODT, PDF, etc.).
+- `data/translations/`: Mirrors the transcript formats but contains the translated text when translation is enabled.
 - `data/abstracts/`: Language-specific summaries (currently `_summary_de.txt` and `_summary_en.txt`).
 - `data/ohd_import/`: Copies of the speaker CSV exports for downstream ingestion.
 - `documentation/`: Reference material copied from `doc_files/` (export formats, citation text, upload instructions).
