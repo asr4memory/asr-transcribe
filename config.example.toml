@@ -1,6 +1,6 @@
 [system]
-input_path = "/Users/ahenderson/Documents/Whisper_Test_Files/_input/"
-output_path = "/Users/ahenderson/Documents/Whisper_Test_Files/_output/"
+input_path = "/path/to/input"
+output_path = "/path/to/output"
 email_notifications = false
 zip_bags = true  # Create a ZIP archive of every output bag
 
