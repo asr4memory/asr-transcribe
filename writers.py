@@ -11,6 +11,7 @@ from unicodedata import normalize
 from jinja2 import Environment, PackageLoader, select_autoescape
 from pyexcel_ods3 import save_data
 from xhtml2pdf import pisa
+from tei_builder.converter import WhisperToTEIConverter
 
 from app_config import get_config
 from utilities import format_timestamp
@@ -493,6 +494,15 @@ def write_odt(path_without_ext: Path, segments: list):
         # Add content.xml to the zip file
         odt_zip.writestr('content.xml', content_buffer.getvalue())
 
+def write_tei_xml(path_without_ext: Path, segments: list):
+    """
+    Write TEI XML file
+    """
+    full_path = path_without_ext.with_suffix(".tei.xml")
+    converter = WhisperToTEIConverter()
+    tei_xml_content = converter.convert(segments)
+    with open(full_path, "w", encoding="utf-8") as xml_file:
+        xml_file.write(tei_xml_content)
 
 def write_summary(path_without_ext: Path, summary: str, language_code: str = "de"):
     """
@@ -509,11 +519,14 @@ def write_summary(path_without_ext: Path, summary: str, language_code: str = "de
 
 def write_output_files(
     base_path: Path,
-    all: list,
-    segments: list,
-    word_segments: list,
+    unprocessed_whisperx_output: list,
+    processed_whisperx_output: list,
     summaries: dict[str, str] | None = None,
 ):
+    
+    segments = processed_whisperx_output["segments"]
+    word_segments = unprocessed_whisperx_output["word_segments"]
+
     """Write all types of output files."""
     write_vtt(base_path, segments)
     write_word_segments_vtt(
@@ -549,9 +562,10 @@ def write_output_files(
         word_segments,
         delimiter="\t",
     )
-    write_json(base_path, segments)
-    write_json(base_path.with_stem(base_path.stem + "_unprocessed"), all)
+    write_json(base_path, processed_whisperx_output)
+    write_json(base_path.with_stem(base_path.stem + "_unprocessed"), unprocessed_whisperx_output)
     write_ods(base_path, segments)
+    write_tei_xml(base_path, segments)
     if summaries:
         for language_code, text in summaries.items():
             if text:

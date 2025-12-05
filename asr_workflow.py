@@ -90,8 +90,7 @@ def process_file(filepath: Path, output_directory: Path):
         logger.info(intermediate_message_3)
 
         # Post-processing (runs in main process, lightweight)
-        custom_segs = process_whisperx_segments(result["segments"])
-        word_segments_filled = result["word_segments"]
+        processed_whisperx_output = process_whisperx_segments(result["segments"])
 
         summaries = {lang: "" for lang in SUMMARY_LANGUAGES}
         if use_summarization and SUMMARY_LANGUAGES:
@@ -102,7 +101,7 @@ def process_file(filepath: Path, output_directory: Path):
 
             # Run LLM summarization in subprocess
             # Memory is guaranteed freed when subprocess exits
-            summary_payload = run_llm_subprocess(result["segments"])
+            summary_payload = run_llm_subprocess(processed_whisperx_output["segments"])
 
             if summary_payload is not None:
                 summaries.update(summary_payload)
@@ -156,9 +155,8 @@ def process_file(filepath: Path, output_directory: Path):
 
         write_output_files(
             base_path=output_base_path,
-            all=result,
-            segments=custom_segs,
-            word_segments=word_segments_filled,
+            unprocessed_whisperx_output=result,
+            processed_whisperx_output=processed_whisperx_output,
             summaries=summaries,
         )
 
