@@ -34,6 +34,7 @@ class WhisperSegment:
     end: float
     text: str
     words: List[WhisperWord]
+    speaker: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> 'WhisperSegment':
@@ -43,7 +44,8 @@ class WhisperSegment:
             start=data['start'],
             end=data['end'],
             text=data['text'],
-            words=words
+            words=words,
+            speaker=data.get('speaker')
         )
 
     def get_speaker(self) -> str:
@@ -53,6 +55,6 @@ class WhisperSegment:
         Returns:
             str: Speaker ID (e.g. "SPEAKER_00") or "UNKNOWN_SPEAKER" as fallback
         """
-        if self.words and self.words[0].speaker:
-            return self.words[0].speaker
+        if self.speaker:
+            return self.speaker
         return "UNKNOWN_SPEAKER"
