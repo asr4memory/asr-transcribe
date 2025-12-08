@@ -51,8 +51,8 @@ class WhisperSegment:
         Determines the speaker for this segment.
 
         Returns:
-            str: Speaker ID (e.g. "SPEAKER_00") or "SPEAKER_00" as fallback
+            str: Speaker ID (e.g. "SPEAKER_00") or "UNKNOWN_SPEAKER" as fallback
         """
         if self.words and self.words[0].speaker:
             return self.words[0].speaker
-        return "SPEAKER_00"
+        return "UNKNOWN_SPEAKER"
