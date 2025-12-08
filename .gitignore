@@ -12,6 +12,7 @@ __pycache__
 _input
 _output
 .env
+data
 
 models 
 asr_watch_DE.py

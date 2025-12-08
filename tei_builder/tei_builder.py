@@ -17,6 +17,8 @@ class TEIBuilder:
     }
     # Regex for punctuation at the end of a word
     PUNCTUATION_PATTERN = re.compile(r'^(.+?)([.,;:!?]+)$')
+    # Minimum pause duration in seconds to be marked as <pause>
+    PAUSE_THRESHOLD = 2.0
 
     def __init__(self, segments: List[WhisperSegment], timeline_points: List[float],
                  timeline_mapping: Dict[float, str], speakers: Set[str],
@@ -213,7 +215,18 @@ class TEIBuilder:
 
         # Words - Tokenize words and punctuation
         token_index = 0
+        prev_word_end = None
+
         for word in segment.words:
+            # Check for pause before this word
+            if prev_word_end is not None:
+                pause_duration = word.start - prev_word_end
+                if pause_duration >= self.PAUSE_THRESHOLD:
+                    pause_elem = etree.SubElement(seg, "pause")
+                    pause_elem.set("{http://www.w3.org/XML/1998/namespace}id", f"{seg_id}_{token_index}")
+                    pause_elem.set("dur", f"PT{pause_duration:.3f}S")
+                    token_index += 1
+
             word_text, punctuation = self._split_word_punctuation(word.word.strip())
 
             # Word as <w> element
@@ -229,6 +242,8 @@ class TEIBuilder:
                 pc.set("{http://www.w3.org/XML/1998/namespace}id", f"{seg_id}_{token_index}")
                 pc.text = punctuation
                 token_index += 1
+
+            prev_word_end = word.end
 
         # End anchor
         anchor_end = etree.SubElement(seg, "anchor")
