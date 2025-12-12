@@ -22,7 +22,7 @@ hf_token = "add your Huggingface Token here"
 
 [llm]
 use_summarization = true
-model_path = path/to/model # Needs to be in llama_ccp compatible GGUF format
+model_path = "path/to/model" # Needs to be in llama_ccp compatible GGUF format
 n_gpu_layers = 5
 summary_languages = ["de", "en"]  # Choose any subset of ["de", "en"]
 verbose = false # Can be useful for debugging 
