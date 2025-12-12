@@ -13,16 +13,21 @@ class TEIBuilder:
 
     NSMAP = {
         None: "http://www.tei-c.org/ns/1.0",
-        "xsi": "http://www.w3.org/2001/XMLSchema-instance"
+        "xsi": "http://www.w3.org/2001/XMLSchema-instance",
     }
     # Regex for punctuation at the end of a word
-    PUNCTUATION_PATTERN = re.compile(r'^(.+?)([.,;:!?]+)$')
+    PUNCTUATION_PATTERN = re.compile(r"^(.+?)([.,;:!?]+)$")
     # Minimum pause duration in seconds to be marked as <pause>
     PAUSE_THRESHOLD = 2.0
 
-    def __init__(self, segments: List[WhisperSegment], timeline_points: List[float],
-                 timeline_mapping: Dict[float, str], speakers: Set[str],
-                 source_filename: str = "Whisper Transkription"):
+    def __init__(
+        self,
+        segments: List[WhisperSegment],
+        timeline_points: List[float],
+        timeline_mapping: Dict[float, str],
+        speakers: Set[str],
+        source_filename: str = "Whisper Transkription",
+    ):
         """
         Initializes the TEI-Builder.
 
@@ -51,8 +56,10 @@ class TEIBuilder:
         """
         # Root Element
         root = etree.Element("{http://www.tei-c.org/ns/1.0}TEI", nsmap=self.NSMAP)
-        root.set("{http://www.w3.org/2001/XMLSchema-instance}schemaLocation",
-                 "http://www.tei-c.org/ns/1.0 http://www.tei-c.org/release/xml/tei/custom/schema/xsd/tei_all.xsd")
+        root.set(
+            "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation",
+            "http://www.tei-c.org/ns/1.0 http://www.tei-c.org/release/xml/tei/custom/schema/xsd/tei_all.xsd",
+        )
 
         # Header
         header = self._build_header()
@@ -74,13 +81,10 @@ class TEIBuilder:
 
         # To String
         xml_bytes = etree.tostring(
-            root,
-            encoding='utf-8',
-            pretty_print=True,
-            xml_declaration=True
+            root, encoding="utf-8", pretty_print=True, xml_declaration=True
         )
 
-        return xml_bytes.decode('utf-8')
+        return xml_bytes.decode("utf-8")
 
     def _build_header(self) -> etree.Element:
         """
@@ -188,7 +192,9 @@ class TEIBuilder:
             # Last segment: use the end from timeline_points
             if len(self.timeline_points) > current_index + 1:
                 end_timestamp = self.timeline_points[current_index + 1]
-                end_timeline_id = self.timeline_mapping.get(end_timestamp, f"T{len(self.timeline_points)-1}")
+                end_timeline_id = self.timeline_mapping.get(
+                    end_timestamp, f"T{len(self.timeline_points) - 1}"
+                )
             else:
                 end_timeline_id = start_timeline_id
 
@@ -223,7 +229,10 @@ class TEIBuilder:
                 pause_duration = word.start - prev_word_end
                 if pause_duration >= self.PAUSE_THRESHOLD:
                     pause_elem = etree.SubElement(seg, "pause")
-                    pause_elem.set("{http://www.w3.org/XML/1998/namespace}id", f"{seg_id}_{token_index}")
+                    pause_elem.set(
+                        "{http://www.w3.org/XML/1998/namespace}id",
+                        f"{seg_id}_{token_index}",
+                    )
                     pause_elem.set("dur", f"PT{pause_duration:.3f}S")
                     token_index += 1
 
@@ -232,14 +241,20 @@ class TEIBuilder:
             # Word as <w> element
             if word_text:
                 w = etree.SubElement(seg, "w")
-                w.set("{http://www.w3.org/XML/1998/namespace}id", f"{seg_id}_{token_index}")
+                w.set(
+                    "{http://www.w3.org/XML/1998/namespace}id",
+                    f"{seg_id}_{token_index}",
+                )
                 w.text = word_text
                 token_index += 1
 
             # Punctuation as <pc> element
             if punctuation:
                 pc = etree.SubElement(seg, "pc")
-                pc.set("{http://www.w3.org/XML/1998/namespace}id", f"{seg_id}_{token_index}")
+                pc.set(
+                    "{http://www.w3.org/XML/1998/namespace}id",
+                    f"{seg_id}_{token_index}",
+                )
                 pc.text = punctuation
                 token_index += 1
 

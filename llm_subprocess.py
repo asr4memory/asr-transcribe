@@ -140,11 +140,15 @@ def main():
             cleanup_cuda_memory()
 
             if trial < max_trials:
-                print(f"LLM subprocess error on trial {trial}. Retrying with trial {trial + 1}...", file=sys.stderr)
+                print(
+                    f"LLM subprocess error on trial {trial}. Retrying with trial {trial + 1}...",
+                    file=sys.stderr,
+                )
             else:
                 # Letzter Versuch fehlgeschlagen
                 print(f"LLM subprocess error: {e}", file=sys.stderr)
                 import traceback
+
                 traceback.print_exc(file=sys.stderr)
                 sys.exit(1)
 

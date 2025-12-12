@@ -34,7 +34,7 @@ def get_config() -> dict:
 def log_config(blacklist=["hf_token"]):
     "Logs configuration items."
     config = get_config()
-    config_items = config["system"] | config["whisper"] | config["llm"] 
+    config_items = config["system"] | config["whisper"] | config["llm"]
 
     for key, value in config_items.items():
         if key in blacklist:

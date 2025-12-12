@@ -1,11 +1,13 @@
-
 import subprocess
 import sys
 import threading
 import pickle
 from logger import logger
 
-def stream_subprocess_output(process, subprocess_name: str, log_stderr_to_logger: bool = False):
+
+def stream_subprocess_output(
+    process, subprocess_name: str, log_stderr_to_logger: bool = False
+):
     """
     Stream subprocess stderr in real-time while collecting stdout/stderr safely.
     Uses threading to avoid deadlock with pipes. Optionally mirrors captured
@@ -18,15 +20,15 @@ def stream_subprocess_output(process, subprocess_name: str, log_stderr_to_logger
     Returns:
         Tuple of (stdout_data, stderr_data)
     """
-    stdout_data = [b'']
-    stderr_data = [b'']
+    stdout_data = [b""]
+    stderr_data = [b""]
 
     def read_stream(stream, output_list, is_stderr=False):
         """Read from a stream and store/display output."""
         if stream is None:
             return
 
-        data = b''
+        data = b""
         try:
             while True:
                 chunk = stream.read(1024)
@@ -35,7 +37,7 @@ def stream_subprocess_output(process, subprocess_name: str, log_stderr_to_logger
                 data += chunk
                 if is_stderr:
                     # Display stderr in real-time
-                    sys.stderr.write(chunk.decode('utf-8', errors='ignore'))
+                    sys.stderr.write(chunk.decode("utf-8", errors="ignore"))
                     sys.stderr.flush()
         except:
             pass
@@ -43,8 +45,12 @@ def stream_subprocess_output(process, subprocess_name: str, log_stderr_to_logger
             output_list[0] = data
 
     # Create threads to read stdout and stderr simultaneously
-    stdout_thread = threading.Thread(target=read_stream, args=(process.stdout, stdout_data, False))
-    stderr_thread = threading.Thread(target=read_stream, args=(process.stderr, stderr_data, True))
+    stdout_thread = threading.Thread(
+        target=read_stream, args=(process.stdout, stdout_data, False)
+    )
+    stderr_thread = threading.Thread(
+        target=read_stream, args=(process.stderr, stderr_data, True)
+    )
 
     stdout_thread.daemon = True
     stderr_thread.daemon = True
@@ -60,7 +66,7 @@ def stream_subprocess_output(process, subprocess_name: str, log_stderr_to_logger
     stderr_thread.join(timeout=5)
 
     if log_stderr_to_logger and stderr_data[0]:
-        stderr_text = stderr_data[0].decode('utf-8', errors='ignore')
+        stderr_text = stderr_data[0].decode("utf-8", errors="ignore")
         for line in stderr_text.splitlines():
             stripped = line.rstrip()
             if stripped:
@@ -89,7 +95,11 @@ def run_whisper_subprocess(audio_path: str):
     stdout_data, stderr_data = stream_subprocess_output(process, "Whisper")
 
     if process.returncode != 0:
-        error_msg = stderr_data.decode('utf-8', errors='ignore') if stderr_data else "Unknown error"
+        error_msg = (
+            stderr_data.decode("utf-8", errors="ignore")
+            if stderr_data
+            else "Unknown error"
+        )
         logger.error(f"Whisper subprocess failed: {error_msg}")
         raise RuntimeError(f"Whisper subprocess failed: {error_msg}")
 
@@ -124,10 +134,16 @@ def run_llm_subprocess(segments):
     process.stdin.write(input_data)
     process.stdin.close()
 
-    stdout_data, stderr_data = stream_subprocess_output(process, "LLM", log_stderr_to_logger=True)
+    stdout_data, stderr_data = stream_subprocess_output(
+        process, "LLM", log_stderr_to_logger=True
+    )
 
     if process.returncode != 0:
-        error_msg = stderr_data.decode('utf-8', errors='ignore') if stderr_data else "Unknown error"
+        error_msg = (
+            stderr_data.decode("utf-8", errors="ignore")
+            if stderr_data
+            else "Unknown error"
+        )
         logger.warning(f"LLM subprocess failed: {error_msg}")
         # LLM is optional, so we return None instead of raising
         return None
@@ -136,9 +152,13 @@ def run_llm_subprocess(segments):
     summaries, trials = pickle.loads(stdout_data)
 
     if trials == 1:
-        logger.info("LLM subprocess succeeded on first trial with 32k context window with faster processing")
+        logger.info(
+            "LLM subprocess succeeded on first trial with 32k context window with faster processing"
+        )
     elif trials == 2:
-        logger.info("LLM subprocess succeeded on second trial with 64k context window with slower processing")
+        logger.info(
+            "LLM subprocess succeeded on second trial with 64k context window with slower processing"
+        )
 
     logger.info("LLM subprocess completed successfully")
 

@@ -45,12 +45,14 @@ class WhisperToTEIConverter:
             timeline_points=timeline_points,
             timeline_mapping=self.timeline_mapping,
             speakers=self.speakers,
-            source_filename=source_filename
+            source_filename=source_filename,
         )
 
         return builder.build()
 
-    def _parse_input(self, input_data: Union[str, Path, dict, list]) -> List[WhisperSegment]:
+    def _parse_input(
+        self, input_data: Union[str, Path, dict, list]
+    ) -> List[WhisperSegment]:
         """
         Reads and parses Whisper JSON data.
 
@@ -65,7 +67,7 @@ class WhisperToTEIConverter:
         else:
             # Treat as path
             path = Path(input_data)
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
         segments = [WhisperSegment.from_dict(seg) for seg in data]
@@ -109,7 +111,7 @@ class WhisperToTEIConverter:
                 self.timeline_mapping[ts] = "T_START"
             else:
                 # i-1 because 0.0 is already at index 0
-                self.timeline_mapping[ts] = f"T{i-1}"
+                self.timeline_mapping[ts] = f"T{i - 1}"
 
         return sorted_timestamps
 

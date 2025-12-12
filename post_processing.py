@@ -13,93 +13,88 @@ TITLES = {
     # -------------------------------
     # German Titles and Abbreviations
     # -------------------------------
-    "Dr",            # Doktor
-    "Prof",          # Professor
-    "Hr",            # Herr
-    "Fr",            # Frau
-    "Dipl.-Ing",     # Diplom-Ingenieur
-    "Mag",           # Magister
-    "Lic",           # Lizentiat
-    "Dr.-Ing",       # Doktor-Ingenieur
-    "Dr. med",       # Doktor der Medizin
+    "Dr",  # Doktor
+    "Prof",  # Professor
+    "Hr",  # Herr
+    "Fr",  # Frau
+    "Dipl.-Ing",  # Diplom-Ingenieur
+    "Mag",  # Magister
+    "Lic",  # Lizentiat
+    "Dr.-Ing",  # Doktor-Ingenieur
+    "Dr. med",  # Doktor der Medizin
     "Dr. rer. nat",  # Doktor der Naturwissenschaften
-    "Dr. phil",      # Doktor der Philosophie
-    "Dr. h.c",       # Ehren-Doktor
-    "Prof. Dr",      # Professor Doktor
-
+    "Dr. phil",  # Doktor der Philosophie
+    "Dr. h.c",  # Ehren-Doktor
+    "Prof. Dr",  # Professor Doktor
     # Common German abbreviations
-    "usw",           # und so weiter (etc.)
-    "bzw",           # beziehungsweise (respectively)
-    "resp",          # respektive (respectively)
-    "ca",            # circa (approximately)
-    "z. B",          # zum Beispiel (for example)
-    "z.B.",          # zum Beispiel (for example)
-    "d. h",          # das heißt (that means)
-    "d.h.",          # das heißt (that means)
-    "u. a",          # unter anderem (among others)
-    "u.a.",          # unter anderem (among others)
-    "u. ä",          # und ähnliche (and similar)
-    "u.Ä.",          # und ähnliche (and similar)
-    "ggf",           # gegebenenfalls (if applicable)
-    "vgl",           # vergleiche (see, compare)
-    "Abb",           # Abbildung (figure)
-    "Nr",            # Nummer (number)
-    "evtl",          # eventuell (possibly)
-    "etc",           # et cetera
-    "inkl",          # inklusive (including)
-    "zzgl",          # zuzüglich (plus, in addition)
-    "o. Ä",          # oder Ähnliches (or similar)
-    "o.Ä.",          # oder Ähnliches (or similar)
-    "Mio",           # Million
-    "Mrd",           # Milliarde (billion)
-    "Tel",           # Telefon (telephone)
-    "Fax",           # Fax (facsimile)
-    "Str",           # Straße (street)
-    "Hnr",           # Hausnummer (house number)
-    "Bd",            # Band (volume)
-
+    "usw",  # und so weiter (etc.)
+    "bzw",  # beziehungsweise (respectively)
+    "resp",  # respektive (respectively)
+    "ca",  # circa (approximately)
+    "z. B",  # zum Beispiel (for example)
+    "z.B.",  # zum Beispiel (for example)
+    "d. h",  # das heißt (that means)
+    "d.h.",  # das heißt (that means)
+    "u. a",  # unter anderem (among others)
+    "u.a.",  # unter anderem (among others)
+    "u. ä",  # und ähnliche (and similar)
+    "u.Ä.",  # und ähnliche (and similar)
+    "ggf",  # gegebenenfalls (if applicable)
+    "vgl",  # vergleiche (see, compare)
+    "Abb",  # Abbildung (figure)
+    "Nr",  # Nummer (number)
+    "evtl",  # eventuell (possibly)
+    "etc",  # et cetera
+    "inkl",  # inklusive (including)
+    "zzgl",  # zuzüglich (plus, in addition)
+    "o. Ä",  # oder Ähnliches (or similar)
+    "o.Ä.",  # oder Ähnliches (or similar)
+    "Mio",  # Million
+    "Mrd",  # Milliarde (billion)
+    "Tel",  # Telefon (telephone)
+    "Fax",  # Fax (facsimile)
+    "Str",  # Straße (street)
+    "Hnr",  # Hausnummer (house number)
+    "Bd",  # Band (volume)
     # -------------------------------
     # English Titles and Abbreviations
     # -------------------------------
-    "Mr",             # Mister
-    "Mrs",            # Mistress
-    "Ms",             # Miss
-    "Jr",             # Junior
-    "Sr",             # Senior
-    "M.A",            # Master of Arts
-    "M.Sc",           # Master of Science
-    "M.Eng",          # Master of Engineering
-    "B.A",            # Bachelor of Arts
-    "B.Sc",           # Bachelor of Science
-    "Ph.D",           # Doctor of Philosophy
-
+    "Mr",  # Mister
+    "Mrs",  # Mistress
+    "Ms",  # Miss
+    "Jr",  # Junior
+    "Sr",  # Senior
+    "M.A",  # Master of Arts
+    "M.Sc",  # Master of Science
+    "M.Eng",  # Master of Engineering
+    "B.A",  # Bachelor of Arts
+    "B.Sc",  # Bachelor of Science
+    "Ph.D",  # Doctor of Philosophy
     # Address and place abbreviations
-    "St",             # Saint or Street
-    "Mt",             # Mount
-    "Ft",             # Fort or Featuring
-    "Rd",             # Road
-    "Blvd",           # Boulevard
-    "Ave",            # Avenue
-    "Sq",             # Square
-    "Ln",             # Lane
-    "Dr",             # Drive (also Doctor — context-sensitive)
-    "Pl",             # Place
-    "Ste",            # Suite
-    "Apt",            # Apartment
-    "Fl",             # Floor
-
+    "St",  # Saint or Street
+    "Mt",  # Mount
+    "Ft",  # Fort or Featuring
+    "Rd",  # Road
+    "Blvd",  # Boulevard
+    "Ave",  # Avenue
+    "Sq",  # Square
+    "Ln",  # Lane
+    "Dr",  # Drive (also Doctor — context-sensitive)
+    "Pl",  # Place
+    "Ste",  # Suite
+    "Apt",  # Apartment
+    "Fl",  # Floor
     # Company-related abbreviations
-    "Inc",            # Incorporated
-    "Ltd",            # Limited
-    "Co",             # Company
-    "Corp",           # Corporation
-
+    "Inc",  # Incorporated
+    "Ltd",  # Limited
+    "Co",  # Company
+    "Corp",  # Corporation
     # Common English abbreviations
-    "i.e",            # that is
-    "e.g",            # for example
-    "etc",            # et cetera
-    "cf",             # confer (compare)
-    "vs",             # versus
+    "i.e",  # that is
+    "e.g",  # for example
+    "etc",  # et cetera
+    "cf",  # confer (compare)
+    "vs",  # versus
 }
 
 # Compile patterns to identify titles, dates and segments without sentence-
@@ -318,7 +313,9 @@ def process_whisperx_segments(segments):
     max_sentence_length = config["whisper"]["max_sentence_length"]
     use_speaker_diarization = config["whisper"]["use_speaker_diarization"]
 
-    processed_segments = buffer_sentences(segments, use_speaker_diarization=use_speaker_diarization)
+    processed_segments = buffer_sentences(
+        segments, use_speaker_diarization=use_speaker_diarization
+    )
     uppercase_sentences(processed_segments)
     processed_segments = list(
         split_long_sentences(
@@ -333,9 +330,6 @@ def process_whisperx_segments(segments):
         processed_word_segments.extend(segment.get("words", []))
 
     # Erstelle Output-Struktur mit beiden: segments und word_segments
-    result = {
-        "segments": processed_segments,
-        "word_segments": processed_word_segments
-    }
+    result = {"segments": processed_segments, "word_segments": processed_word_segments}
 
     return result

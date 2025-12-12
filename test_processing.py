@@ -1,7 +1,5 @@
 import copy
 import pytest
-from pathlib import Path
-import hashlib
 import zipfile
 from post_processing import (
     sentence_is_incomplete,
@@ -88,7 +86,7 @@ def test_split_sentences():
         "end": 31.157894736842106,
     }
     segment2b = {
-        "text": ("and so in the end we have two sentences instead " "of one."),
+        "text": ("and so in the end we have two sentences instead of one."),
         "start": 31.157894736842106,
         "end": 40.0,
     }
@@ -101,11 +99,13 @@ def test_split_sentences():
 
 # --- BagIt Tests ---
 
+
 @pytest.fixture
 def bagit_test_structure(tmp_path):
     """Creates a temporary directory for BagIt tests."""
     bag_root = tmp_path / "test_bag"
     return bag_root
+
 
 def test_prepare_bag_directory(bagit_test_structure):
     """Tests the creation of the BagIt directory structure."""
@@ -122,12 +122,13 @@ def test_prepare_bag_directory(bagit_test_structure):
     ohd_import_dir = bag_root / "data" / "ohd_import"
     assert ohd_import_dir.exists() and ohd_import_dir.is_dir()
     assert ohd_import_dir.parent == data_dir
-    
+
     # Test documentation directory
     documentation_dir = bag_root / "documentation"
     assert documentation_dir.exists() and documentation_dir.is_dir()
     assert documentation_dir.name == "documentation"
     assert documentation_dir.parent == bag_root
+
 
 def test_finalize_bag_manifests_and_info(bagit_test_structure):
     """
@@ -197,7 +198,7 @@ def test_docu_directory_in_tag_manifest(bagit_test_structure):
     documentation_dir = bag_root / "documentation"
     readme = documentation_dir / "README.md"
     readme.write_text("# Documentation\nThis is a test bag.", encoding="utf-8")
-    
+
     license_file = documentation_dir / "LICENSE.txt"
     license_file.write_text("MIT License", encoding="utf-8")
 

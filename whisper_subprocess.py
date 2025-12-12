@@ -42,6 +42,7 @@ max_speakers = config["whisper"]["max_speakers"]
 hf_token = config["whisper"]["hf_token"]
 use_speaker_diarization = config["whisper"]["use_speaker_diarization"]
 
+
 def get_audio(path: str):
     """
     Load audio file on path.
@@ -54,7 +55,7 @@ def get_audio(path: str):
 
 def get_audio_length(audio):
     "Gets audio length in seconds."
-    sampling_rate = 16000  
+    sampling_rate = 16000
     seconds = len(audio) / sampling_rate
     return seconds
 
@@ -152,6 +153,7 @@ def main():
         # Write error to stderr and exit with error code
         print(f"Whisper subprocess error: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 

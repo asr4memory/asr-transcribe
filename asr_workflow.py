@@ -84,8 +84,10 @@ def process_file(filepath: Path, output_directory: Path):
         # Memory is guaranteed freed when subprocess exits
         result = run_whisper_subprocess(filepath)
 
-        intermediate_message_3 = "Whisper pipeline completed for {0}, starting post-processing...".format(
-            process_info.filename
+        intermediate_message_3 = (
+            "Whisper pipeline completed for {0}, starting post-processing...".format(
+                process_info.filename
+            )
         )
         logger.info(intermediate_message_3)
 
@@ -94,8 +96,10 @@ def process_file(filepath: Path, output_directory: Path):
 
         summaries = {lang: "" for lang in SUMMARY_LANGUAGES}
         if use_summarization and SUMMARY_LANGUAGES:
-            intermediate_message_4 = "Post-processing completed for {0}, starting summarization...".format(
-                process_info.filename
+            intermediate_message_4 = (
+                "Post-processing completed for {0}, starting summarization...".format(
+                    process_info.filename
+                )
             )
             logger.info(intermediate_message_4)
 
@@ -110,7 +114,9 @@ def process_file(filepath: Path, output_directory: Path):
                 )
                 logger.info(intermediate_message_5)
             else:
-                logger.warning(f"Summarization skipped for {process_info.filename} (subprocess failed)")
+                logger.warning(
+                    f"Summarization skipped for {process_info.filename} (subprocess failed)"
+                )
         elif use_summarization and not SUMMARY_LANGUAGES:
             logger.info("Summarization enabled but no languages configured; skipping.")
             intermediate_message_5 = "Post-processing completed for {0}.".format(
@@ -127,15 +133,11 @@ def process_file(filepath: Path, output_directory: Path):
 
         dir_path = create_output_files_directory_path(output_directory, new_filename)
         transcripts_dir = prepare_bag_directory(dir_path)
-        
+
         # Copy documentation files to documentation/ directory
         documentation_dir = dir_path / "documentation"
         documentation_dir.mkdir(parents=True, exist_ok=True)
-        doc_files = [
-            "asr_export_formats.rtf",
-            "citation.txt",
-            "ohd_upload.txt"
-        ]
+        doc_files = ["asr_export_formats.rtf", "citation.txt", "ohd_upload.txt"]
         doc_files_dir = Path(__file__).parent / "doc_files"
         current_year = datetime.now().year
         for doc_filename in doc_files:
@@ -149,7 +151,7 @@ def process_file(filepath: Path, output_directory: Path):
                     dest_file.write_text(content, encoding="utf-8")
                 else:
                     shutil.copy2(doc_file, dest_file)
-        
+
         output_base_path = transcripts_dir / new_filename
         data_dir = dir_path / "data"
 
@@ -162,7 +164,9 @@ def process_file(filepath: Path, output_directory: Path):
 
         # Duplicate the speaker CSV into the ohd_import directory for downstream ingestion.
         ohd_import_dir = data_dir / "ohd_import"
-        speaker_csv = output_base_path.with_stem(output_base_path.stem + "_speaker").with_suffix(".csv")
+        speaker_csv = output_base_path.with_stem(
+            output_base_path.stem + "_speaker"
+        ).with_suffix(".csv")
         if speaker_csv.exists():
             shutil.copy2(speaker_csv, ohd_import_dir / speaker_csv.name)
 
@@ -196,15 +200,19 @@ def process_file(filepath: Path, output_directory: Path):
             try:
                 zip_bag_directory(dir_path)
             except Exception as zip_error:
-                logger.warning("Failed to create ZIP archive for %s: %s", dir_path, zip_error)
+                logger.warning(
+                    "Failed to create ZIP archive for %s: %s", dir_path, zip_error
+                )
 
         process_info.end = datetime.now()
         stats.append(process_info)
 
-        end_message = "Completed transcription process of {0} after {1} (rtf {2:.2f})".format(
-            process_info.filename,
-            process_info.formatted_process_duration(),
-            process_info.realtime_factor(),
+        end_message = (
+            "Completed transcription process of {0} after {1} (rtf {2:.2f})".format(
+                process_info.filename,
+                process_info.formatted_process_duration(),
+                process_info.realtime_factor(),
+            )
         )
         logger.info(end_message)
 

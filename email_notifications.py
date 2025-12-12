@@ -6,7 +6,8 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
-import socket, getpass
+import socket
+import getpass
 
 from app_config import (
     get_config,
@@ -101,7 +102,7 @@ def send_success_email(stats, warning_count, warning_audio_inputs):
 
     if warning_count > 0:
         email_body += (
-            f"<b>Number of hallucination warnings:</b> " + str(warning_count) + "<br>"
+            "<b>Number of hallucination warnings:</b> " + str(warning_count) + "<br>"
         )
         email_body += (
             "<b>Audio inputs where the warning message was found:</b> "
@@ -109,7 +110,7 @@ def send_success_email(stats, warning_count, warning_audio_inputs):
             + "<br><br>"
         )
     else:
-        email_body += f"No hallucination warnings occurred.<br><br>"
+        email_body += "No hallucination warnings occurred.<br><br>"
 
     email_body += system_info_html() + "<br>"
 

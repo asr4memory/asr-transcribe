@@ -77,7 +77,7 @@ def cleanup_cuda_memory():
     gc.collect()
     if device == "cuda":
         torch.cuda.empty_cache()
-        torch.cuda.ipc_collect() 
+        torch.cuda.ipc_collect()
         torch.cuda.synchronize()
 
 
@@ -119,7 +119,9 @@ def zip_bag_directory(bag_root: Path) -> Path:
     return archive_path
 
 
-def finalize_bag(bag_root: Path, payload_files: list[Path], extra_info: dict | None = None):
+def finalize_bag(
+    bag_root: Path, payload_files: list[Path], extra_info: dict | None = None
+):
     """Write BagIt tag files, manifests and metadata for the generated outputs."""
     payload_files_sorted = sorted(
         payload_files, key=lambda path: path.relative_to(bag_root).as_posix()
