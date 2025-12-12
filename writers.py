@@ -500,7 +500,7 @@ def write_tei_xml(path_without_ext: Path, segments: list):
     """
     full_path = path_without_ext.with_suffix(".tei.xml")
     converter = WhisperToTEIConverter()
-    tei_xml_content = converter.convert(segments)
+    tei_xml_content = converter.convert(segments, full_path.name)
     with open(full_path, "w", encoding="utf-8") as xml_file:
         xml_file.write(tei_xml_content)
 

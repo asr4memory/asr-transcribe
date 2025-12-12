@@ -16,7 +16,7 @@ class WhisperToTEIConverter:
         self.timeline_mapping: Dict[float, str] = {}  # timestamp -> timeline_id
         self.speakers: Set[str] = set()
 
-    def convert(self, input_data: Union[str, Path, dict]) -> str:
+    def convert(self, input_data: dict, source_filename: str) -> str:
         """
         Converts Whisper data to TEI-XML.
 
@@ -26,11 +26,11 @@ class WhisperToTEIConverter:
         Returns:
             str: TEI-XML as pretty-printed string
         """
-        # Extract filename for the title
-        if isinstance(input_data, (str, Path)):
-            source_filename = Path(input_data).stem
-        else:
-            source_filename = "Whisper Transkription"
+        # # Extract filename for the title
+        # if isinstance(input_data, (str, Path)):
+        #     source_filename = Path(input_data).stem
+        # else:
+        #     source_filename = "Whisper Transkription"
 
         # Parse Input
         segments = self._parse_input(input_data)
