@@ -1,9 +1,8 @@
 whisperx==3.7.4
-black==24.10.0
 colorlog==6.8.2
 Jinja2==3.1.4
 pyexcel-ods3==0.6.1
-pylint==3.3.1
+ruff==0.14.9
 pytest==8.3.3
 toml==0.10.2
 xhtml2pdf==0.2.16
