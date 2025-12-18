@@ -19,8 +19,13 @@ conda install -c conda-forge cairo pycairo
 pip install -r requirements.txt
 ```
 
+Install llama-cpp-python either for CUDA or for Metal (see also: https://github.com/abetlen/llama-cpp-python)
+
 ```shell
 CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python
+```
+```shell
+CMAKE_ARGS="-DGGML_METAL=on" pip install llama-cpp-python
 ```
 
 Create the configuration file.
