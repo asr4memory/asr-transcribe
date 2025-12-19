@@ -9,14 +9,14 @@ PYTHON_BIN="${VENV_DIR}/bin/python"
 TARGET="${VENV_DIR}/lib/python3.12/site-packages/lightning_fabric/utilities/cloud_io.py"
 
 if [[ ! -x "${PYTHON_BIN}" ]]; then
-  echo "ERROR: ${PYTHON_BIN} nicht gefunden/ausführbar. Hast du 'uv sync' (oder 'uv venv') schon gemacht?"
+  echo "ERROR: ${PYTHON_BIN} not found/executable. Have you run 'uv sync' (or 'uv venv') yet?"
   exit 1
 fi
 
 if [[ ! -f "${TARGET}" ]]; then
-  echo "ERROR: Ziel-Datei nicht gefunden:"
+  echo "ERROR: Target file not found:"
   echo "  ${TARGET}"
-  echo "Ist lightning_fabric installiert? (z.B. 'uv sync')"
+  echo "Is lightning_fabric installed? (e.g. 'uv sync')"
   exit 1
 fi
 
@@ -28,18 +28,18 @@ import re
 path = Path(r"""${TARGET}""")
 txt = path.read_text(encoding="utf-8")
 
-# Schon gepatcht?
+# Already patched?
 if "Defaulting to `weights_only=False` for local checkpoint" in txt:
-    print(f"OK: Patch bereits vorhanden: {path}")
+    print(f"OK: Patch already applied: {path}")
     raise SystemExit(0)
 
-# Wir wollen direkt VOR der lokalen fs-Zeile einfügen:
+# We want to insert directly BEFORE the local fs line:
 #   fs = get_filesystem(path_or_url)
 m = re.search(r'^(?P<indent>\s*)fs\s*=\s*get_filesystem\(path_or_url\)\s*$', txt, flags=re.M)
 if not m:
     raise SystemExit(
-        f"ERROR: Zielzeile 'fs = get_filesystem(path_or_url)' nicht gefunden in {path} "
-        f"(Datei/Version weicht ab)."
+        f"ERROR: Target line 'fs = get_filesystem(path_or_url)' not found in {path} "
+        f"(file/version differs)."
     )
 
 indent = m.group("indent")
@@ -54,5 +54,5 @@ pos = m.start()
 txt2 = txt[:pos] + insertion + txt[pos:]
 path.write_text(txt2, encoding="utf-8")
 
-print(f"PATCHED: {path} (local default weights_only=False eingefügt)")
+print(f"PATCHED: {path} (local default weights_only=False inserted)")
 PY

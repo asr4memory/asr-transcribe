@@ -7,26 +7,49 @@
 - Python >= 3.10
 - ffmpeg
 
+## Prerequisites
+- [Cairo](https://www.cairographics.org/)
+- If CUDA is available (depending on you GPU): [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
+- [UV (tested)](https://docs.astral.sh/uv/getting-started/installation/)
+- [direnv](https://direnv.net/docs/installation.html). You need this to fix the "missing libcudnn_ops_infer.so.8_fix" bug, [see details](/help/missing_libcudnn_ops_infer.so.8_fix.md)
+
+
 ## Installation
 
-Install dependencies:
+1. Clone repository
+
+2. Install dependencies:
 
 ```shell
-conda install -c conda-forge cairo pycairo
+uv sync
 ```
 
+3. You need to reinstall with CUDA support
 ```shell
-pip install -r requirements.txt
+CMAKE_ARGS="-DGGML_CUDA=ON -DCUDAToolkit_ROOT=$CUDA_HOME -DCMAKE_CUDA_COMPILER=$CUDACXX"
+```
+```shell
+uv pip install --force-reinstall --no-cache-dir --no-binary llama-cpp-python
+```
+```shell
+  llama-cpp-python==0.3.16
 ```
 
-Install llama-cpp-python either for CUDA or for Metal (see also: https://github.com/abetlen/llama-cpp-python)
+4. Usefull shell scripts for troubleshooting
+
+4.1. ["missing libcudnn_ops_infer.so.8_fix" bug](/help/missing_libcudnn_ops_infer.so.8_fix.md)
 
 ```shell
-CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python
+sh ./help/setup_cudnn.sh
 ```
 ```shell
-CMAKE_ARGS="-DGGML_METAL=on" pip install llama-cpp-python
+direnv allow # direnv needs to be installed and set up.
 ```
+
+4.2. "Weights_only" bug
+```shell
+sh ./help/patch_lightning_fabric.sh
+``` 
 
 Create the configuration file.
 
@@ -39,7 +62,7 @@ cp config.example.toml config.toml
 Run the workflow script.
 
 ```shell
-python asr_workflow.py
+uv run asr_workflow.py
 ```
 
 ## Configuration
