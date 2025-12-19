@@ -5,13 +5,11 @@
 ## Requirements
 
 - Python >= 3.10
-- ffmpeg
-
-## Prerequisites
+- [ffmpeg](https://www.ffmpeg.org/)
 - [Cairo](https://www.cairographics.org/)
 - If CUDA is available (depending on you GPU): [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
 - [UV (tested)](https://docs.astral.sh/uv/getting-started/installation/)
-- [direnv](https://direnv.net/docs/installation.html). You need this to fix the "missing libcudnn_ops_infer.so.8_fix" bug, [see details](/help/missing_libcudnn_ops_infer.so.8_fix.md)
+- [direnv](https://direnv.net/docs/installation.html) --> You need this to fix the "missing libcudnn_ops_infer.so.8_fix" bug, [see details](/help/missing_libcudnn_ops_infer.so.8_fix.md)
 
 
 ## Installation
