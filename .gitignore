@@ -14,6 +14,7 @@ _input
 _output
 .env
 data
+.direnv
 
 models 
 asr_watch_DE.py
