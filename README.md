@@ -5,24 +5,24 @@
 ## Requirements
 
 - Python >= 3.10
+- [UV (tested)](https://docs.astral.sh/uv/getting-started/installation/)
 - [ffmpeg](https://www.ffmpeg.org/)
 - [Cairo](https://www.cairographics.org/)
 - If CUDA is available (depending on you GPU): [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
-- [UV (tested)](https://docs.astral.sh/uv/getting-started/installation/)
 - [direnv](https://direnv.net/docs/installation.html) --> You need this to fix the "missing libcudnn_ops_infer.so.8_fix" bug, [see details](/help/missing_libcudnn_ops_infer.so.8_fix.md)
 
 
 ## Installation
 
-1. Clone repository
+### 1. Clone repository
 
-2. Install dependencies:
+### 2. Install dependencies:
 
 ```shell
 uv sync
 ```
 
-3. You need to reinstall with CUDA support
+### 3. You need to reinstall with CUDA support
 ```shell
 CMAKE_ARGS="-DGGML_CUDA=ON -DCUDAToolkit_ROOT=$CUDA_HOME -DCMAKE_CUDA_COMPILER=$CUDACXX"
 ```
@@ -33,9 +33,9 @@ uv pip install --force-reinstall --no-cache-dir --no-binary llama-cpp-python
   llama-cpp-python==0.3.16
 ```
 
-4. Usefull shell scripts for troubleshooting
+### 4. Usefull shell scripts for troubleshooting
 
-4.1. ["missing libcudnn_ops_infer.so.8_fix" bug](/help/missing_libcudnn_ops_infer.so.8_fix.md)
+#### 4.1. ["missing libcudnn_ops_infer.so.8_fix" bug](/help/missing_libcudnn_ops_infer.so.8_fix.md)
 
 ```shell
 sh ./help/setup_cudnn.sh
@@ -44,12 +44,12 @@ sh ./help/setup_cudnn.sh
 direnv allow # direnv needs to be installed and set up.
 ```
 
-4.2. "Weights_only" bug
+#### 4.2. "Weights_only" bug
 ```shell
 sh ./help/patch_lightning_fabric.sh
 ``` 
 
-Create the configuration file.
+### 5. Create the configuration file.
 
 ```shell
 cp config.example.toml config.toml
