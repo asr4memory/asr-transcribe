@@ -33,7 +33,7 @@ jobs:
         cp config.example.toml config.toml
     - name: Analysing the code with ruff
       run: |
-        uv run ruff check .
+        uvx ruff check .
     - name: Test code with pytest
       run: |
         uv run pytest
