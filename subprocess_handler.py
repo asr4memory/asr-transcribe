@@ -39,7 +39,7 @@ def stream_subprocess_output(
                     # Display stderr in real-time
                     sys.stderr.write(chunk.decode("utf-8", errors="ignore"))
                     sys.stderr.flush()
-        except:
+        except Exception:
             pass
         finally:
             output_list[0] = data

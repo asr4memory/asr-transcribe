@@ -77,18 +77,20 @@ def test_split_sentences():
     original_segments = [segment1, segment2, segment3]
 
     segment2a = {
+        "start": 10.0,
+        "end": 31.157894736842106,
         "text": (
             "This sentence is longer than 120 characters "
             "and it should be broken up into two sentences "
             "after the comma appearing shortly after 120,"
         ),
-        "start": 10.0,
-        "end": 31.157894736842106,
+        "words": [],
     }
     segment2b = {
-        "text": ("and so in the end we have two sentences instead of one."),
         "start": 31.157894736842106,
         "end": 40.0,
+        "text": ("and so in the end we have two sentences instead of one."),
+        "words": [],
     }
 
     expected_segments = [segment1, segment2a, segment2b, segment3]
