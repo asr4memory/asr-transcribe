@@ -22,7 +22,7 @@
 uv sync
 ```
 
-### 3. You need to reinstall with CUDA support
+### 3. You need to reinstall llama-cpp-python with CUDA support
 ```shell
 CMAKE_ARGS="-DGGML_CUDA=ON -DCUDAToolkit_ROOT=$CUDA_HOME -DCMAKE_CUDA_COMPILER=$CUDACXX"
 ```
