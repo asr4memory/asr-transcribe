@@ -12,7 +12,7 @@
 - [direnv](https://direnv.net/docs/installation.html) --> You need this to fix the "missing libcudnn_ops_infer.so.8_fix" bug, [see details](/help/missing_libcudnn_ops_infer.so.8_fix.md)
 
 
-## Installation
+## Installation (for CUDA)
 
 ### 1. Clone repository
 
@@ -24,13 +24,8 @@ uv sync
 
 ### 3. You need to reinstall llama-cpp-python with CUDA support
 ```shell
-CMAKE_ARGS="-DGGML_CUDA=ON -DCUDAToolkit_ROOT=$CUDA_HOME -DCMAKE_CUDA_COMPILER=$CUDACXX"
-```
-```shell
-uv pip install --force-reinstall --no-cache-dir --no-binary llama-cpp-python
-```
-```shell
-llama-cpp-python==0.3.16
+CMAKE_ARGS="-DGGML_CUDA=ON -DCUDAToolkit_ROOT=$CUDA_HOME -DCMAKE_CUDA_COMPILER=$CUDACXX" \
+uv pip install llama-cpp-python==0.3.16 --force-reinstall --no-cache-dir --no-binary llama-cpp-python
 ```
 
 ### 4. Usefull shell scripts for troubleshooting
