@@ -30,7 +30,7 @@ CMAKE_ARGS="-DGGML_CUDA=ON -DCUDAToolkit_ROOT=$CUDA_HOME -DCMAKE_CUDA_COMPILER=$
 uv pip install --force-reinstall --no-cache-dir --no-binary llama-cpp-python
 ```
 ```shell
-  llama-cpp-python==0.3.16
+llama-cpp-python==0.3.16
 ```
 
 ### 4. Usefull shell scripts for troubleshooting
