@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  asr-transcribe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: asr-transcribe:latest
+    container_name: asr-transcribe
+
+    # GPU-Konfiguration
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    environment:
+      # CUDA-Umgebung
+      - CUDA_VISIBLE_DEVICES=0
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+    volumes:
+      # Config-Datei (read-only)
+      - ./config.toml:/app/config.toml:ro
+
+      # Input-Verzeichnis (read-only)
+      - ./data/_input:/app/data/_input:ro
+
+      # Output-Verzeichnis (read-write)
+      - ./data/_output:/app/data/_output:rw
+
+      # Optional: Models-Verzeichnis (read-only)
+      - ./models:/app/models:ro
+
+    # Restart-Policy
+    restart: unless-stopped
+
+    # Logging-Konfiguration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

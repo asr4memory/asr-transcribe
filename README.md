@@ -42,7 +42,24 @@ direnv allow # direnv needs to be installed and set up.
 #### 4.2. "Weights_only" bug
 ```shell
 sh ./help/patch_lightning_fabric.sh
-``` 
+```
+
+## Docker Installation (Alternative)
+
+Für containerisiertes Deployment mit GPU-Unterstützung, siehe [DOCKER.md](DOCKER.md).
+
+Quick Start:
+```bash
+# Config vorbereiten
+cp config.example.toml config.toml
+
+# Bauen und starten
+docker-compose up --build
+```
+
+Voraussetzungen:
+- Docker Engine mit NVIDIA Container Toolkit
+- NVIDIA GPU mit CUDA 13.1+ Support
 
 ### 5. Create the configuration file.
 

@@ -4,7 +4,7 @@
 
 set -e
 
-VENV_PATH="../.venv"
+VENV_PATH="${VENV_PATH:-.venv}"
 CUDNN_PATH="${VENV_PATH}/lib/python3.12/site-packages/nvidia/cudnn/lib"
 
 if [ ! -d "$CUDNN_PATH" ]; then

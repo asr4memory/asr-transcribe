@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Git
+.git/
+.gitignore
+.github/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data directories (werden als Volumes gemountet)
+data/
+_input/
+_output/
+
+# Models (werden als Volume gemountet)
+models/
+
+# Logs
+*.log
+
+# Config (wird als Volume gemountet)
+config.toml
+.env
+.envrc
+
+# Documentation
+README.md
+LICENSE
+
+# direnv
+.direnv/
