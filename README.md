@@ -2,7 +2,9 @@
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-## Requirements
+## 1. Native installation and usage (for CUDA)
+
+### Requirements
 
 - Python >= 3.10
 - [UV (tested)](https://docs.astral.sh/uv/getting-started/installation/)
@@ -11,8 +13,6 @@
 - If CUDA is available (depending on you GPU): [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
 - [direnv](https://direnv.net/docs/installation.html) --> You need this to fix the "missing libcudnn_ops_infer.so.8_fix" bug, [see details](/help/missing_libcudnn_ops_infer.so.8_fix.md)
 
-
-## 1. Native installation and usage (for CUDA)
 
 ### 1. Clone repository
 
@@ -62,9 +62,10 @@ uv run asr_workflow.py
 
 Note: Works only with Cuda 13.1 or higher 
 
-### 1. Install Docker
+### Requirements
 
-e.g. [Docker Desktop](https://docs.docker.com/desktop/)
+- Docker, e.g. [Docker Desktop](https://docs.docker.com/desktop/)
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) 
 
 ### 2. Build Docker image
 
