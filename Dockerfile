@@ -1,6 +1,6 @@
 FROM nvidia/cuda:13.1.0-devel-ubuntu24.04
 
-# Umgebungsvariablen setzen
+# Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     CUDA_HOME=/usr/local/cuda \
@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH \
     CUDACXX=/usr/local/cuda/bin/nvcc
 
-# System-Dependencies installieren
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     python3.12 \
     python3.12-dev \
@@ -20,36 +20,36 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# UV Package Manager installieren
+# Install UV package manager
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:/root/.cargo/bin:$PATH"
 RUN uv --version
 
-# Arbeitsverzeichnis setzen
+# Set working directory
 WORKDIR /app
 
-# Projekt-Dateien kopieren
+# Copy project files
 COPY pyproject.toml uv.lock ./
 COPY help/ ./help/
 COPY . .
 
-# Python-Dependencies mit UV installieren
+# Install Python dependencies with UV
 RUN uv sync --frozen
 
-# llama-cpp-python mit CUDA-Support neu kompilieren
+# Recompile llama-cpp-python with CUDA support
 RUN CMAKE_ARGS="-DGGML_CUDA=ON -DCUDAToolkit_ROOT=$CUDA_HOME -DCMAKE_CUDA_COMPILER=$CUDACXX" \
     uv pip install llama-cpp-python==0.3.16 --force-reinstall --no-cache-dir --no-binary llama-cpp-python
 
-# Helper-Scripts ausführen (cuDNN-Fix und lightning_fabric-Patch)
+# Run helper scripts (cuDNN fix and lightning_fabric patch)
 RUN cd /app && \
     VENV_PATH=".venv" bash ./help/setup_cudnn.sh && \
     bash ./help/patch_lightning_fabric.sh
 
-# LD_LIBRARY_PATH für cuDNN zur Laufzeit setzen
+# Set LD_LIBRARY_PATH for cuDNN at runtime
 ENV LD_LIBRARY_PATH="/app/.venv/lib/python3.12/site-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH}"
 
-# Verzeichnisse für Daten erstellen
+# Create data directories
 RUN mkdir -p /app/data/_input /app/data/_output
 
-# Standard-Command
+# Default command
 CMD ["uv", "run", "asr_workflow.py"]
