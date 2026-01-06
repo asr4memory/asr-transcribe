@@ -67,13 +67,13 @@ Note: Works only with Cuda 13.1 or higher
 - Docker, e.g. [Docker Desktop](https://docs.docker.com/desktop/)
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) 
 
-### 2. Build Docker image
+### 1. Build Docker image
 
 ```shell
 uv docker compose build
 ```
 
-### 3. Set paths in config.toml 
+### 2. Set paths in config.toml 
 
 In the config.toml set the container paths for the input and output paths as well as the model paths
 
@@ -88,7 +88,7 @@ output_path = "/app/data/_output"
 model_path = "/app/models/your-model.gguf"
 ```
 
-### 4. Run container for single transcription job
+### 3. Run container for single transcription job
 
 ```bash
 docker-compose run --rm asr-transcribe
