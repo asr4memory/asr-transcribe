@@ -6,7 +6,7 @@ services:
     image: asr-transcribe:latest
     container_name: asr-transcribe
 
-    # GPU-Konfiguration
+    # GPU configuration
     runtime: nvidia
     deploy:
       resources:
@@ -17,28 +17,28 @@ services:
               capabilities: [gpu]
 
     environment:
-      # CUDA-Umgebung
+      # CUDA environment
       - CUDA_VISIBLE_DEVICES=0
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
     volumes:
-      # Config-Datei (read-only)
+      # Config file (read-only)
       - ./config.toml:/app/config.toml:ro
 
-      # Input-Verzeichnis (read-only)
+      # Input directory (read-only)
       - ./data/_input:/app/data/_input:ro
 
-      # Output-Verzeichnis (read-write)
+      # Output directory (read-write)
       - ./data/_output:/app/data/_output:rw
 
-      # Optional: Models-Verzeichnis (read-only)
+      # Optional: Models directory (read-only)
       - ./models:/app/models:ro
 
-    # Restart-Policy
+    # Restart policy
     restart: unless-stopped
 
-    # Logging-Konfiguration
+    # Logging configuration
     logging:
       driver: "json-file"
       options:
