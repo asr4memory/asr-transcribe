@@ -1,4 +1,4 @@
-FROM nvidia/cuda:13.1.1-cudnn9-devel-ubuntu22.04
+FROM nvidia/cuda:13.1.0-devel-ubuntu24.04
 
 # Umgebungsvariablen setzen
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -22,7 +22,8 @@ RUN apt-get update && apt-get install -y \
 
 # UV Package Manager installieren
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:$PATH"
+ENV PATH="/root/.local/bin:/root/.cargo/bin:$PATH"
+RUN uv --version
 
 # Arbeitsverzeichnis setzen
 WORKDIR /app
@@ -41,8 +42,8 @@ RUN CMAKE_ARGS="-DGGML_CUDA=ON -DCUDAToolkit_ROOT=$CUDA_HOME -DCMAKE_CUDA_COMPIL
 
 # Helper-Scripts ausführen (cuDNN-Fix und lightning_fabric-Patch)
 RUN cd /app && \
-    VENV_PATH=".venv" sh ./help/setup_cudnn.sh && \
-    sh ./help/patch_lightning_fabric.sh
+    VENV_PATH=".venv" bash ./help/setup_cudnn.sh && \
+    bash ./help/patch_lightning_fabric.sh
 
 # LD_LIBRARY_PATH für cuDNN zur Laufzeit setzen
 ENV LD_LIBRARY_PATH="/app/.venv/lib/python3.12/site-packages/nvidia/cudnn/lib:${LD_LIBRARY_PATH}"
