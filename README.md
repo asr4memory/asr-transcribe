@@ -12,7 +12,7 @@
 - [direnv](https://direnv.net/docs/installation.html) --> You need this to fix the "missing libcudnn_ops_infer.so.8_fix" bug, [see details](/help/missing_libcudnn_ops_infer.so.8_fix.md)
 
 
-## Installation (for CUDA)
+## 1. Native installation and usage (for CUDA)
 
 ### 1. Clone repository
 
@@ -44,35 +44,53 @@ direnv allow # direnv needs to be installed and set up.
 sh ./help/patch_lightning_fabric.sh
 ```
 
-## Docker Installation (Alternative)
-
-Für containerisiertes Deployment mit GPU-Unterstützung, siehe [DOCKER.md](DOCKER.md).
-
-Quick Start:
-```bash
-# Config vorbereiten
-cp config.example.toml config.toml
-
-# Bauen und starten
-docker-compose up --build
-```
-
-Voraussetzungen:
-- Docker Engine mit NVIDIA Container Toolkit
-- NVIDIA GPU mit CUDA 13.1+ Support
-
 ### 5. Create the configuration file.
 
 ```shell
 cp config.example.toml config.toml
 ```
 
-## Usage
+### 6. Usage
 
 Run the workflow script.
 
 ```shell
 uv run asr_workflow.py
+```
+
+## 2. Alternative: Docker installation
+
+Note: Works only with Cuda 13.1 or higher 
+
+### 1. Install Docker
+
+e.g. [Docker Desktop](https://docs.docker.com/desktop/)
+
+### 2. Build Docker image
+
+```shell
+uv docker compose build
+```
+
+### 3. Set paths in config.toml 
+
+In the config.toml set the container paths for the input and output paths as well as the model paths
+
+```toml
+[system]
+input_path = "/app/data/_input"
+output_path = "/app/data/_output"
+```
+
+```toml
+[llm]
+model_path = "/app/models/your-model.gguf"
+```
+
+### 4. Run container for single transcription job
+
+```bash
+docker-compose run --rm asr-transcribe
 ```
 
 ## Configuration
