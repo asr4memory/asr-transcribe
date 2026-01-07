@@ -91,6 +91,9 @@ def prepare_bag_directory(bag_root: Path) -> Path:
     data_dir.mkdir()
     transcripts_dir = data_dir / "transcripts"
     transcripts_dir.mkdir()
+    if config["whisper"].get("translation_enabled", False):
+        translations_dir = data_dir / "translations"
+        translations_dir.mkdir()
     abstracts_dir = data_dir / "abstracts"
     abstracts_dir.mkdir()
     ohd_import_dir = data_dir / "ohd_import"
@@ -151,7 +154,8 @@ def finalize_bag(
             "for varied use scenarios in the /data directory: "
             "In the /abstracts directory, summaries in german and english are stored. "
             "The /ohd_import directory contains the transcript for import into Oral-History.Digital. "
-            "The /transcripts directory contains all transcripts. "
+            "The /transcripts directory contains all transcripts in the original language, "
+            "while /translations contains translated variants. "
             "More information can be found in the /documentation directory. Further details: "
             "https://www.fu-berlin.de/asr4memory"
         ),
