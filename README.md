@@ -90,6 +90,11 @@ output_path = "/app/data/_output"
 model_path = "/app/models/your-model.gguf"
 ```
 
+The container paths are mapped to actual paths as following:
+- "/app/data/_input" --> "./data/_input"
+- "/app/data/_output" --> "./data/_output"
+- "/app/models" --> ./models
+
 ### 4. Run container for single transcription job
 
 ```bash
