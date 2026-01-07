@@ -82,9 +82,7 @@ def get_language_descriptor(result: dict):
 
     normalized_source = _normalize_language(source_language)
     normalized_output = _normalize_language(output_language, default=normalized_source)
-    normalized_target = _normalize_language(
-        target_language, default=normalized_output
-    )
+    normalized_target = _normalize_language(target_language, default=normalized_output)
 
     descriptor = normalized_output
     if translation_enabled:
@@ -181,7 +179,9 @@ def process_file(filepath: Path, output_directory: Path):
         transcript_filename = f"{file_stem}_{model_name}_{output_language}"
         translation_filename = f"{file_stem}_{model_name}_{language_descriptor}"
 
-        dir_path = create_output_files_directory_path(output_directory, translation_filename)
+        dir_path = create_output_files_directory_path(
+            output_directory, translation_filename
+        )
         transcripts_dir = prepare_bag_directory(dir_path)
 
         # Copy documentation files to documentation/ directory

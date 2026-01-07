@@ -38,7 +38,9 @@ beam_size = config["whisper"]["beam_size"]
 compute_type = config["whisper"]["compute_type"]
 language_audio = config["whisper"].get("language")
 translation_enabled = config["whisper"].get("translation_enabled", False)
-translation_target_language = config["whisper"].get("translation_target_language", "en") or "en"
+translation_target_language = (
+    config["whisper"].get("translation_target_language", "en") or "en"
+)
 translation_model_preference = config["whisper"].get("translation_model", "large-v3")
 initial_prompt = config["whisper"]["initial_prompt"]
 use_initial_prompt = config["whisper"].get("use_initial_prompt", False)

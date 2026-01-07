@@ -146,9 +146,7 @@ def _format_pause_marker(seconds: float) -> str:
     return f"[Pause {seconds_str} s]"
 
 
-def _build_segment_text_with_pauses(
-    segments: list, word_segments: list | None
-):
+def _build_segment_text_with_pauses(segments: list, word_segments: list | None):
     """Build per-segment text enriched with pause markers based on word timings."""
     if not word_segments:
         return None
@@ -199,12 +197,16 @@ def _build_segment_text_with_pauses(
     return [" ".join(parts).strip() for parts in parts_per_segment]
 
 
-def write_text_speaker_maxqda(path_without_ext: Path, segments: list, word_segments: list | None = None):
+def write_text_speaker_maxqda(
+    path_without_ext: Path, segments: list, word_segments: list | None = None
+):
     """
     Write the processed segments to a tab-delimited text file for MAXQDA imports.
     Uses truncated timestamps (h:mm:ss.x), omits headers, and appends a colon to speaker labels.
     """
-    full_path = path_without_ext.with_stem(path_without_ext.stem + "_speaker_maxqda").with_suffix(".txt")
+    full_path = path_without_ext.with_stem(
+        path_without_ext.stem + "_speaker_maxqda"
+    ).with_suffix(".txt")
     enriched_texts = _build_segment_text_with_pauses(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
         for idx, seg in enumerate(segments):
@@ -227,10 +229,9 @@ def write_text_speaker_segment_maxqda(
     Consecutive segments from the same speaker are merged into one line.
     Inserts break markers for intra-speech pauses >=2s based on word-level timing.
     """
-    full_path = (
-        path_without_ext.with_stem(path_without_ext.stem + "_speaker_segment_maxqda")
-        .with_suffix(".txt")
-    )
+    full_path = path_without_ext.with_stem(
+        path_without_ext.stem + "_speaker_segment_maxqda"
+    ).with_suffix(".txt")
     with open(full_path, "w", encoding="utf-8") as txt_file:
         last_speaker = ""
         block_start = None
@@ -300,12 +301,16 @@ def write_text_speaker_segment_maxqda(
             flush_block()
 
 
-def write_text_maxqda(path_without_ext: Path, segments: list, word_segments: list | None = None):
+def write_text_maxqda(
+    path_without_ext: Path, segments: list, word_segments: list | None = None
+):
     """
     Write the processed segments to a tab-delimited text file for MAXQDA without speaker labels.
     Each line contains the truncated timestamp and transcript text.
     """
-    full_path = path_without_ext.with_stem(path_without_ext.stem + "_maxqda").with_suffix(".txt")
+    full_path = path_without_ext.with_stem(
+        path_without_ext.stem + "_maxqda"
+    ).with_suffix(".txt")
     enriched_texts = _build_segment_text_with_pauses(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
         for idx, seg in enumerate(segments):
