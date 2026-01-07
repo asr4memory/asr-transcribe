@@ -33,18 +33,18 @@ env/
 .DS_Store
 Thumbs.db
 
-# Data directories (werden als Volumes gemountet)
+# Data directories (mounted as volumes)
 data/
 _input/
 _output/
 
-# Models (werden als Volume gemountet)
+# Models (mounted as volumes)
 models/
 
 # Logs
 *.log
 
-# Config (wird als Volume gemountet)
+# Config (mounted as volumes)
 config.toml
 .env
 .envrc
