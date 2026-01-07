@@ -60,7 +60,7 @@ uv run asr_workflow.py
 
 ## 2. Alternative: Docker installation (experimental)
 
-Note: Works only with Cuda 13.1 or higher 
+Note: Works only with Cuda 13.1 or higher on your system
 
 ### Requirements
 
