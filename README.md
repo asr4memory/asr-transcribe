@@ -72,7 +72,7 @@ Note: Works only with Cuda 13.1 or higher
 ### 2. Build Docker image
 
 ```shell
-uv docker compose build
+docker compose build
 ```
 
 ### 3. Set paths in config.toml 
