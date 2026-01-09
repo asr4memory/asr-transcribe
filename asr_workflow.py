@@ -239,6 +239,11 @@ def process_file(filepath: Path, output_directory: Path):
         ).with_suffix(".csv")
         if speaker_csv.exists():
             shutil.copy2(speaker_csv, ohd_import_dir / speaker_csv.name)
+        speaker_nopause_csv = output_base_path.with_stem(
+            output_base_path.stem + "_speaker_nopause"
+        ).with_suffix(".csv")
+        if speaker_nopause_csv.exists():
+            shutil.copy2(speaker_nopause_csv, ohd_import_dir / speaker_nopause_csv.name)
 
         payload_files = [p for p in data_dir.rglob("*") if p.is_file()]
         bag_info = {

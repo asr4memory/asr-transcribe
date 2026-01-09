@@ -22,6 +22,7 @@ use_speaker_diarization = true
 min_speakers = 1
 max_speakers = 2
 hf_token = "add your Huggingface Token here"
+pause_marker_threshold = 2.0  # Minimum gap (seconds) before inserting pause markers in transcript
 
 [llm]
 use_summarization = true

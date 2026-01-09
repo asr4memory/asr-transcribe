@@ -29,6 +29,7 @@ CONST_DEFAULT_CONFIG = {
         "min_speakers": None,
         "max_speakers": None,
         "hf_token": None,
+        "pause_marker_threshold": 2.0,
         "api_key": None,
     },
     "llm": {

@@ -118,6 +118,7 @@ The `config.toml` file is used to configure the application. You can copy the `c
 - **`translation_enabled` / `translation_target_language`**: Toggle Whisper’s translate task and pick the output language (defaults to English). Keep this disabled for pure transcription.
 - **`translation_model`**: When translation is enabled and the configured `model` is not multilingual (e.g., the turbo variants), this fallback model is loaded automatically. By default the workflow uses `large-v3`, which yields the best translation quality.
 - **`use_speaker_diarization`**, **`min_speakers`**, **`max_speakers`**: Control diarization; when enabled you must supply **`hf_token`** so WhisperX can download the diarization model from Hugging Face.
+- **`pause_marker_threshold`**: Minimum gap in seconds before inserting pause markers into speaker-aware exports (e.g., `_speaker.csv`, MAXQDA variants); defaults to 2.0s.
 - **`use_initial_prompt`**, **`initial_prompt`**, **`max_sentence_length`**: Fine-tune segmentation and prompt injection.
 
 ### Email Options (`[email]`)
@@ -157,10 +158,10 @@ Both files are stored inside each bag’s `data/abstracts/` directory. The promp
 
 For every processed file a timestamped bag directory is created under the configured output path. Each bag contains:
 
-- `data/transcripts/`: All transcript formats (TXT, RTF, CSV, VTT, SRT, JSON, ODT, PDF, etc.).
+- `data/transcripts/`: All transcript formats (TXT, RTF, CSV, VTT, SRT, JSON, ODT, PDF, etc.), including speaker CSVs with pause markers and a `_speaker_nopause.csv` variant without pause markers.
 - `data/translations/`: Mirrors the transcript formats but contains the translated text when translation is enabled.
 - `data/abstracts/`: Language-specific summaries (currently `_summary_de.txt` and `_summary_en.txt`).
-- `data/ohd_import/`: Copies of the speaker CSV exports for downstream ingestion.
+- `data/ohd_import/`: Copies of the speaker CSV exports (with and without pause markers) for downstream ingestion.
 - `documentation/`: Reference material copied from `doc_files/` (export formats, citation text, upload instructions).
 - `bagit.txt`, `bag-info.txt`, `manifest-sha512.txt`, `tagmanifest-sha512.txt`: Files required by the BagIt specification.
 
@@ -177,6 +178,7 @@ pytest
 - Avoids misinterpreting titles and dates as sentence endings.
 - Merges segments that do not have punctuation with the following segments.
 - Customisable segment splitting: Splits segments longer than specified number of characters at the next comma (default = 120 characters).
+- Configurable pause markers: Inserts `<pN>` pause tags in speaker-aware exports when word-level gaps exceed `pause_marker_threshold` (default 2s).
 - Changes the lowercase letter of the first word of the segment to an uppercase letter (only in cases where the previous segment ends without a comma).
 - Enables word lists for names, special terms or filler words (initial prompt).
 - Embeds the code into an automated input/output folder workflow.

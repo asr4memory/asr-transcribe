@@ -22,6 +22,15 @@ env = Environment(loader=PackageLoader("writers"), autoescape=select_autoescape(
 config = get_config()
 
 USE_SPEAKER_DIARIZATION = config["whisper"].get("use_speaker_diarization", False)
+def _resolve_pause_threshold() -> float:
+    value = config["whisper"].get("pause_marker_threshold", 2.0)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 2.0
+
+
+PAUSE_MARKER_THRESHOLD = _resolve_pause_threshold()
 
 
 def write_vtt(path_without_ext: Path, segments: list):
@@ -146,55 +155,65 @@ def _format_pause_marker(seconds: float) -> str:
     return f"[Pause {seconds_str} s]"
 
 
-def _build_segment_text_with_pauses(segments: list, word_segments: list | None):
-    """Build per-segment text enriched with pause markers based on word timings."""
+def _format_pause_marker_tag_floor(seconds: float) -> str:
+    """Format pause duration as <pN> using floor to whole seconds."""
+    if seconds is None:
+        return "<p?>"
+    whole = int(float(seconds))
+    if whole < 0:
+        whole = 0
+    return f"<p{whole}>"
+
+
+def _collect_pause_markers_per_segment(
+    segments: list,
+    word_segments: list | None,
+    gap_threshold: float = PAUSE_MARKER_THRESHOLD,
+    marker_formatter=_format_pause_marker,
+) -> list[list[str]]:
+    """
+    Collect pause markers per segment based on word-level gaps without rebuilding text.
+    Pauses (>= gap_threshold) are attached to the segment that precedes the gap.
+    """
     if not word_segments:
-        return None
+        return [[] for _ in segments]
 
-    parts_per_segment: list[list[str]] = [[] for _ in segments]
-    word_idx = 0
-    total_words = len(word_segments)
+    markers_per_segment: list[list[str]] = [[] for _ in segments]
+    seg_idx = 0
     last_word_end = None
-    last_segment_parts: list[str] | None = None
+    last_seg_idx = None
 
-    for seg_idx, seg in enumerate(segments):
-        if word_idx >= total_words:
-            break
-
-        seg_start = seg.get("start")
-        seg_end = seg.get("end")
-        if seg_start is None or seg_end is None:
+    for word_seg in word_segments:
+        w_start = word_seg.get("start")
+        w_end = word_seg.get("end")
+        if w_start is None:
             continue
 
-        parts = parts_per_segment[seg_idx]
-
-        while word_idx < total_words:
-            word_seg = word_segments[word_idx]
-            w_start = word_seg.get("start")
-            w_end = word_seg.get("end")
-
-            if w_start is None:
-                word_idx += 1
+        # Advance segment pointer until current word fits into segment window.
+        while seg_idx < len(segments):
+            seg = segments[seg_idx]
+            seg_start = seg.get("start")
+            seg_end = seg.get("end")
+            if seg_start is None or seg_end is None:
+                seg_idx += 1
                 continue
-
-            if w_start >= seg_end:
+            if w_start < seg_end:
                 break
+            seg_idx += 1
 
-            gap = None
-            if last_word_end is not None:
-                gap = w_start - last_word_end
+        if seg_idx >= len(segments):
+            break
 
-            if gap is not None and gap >= 2.0 and last_segment_parts is not None:
-                last_segment_parts.append(_format_pause_marker(gap))
+        gap = None
+        if last_word_end is not None:
+            gap = w_start - last_word_end
+        if gap is not None and gap >= gap_threshold and last_seg_idx is not None:
+            markers_per_segment[last_seg_idx].append(marker_formatter(gap))
 
-            word_text = word_seg.get("word", "").strip()
-            if word_text:
-                parts.append(word_text)
-            last_segment_parts = parts
-            last_word_end = w_end if w_end is not None else last_word_end
-            word_idx += 1
+        last_word_end = w_end if w_end is not None else last_word_end
+        last_seg_idx = seg_idx
 
-    return [" ".join(parts).strip() for parts in parts_per_segment]
+    return markers_per_segment
 
 
 def write_text_speaker_maxqda(
@@ -207,17 +226,15 @@ def write_text_speaker_maxqda(
     full_path = path_without_ext.with_stem(
         path_without_ext.stem + "_speaker_maxqda"
     ).with_suffix(".txt")
-    enriched_texts = _build_segment_text_with_pauses(segments, word_segments)
+    pause_markers = _collect_pause_markers_per_segment(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
         for idx, seg in enumerate(segments):
             timestamp = _format_maxqda_timestamp(seg["start"])
             speaker = seg.get("speaker", "")
             speaker_label = f"{speaker}:" if speaker else ""
-            text = (
-                enriched_texts[idx]
-                if enriched_texts and enriched_texts[idx]
-                else seg["text"]
-            )
+            text = seg["text"]
+            if pause_markers[idx]:
+                text = f"{text} {' '.join(pause_markers[idx])}".strip()
             txt_file.write(f"{timestamp}\t{speaker_label}\t{text}\n")
 
 
@@ -227,16 +244,17 @@ def write_text_speaker_segment_maxqda(
     """
     Write MAXQDA-ready text with timestamps only when the speaker changes.
     Consecutive segments from the same speaker are merged into one line.
-    Inserts break markers for intra-speech pauses >=2s based on word-level timing.
+    Inserts pause markers (>=2s) based on word-level timing, attached to the
+    preceding segment text.
     """
     full_path = path_without_ext.with_stem(
         path_without_ext.stem + "_speaker_segment_maxqda"
     ).with_suffix(".txt")
+    pause_markers = _collect_pause_markers_per_segment(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
         last_speaker = ""
         block_start = None
         block_text_parts: list[str] = []
-        last_word_end = None
 
         def flush_block():
             if block_start is None or not block_text_parts:
@@ -246,59 +264,29 @@ def write_text_speaker_segment_maxqda(
             combined_text = " ".join(block_text_parts).strip()
             txt_file.write(f"{timestamp}\t{speaker_label}\t{combined_text}\n")
 
-        if word_segments:
-            for word_seg in word_segments:
-                word = word_seg.get("word", "").strip()
-                start = word_seg.get("start")
-                end = word_seg.get("end")
-                raw_speaker = word_seg.get("speaker", "")
-                speaker = raw_speaker if raw_speaker else last_speaker
+        # Merge by segment speaker (no word-level speaker switching).
+        for idx, seg in enumerate(segments):
+            raw_speaker = seg.get("speaker", "")
+            speaker = raw_speaker if raw_speaker else last_speaker
+            text = seg["text"]
+            if pause_markers[idx]:
+                text = f"{text} {' '.join(pause_markers[idx])}".strip()
 
-                if block_start is None:
-                    block_start = start
-                    last_speaker = speaker
+            if block_start is None:
+                block_start = seg["start"]
+                last_speaker = speaker
+                block_text_parts = [text]
+                continue
 
-                gap = None
-                if last_word_end is not None and start is not None:
-                    gap = start - last_word_end
+            if speaker == last_speaker:
+                block_text_parts.append(text)
+            else:
+                flush_block()
+                block_start = seg["start"]
+                last_speaker = speaker
+                block_text_parts = [text]
 
-                speaker_changed = speaker != last_speaker
-
-                if speaker_changed:
-                    if gap is not None and gap >= 2.0:
-                        block_text_parts.append(_format_pause_marker(gap))
-                    flush_block()
-                    block_start = start
-                    last_speaker = speaker
-                    block_text_parts = [word] if word else []
-                else:
-                    if gap is not None and gap >= 2.0:
-                        block_text_parts.append(_format_pause_marker(gap))
-                    if word:
-                        block_text_parts.append(word)
-
-                last_word_end = end if end is not None else last_word_end
-
-            flush_block()
-        else:
-            # Fallback: merge by segments without word-level breaks.
-            for seg in segments:
-                raw_speaker = seg.get("speaker", "")
-                speaker = raw_speaker if raw_speaker else last_speaker
-
-                if block_start is None:
-                    block_start = seg["start"]
-                    last_speaker = speaker
-
-                if speaker == last_speaker:
-                    block_text_parts.append(seg["text"])
-                else:
-                    flush_block()
-                    block_start = seg["start"]
-                    last_speaker = speaker
-                    block_text_parts = [seg["text"]]
-
-            flush_block()
+        flush_block()
 
 
 def write_text_maxqda(
@@ -311,15 +299,13 @@ def write_text_maxqda(
     full_path = path_without_ext.with_stem(
         path_without_ext.stem + "_maxqda"
     ).with_suffix(".txt")
-    enriched_texts = _build_segment_text_with_pauses(segments, word_segments)
+    pause_markers = _collect_pause_markers_per_segment(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
         for idx, seg in enumerate(segments):
             timestamp = _format_maxqda_timestamp(seg["start"])
-            text = (
-                enriched_texts[idx]
-                if enriched_texts and enriched_texts[idx]
-                else seg["text"]
-            )
+            text = seg["text"]
+            if pause_markers[idx]:
+                text = f"{text} {' '.join(pause_markers[idx])}".strip()
             txt_file.write(f"{timestamp}\t{text}\n")
 
 
@@ -422,6 +408,9 @@ def write_csv(
     delimiter="\t",
     speaker_column=False,
     write_header=False,
+    word_segments: list | None = None,
+    pause_formatter=_format_pause_marker_tag_floor,
+    include_pause_markers: bool = True,
 ):
     """
     Write the processed segments to a CSV file.
@@ -435,15 +424,25 @@ def write_csv(
 
     full_path = path_without_ext.with_suffix(".csv")
 
+    pause_markers = None
+    if include_pause_markers and speaker_column and word_segments:
+        pause_markers = _collect_pause_markers_per_segment(
+            segments,
+            word_segments,
+            marker_formatter=pause_formatter,
+        )
+
     with open(full_path, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=delimiter)
 
         if write_header:
             writer.writeheader()
 
-        for seg in segments:
+        for idx, seg in enumerate(segments):
             _, timecode = format_timestamp(seg["start"])
             text = seg["text"]
+            if include_pause_markers and pause_markers and pause_markers[idx]:
+                text = f"{text} {' '.join(pause_markers[idx])}".strip()
 
             if speaker_column:
                 row = {
@@ -754,6 +753,17 @@ def write_output_files(
         delimiter="\t",
         speaker_column=True,
         write_header=True,
+        word_segments=word_segments,
+        pause_formatter=_format_pause_marker_tag_floor,
+    )
+    write_csv(
+        base_path.with_stem(base_path.stem + "_speaker_nopause"),
+        segments,
+        delimiter="\t",
+        speaker_column=True,
+        write_header=True,
+        word_segments=word_segments,
+        include_pause_markers=False,
     )
     write_word_segments_csv(
         base_path.with_stem(base_path.stem + "_word_segments"),
