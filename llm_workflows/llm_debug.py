@@ -7,9 +7,10 @@ Usage:
 
 import json
 from pathlib import Path
+from unittest import result
 from app_config import get_config
 from subprocess_handler import run_llm_subprocess
-from writers import write_summary
+from writers import write_output_files
 
 config = get_config()
 
@@ -25,20 +26,32 @@ def main():
         data = json.load(f)
     segments = data.get("segments", data)
 
-    result = run_llm_subprocess(segments)
+    # Run LLM subprocess (returns unified result dict)
+    llm_result = run_llm_subprocess(segments)
 
-    if result is None:
+    if llm_result is None:
         print("LLM subprocess failed.")
         return 1
 
-    # Use base_path for write_summary (it creates abstracts/ subdirectory)
+    # Base path for write_summary
     base_path = output_dir / debug_file.stem
 
     print("\n" + "=" * 50)
-    for lang, summary in result.items():
-        print(f"\n[{lang.upper()}]\n{summary}")
-        write_summary(base_path, summary, language_code=lang)
-        print(f"Saved via write_summary")
+
+    # Process summaries
+    summaries = llm_result.get("summaries", {})
+    # toc = llm_result.get("toc", {})
+    
+    write_output_files(
+        base_path=base_path,
+        unprocessed_whisperx_output=segments,
+        processed_whisperx_output=segments,
+        summaries=summaries,
+    )
+    # Show metadata
+    meta = llm_result.get("_meta", {})
+    if meta.get("trial"):
+        print(f"\n(Completed on trial {meta['trial']})")
 
     return 0
 

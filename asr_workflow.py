@@ -140,38 +140,29 @@ def process_file(filepath: Path, output_directory: Path):
         model_name = Path(str(model_used)).name if model_used else "unknown-model"
 
         summaries = {lang: "" for lang in LLM_LANGUAGES}
-        # contents = {lang: "" for lang in LLM_LANGUAGES}
         if use_llms and LLM_LANGUAGES:
-            intermediate_message_4 = (
-                "Post-processing completed for {0}, starting LLM processes...".format(
-                    process_info.filename
-                )
+            logger.info(
+                f"Post-processing completed for {process_info.filename}, starting LLM processes..."
             )
-            logger.info(intermediate_message_4)
 
-            # Run LLM summarization in subprocess
+            # Run LLM tasks in subprocess (returns unified result dict)
             # Memory is guaranteed freed when subprocess exits
-            summary_payload, contents_payload = run_llm_subprocess(processed_whisperx_output["segments"])
-            if summary_payload is not None:
-                summaries.update(summary_payload)
-                intermediate_message_5 = "Summarization completed for {0}.".format(
-                    process_info.filename
-                )
-                logger.info(intermediate_message_5)
+            llm_result = run_llm_subprocess(processed_whisperx_output["segments"])
+
+            if llm_result is not None:
+                # Process summaries
+                if llm_result.get("summaries"):
+                    summaries.update(llm_result["summaries"])
+                    logger.info(f"Summarization completed for {process_info.filename}.")
+
+                # Future: Process table of contents
+                # if llm_result.get("toc"):
+                #     toc.update(llm_result["toc"])
+                #     logger.info(f"Table of contents completed for {process_info.filename}.")
             else:
                 logger.warning(
-                    f"Summarization skipped for {process_info.filename} (subprocess failed)"
+                    f"LLM processing skipped for {process_info.filename} (subprocess failed)"
                 )
-            # if summary_payload is not None:
-            #     summaries.update(summary_payload)
-            #     intermediate_message_6 = "Creating table of contents completed for {0}.".format(
-            #         process_info.filename
-            #     )
-            #     logger.info(intermediate_message_6)
-            # else:
-            #     logger.warning(
-            #         f"Creating table of contents skipped for {process_info.filename} (subprocess failed)"
-            #     )
         elif use_llms and not LLM_LANGUAGES:
             logger.info("Summarization enabled but no languages configured; skipping.")
             intermediate_message_5 = "Post-processing completed for {0}.".format(

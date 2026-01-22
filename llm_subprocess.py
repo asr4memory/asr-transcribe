@@ -1,12 +1,19 @@
 """
-Subprocess wrapper for LLM summarization.
+Subprocess wrapper for LLM tasks.
 Runs LLM model in isolated subprocess to ensure memory is freed after processing.
 This allows large models (20GB+) to be loaded and fully cleaned up between files.
+
+Returns a unified result dict:
+{
+    "summaries": {"de": "...", "en": "..."},
+    "toc": {"de": "...", "en": "..."},  # future
+    ...
+    "_meta": {"trial": 1}
+}
 """
 
 import sys
 import pickle
-from typing import Dict
 from llama_cpp import Llama
 from app_config import get_config
 from utilities import cleanup_cuda_memory
@@ -77,29 +84,38 @@ def generate(llm: Llama, system_prompt: str, user_prompt: str) -> str:
 def main():
     """Main subprocess entry point."""
     max_trials = 2
-    summaries: Dict[str, str] | None = None
     languages = get_languages()
     llm = None
 
+    # Return empty result if no languages configured
     if not languages:
-        sys.stdout.buffer.write(pickle.dumps(({}, 0)))
+        result = {"summaries": {}, "_meta": {"trial": 0}}
+        sys.stdout.buffer.write(pickle.dumps(result))
         sys.exit(0)
 
     for trial in range(1, max_trials + 1):
         try:
-            # Read pickled segments from stdin (nur beim ersten Versuch)
+            # Read pickled segments from stdin (only on first attempt)
             if trial == 1:
                 input_data = sys.stdin.buffer.read()
                 segments = pickle.loads(input_data)
 
             llm = load_model(trial)
             user_prompt_text = user_prompt(segments)
+
+            # Generate summaries for each language
             summaries = {}
             for language in languages:
                 system_prompt = system_prompt_summaries(language)
                 summaries[language] = generate(llm, system_prompt, user_prompt_text)
-            # Erfolgreich - Ergebnis ausgeben
-            sys.stdout.buffer.write(pickle.dumps((summaries, trial)))
+
+            # Build unified result dict
+            result = {
+                "summaries": summaries,
+                # "toc": {},  # future: table of contents
+                "_meta": {"trial": trial},
+            }
+            sys.stdout.buffer.write(pickle.dumps(result))
             sys.exit(0)
 
         except Exception as e:

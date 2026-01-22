@@ -112,8 +112,15 @@ def run_whisper_subprocess(audio_path: str):
 
 def run_llm_subprocess(segments):
     """
-    Run LLM summarization in isolated subprocess.
-    Returns: dict with language codes mapped to summary text.
+    Run LLM tasks in isolated subprocess.
+
+    Returns: Unified result dict with structure:
+        {
+            "summaries": {"de": "...", "en": "..."},
+            "toc": {"de": "...", "en": "..."},  # future
+            "_meta": {"trial": 1}
+        }
+    Returns None if subprocess fails.
 
     Memory is guaranteed to be freed when subprocess exits.
     """
@@ -145,21 +152,22 @@ def run_llm_subprocess(segments):
             else "Unknown error"
         )
         logger.warning(f"LLM subprocess failed: {error_msg}")
-        # LLM is optional, so we return None instead of raising
         return None
 
-    # Deserialize result - subprocess returns a tuple (summaries, trials)
-    summaries, trials = pickle.loads(stdout_data)
+    # Deserialize unified result dict
+    llm_result = pickle.loads(stdout_data)
 
-    if trials == 1:
+    # Log trial info from metadata
+    trial = llm_result.get("_meta", {}).get("trial", 0)
+    if trial == 1:
         logger.info(
-            "LLM subprocess succeeded on first trial with 32k context window with faster processing"
+            "LLM subprocess succeeded on first trial with 32k context window"
         )
-    elif trials == 2:
+    elif trial == 2:
         logger.info(
-            "LLM subprocess succeeded on second trial with 64k context window with slower processing"
+            "LLM subprocess succeeded on second trial with 64k context window"
         )
 
     logger.info("LLM subprocess completed successfully")
 
-    return summaries
+    return llm_result
