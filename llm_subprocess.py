@@ -103,7 +103,7 @@ def main():
             llm = load_model(trial)
             user_prompt_text = user_prompt(segments)
 
-            # Generate summaries for each language
+            # Generate LLM outputs for each language
             summaries = {}
             for language in languages:
                 system_prompt = system_prompt_summaries(language)
