@@ -140,9 +140,10 @@ def process_file(filepath: Path, output_directory: Path):
         model_name = Path(str(model_used)).name if model_used else "unknown-model"
 
         summaries = {lang: "" for lang in LLM_LANGUAGES}
+        # contents = {lang: "" for lang in LLM_LANGUAGES}
         if use_llms and LLM_LANGUAGES:
             intermediate_message_4 = (
-                "Post-processing completed for {0}, starting summarization...".format(
+                "Post-processing completed for {0}, starting LLM processes...".format(
                     process_info.filename
                 )
             )
@@ -150,8 +151,7 @@ def process_file(filepath: Path, output_directory: Path):
 
             # Run LLM summarization in subprocess
             # Memory is guaranteed freed when subprocess exits
-            summary_payload = run_llm_subprocess(processed_whisperx_output["segments"])
-
+            summary_payload, contents_payload = run_llm_subprocess(processed_whisperx_output["segments"])
             if summary_payload is not None:
                 summaries.update(summary_payload)
                 intermediate_message_5 = "Summarization completed for {0}.".format(
@@ -162,6 +162,16 @@ def process_file(filepath: Path, output_directory: Path):
                 logger.warning(
                     f"Summarization skipped for {process_info.filename} (subprocess failed)"
                 )
+            # if summary_payload is not None:
+            #     summaries.update(summary_payload)
+            #     intermediate_message_6 = "Creating table of contents completed for {0}.".format(
+            #         process_info.filename
+            #     )
+            #     logger.info(intermediate_message_6)
+            # else:
+            #     logger.warning(
+            #         f"Creating table of contents skipped for {process_info.filename} (subprocess failed)"
+            #     )
         elif use_llms and not LLM_LANGUAGES:
             logger.info("Summarization enabled but no languages configured; skipping.")
             intermediate_message_5 = "Post-processing completed for {0}.".format(
