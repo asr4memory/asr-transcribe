@@ -18,6 +18,7 @@ from llama_cpp import Llama
 from app_config import get_config
 from utilities import cleanup_cuda_memory
 from llm_workflows.llm_summarization import system_prompt_summaries
+from llm_workflows.llm_toc import system_prompt_toc
 
 config = get_config()
 n_gpu_layers = config["llm"]["n_gpu_layers"]
@@ -104,15 +105,22 @@ def main():
             user_prompt_text = user_prompt(segments)
 
             # Generate LLM outputs for each language
+            # 1. Summaries
             summaries = {}
             for language in languages:
                 system_prompt = system_prompt_summaries(language)
                 summaries[language] = generate(llm, system_prompt, user_prompt_text)
 
+            # 2. Table of Contents
+            toc = {}  
+            for language in languages:
+                system_prompt = system_prompt_toc(language)
+                toc[language] = generate(llm, system_prompt, user_prompt_text)
+
             # Build unified result dict
             result = {
                 "summaries": summaries,
-                # "toc": {},  # future: table of contents
+                "toc": toc,
                 "_meta": {"trial": trial},
             }
             sys.stdout.buffer.write(pickle.dumps(result))

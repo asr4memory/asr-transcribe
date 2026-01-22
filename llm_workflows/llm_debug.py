@@ -73,6 +73,7 @@ def main():
         unprocessed_whisperx_output=data,
         processed_whisperx_output=data,
         summaries=llm_result.get("summaries"),
+        toc=llm_result.get("toc"),
     )
 
     print(f"\nOutput written to {run_dir}/")

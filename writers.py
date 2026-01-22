@@ -714,11 +714,25 @@ def write_summary(path_without_ext: Path, summary: str, language_code: str = "de
         txt_file.write(summary)
 
 
+def write_toc(path_without_ext: Path, toc: str, language_code: str = "de"):
+    """
+    Write the table of contents to a localized text file in the abstracts directory.
+    """
+    bag_data_dir = path_without_ext.parent.parent
+    abstracts_dir = bag_data_dir / "abstracts"
+    abstracts_dir.mkdir(parents=True, exist_ok=True)
+    toc_filename = f"{path_without_ext.stem}_toc_{language_code}.vtt"
+    full_path = abstracts_dir / toc_filename
+    with open(full_path, "w", encoding="utf-8") as txt_file:
+        txt_file.write(toc)
+
+
 def write_output_files(
     base_path: Path,
     unprocessed_whisperx_output: list,
     processed_whisperx_output: list,
     summaries: dict[str, str] | None = None,
+    toc: dict[str, str] | None = None,
 ):
     segments = processed_whisperx_output["segments"]
     word_segments = unprocessed_whisperx_output["word_segments"]
@@ -781,3 +795,7 @@ def write_output_files(
         for language_code, text in summaries.items():
             if text:
                 write_summary(base_path, text, language_code=language_code)
+    if toc:
+        for language_code, toc_text in toc.items():
+            if toc_text:
+                write_toc(base_path, toc_text, language_code=language_code)

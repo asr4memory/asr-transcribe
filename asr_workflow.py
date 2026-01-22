@@ -156,21 +156,28 @@ def derive_model_name(result: Dict[str, Any]) -> str:
 def run_llm_if_enabled(segments: List[Dict[str, Any]]) -> Dict[str, str]:
     # Always return a dict for all configured languages, default empty strings
     summaries = {lang: "" for lang in LLM_LANGUAGES}
+    toc = {lang: "" for lang in LLM_LANGUAGES}
 
     if not use_llms:
-        return summaries
+        return summaries, toc
     if not LLM_LANGUAGES:
         logger.info("Summarization enabled but no languages configured; skipping.")
-        return summaries
+        return summaries, toc
 
     llm_result = run_llm_subprocess(segments)
 
-    if llm_result and llm_result.get("summaries"):
-        summaries.update(llm_result["summaries"])
+    if llm_result: 
+        if llm_result.get("summaries"):
+            summaries.update(llm_result["summaries"])
+        else:
+            logger.warning("No summaries found in LLM subprocess result.")
+        if llm_result.get("toc"):
+            toc.update(llm_result["toc"])
+        else:
+            logger.warning("No table of contents found in LLM subprocess result.")
     else:
-        logger.warning("LLM processing skipped (subprocess failed or no summaries).")
-
-    return summaries
+        logger.error("LLM subprocess failed completely or returned no result.")
+    return summaries, toc
 
 
 def build_output_layout(
@@ -231,6 +238,7 @@ def write_primary_outputs(
     result: Dict[str, Any],
     processed: Dict[str, Any],
     summaries: Dict[str, str],
+    toc: Dict[str, str],
 ) -> None:
     write_output_files(
         base_path=layout.output_base_path,
@@ -381,7 +389,7 @@ def process_file(filepath: Path, output_directory: Path):
         model_name = derive_model_name(result)
 
         # LLM summaries (subprocess)
-        summaries = run_llm_if_enabled(processed_whisperx_output["segments"])
+        summaries, toc = run_llm_if_enabled(processed_whisperx_output["segments"])
         logger.info("Post-processing completed for %s.", process_info.filename)
 
         # Output layout + docs + writing
@@ -399,6 +407,7 @@ def process_file(filepath: Path, output_directory: Path):
             result=result,
             processed=processed_whisperx_output,
             summaries=summaries,
+            toc=toc,
         )
 
         write_translation_outputs_if_any(
