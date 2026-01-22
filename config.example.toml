@@ -25,11 +25,13 @@ hf_token = "add your Huggingface Token here"
 pause_marker_threshold = 2.0  # Minimum gap (seconds) before inserting pause markers in transcript
 
 [llm]
-use_summarization = true
+use_llms = true
 model_path = "path/to/model" # Needs to be in llama_ccp compatible GGUF format
 n_gpu_layers = 5
-summary_languages = ["de", "en"]  # Choose any subset of ["de", "en"]
+llm_languages = ["de", "en"]  # Choose any subset of ["de", "en"]
 verbose = false # Can be useful for debugging 
+debug_file = /home/kompiel/python_scripts/asr-transcribe/data/debug_llm/_input/ev001_01_01_large-v3_de.json
+output_debug = /home/kompiel/python_scripts/asr-transcribe/data/debug_llm/_output
 
 [email]
 smtp_server = "mail.example.com"

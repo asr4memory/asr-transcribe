@@ -10,6 +10,7 @@ from typing import Dict
 from llama_cpp import Llama
 from app_config import get_config
 from utilities import cleanup_cuda_memory
+from llm_workflows.llm_summarization import system_prompt_summaries
 
 config = get_config()
 n_gpu_layers = config["llm"]["n_gpu_layers"]
@@ -17,7 +18,7 @@ model_path = config["llm"]["model_path"]
 verbose = config["llm"].get("verbose", False)
 
 
-def get_summary_languages() -> list[str]:
+def get_languages() -> list[str]:
     languages = config["llm"].get("summary_languages", ["de", "en"])
     if isinstance(languages, str):
         languages = [languages]
@@ -47,43 +48,12 @@ def load_model(trial: int) -> Llama:
     )
 
 
-def build_system_prompt(language: str) -> str:
-    """Create a language-specific system prompt."""
-    if language == "en":
-        return (
-            "Produce a concise summary (max. 200 words) in English.\n\n"
-            "Processing:\n"
-            "– Fix ASR issues silently; ignore filler words.\n"
-            "– Focus on central topics and facts; omit small talk and repetition.\n"
-            "– Mention each fact once; aggressively deduplicate.\n\n"
-            "Style:\n"
-            "– Use third person only, neutral register, present tense.\n"
-            "– No quotes, no direct speech, no subjective judgments.\n"
-            "– For unclear references, insert placeholders such as [PERSON] or [PLACE].\n\n"
-            "Output: single paragraph, no heading, start directly with the content.\n"
-        )
-
-    # Default to German instructions.
-    return (
-        "Erstelle eine präzise Zusammenfassung (max. 200 Wörter) auf Deutsch.\n\n"
-        "Verarbeitung:\n"
-        "– Korrigiere ASR-Fehler stillschweigend; ignoriere Füllwörter.\n"
-        "– Fokus auf Hauptthemen und zentrale Fakten; weglassen: Small Talk, Wiederholungen.\n"
-        "– Jeder Fakt nur einmal; dedupliziere rigoros.\n\n"
-        "Stil:\n"
-        "– Nur 3. Person, keine direkte Anrede (kein 'du/Sie', keine Titel).\n"
-        "– Neutral, Präsens, keine Zitate oder Wertungen.\n"
-        "– Bei Unklarheit: Platzhalter ([PERSON], [ORT]) oder kurze Statusangabe.\n\n"
-        "Ausgabe: Ein Absatz, ohne Überschrift, direkt mit Inhalt beginnen.\n"
-    )
-
-
-def build_user_prompt(segments) -> str:
+def user_prompt(segments) -> str:
     """Concatenate all segment texts for the user prompt."""
     return "\n".join(segment["text"] for segment in segments)
 
 
-def generate_summary(llm: Llama, system_prompt: str, user_prompt: str) -> str:
+def generate(llm: Llama, system_prompt: str, user_prompt: str) -> str:
     """Generate a summary using llama_cpp for a given prompt."""
     output = llm.create_chat_completion(
         messages=[
@@ -108,7 +78,7 @@ def main():
     """Main subprocess entry point."""
     max_trials = 2
     summaries: Dict[str, str] | None = None
-    languages = get_summary_languages()
+    languages = get_languages()
     llm = None
 
     if not languages:
@@ -123,12 +93,11 @@ def main():
                 segments = pickle.loads(input_data)
 
             llm = load_model(trial)
-            user_prompt = build_user_prompt(segments)
+            user_prompt_text = user_prompt(segments)
             summaries = {}
             for language in languages:
-                system_prompt = build_system_prompt(language)
-                summaries[language] = generate_summary(llm, system_prompt, user_prompt)
-
+                system_prompt = system_prompt_summaries(language)
+                summaries[language] = generate(llm, system_prompt, user_prompt_text)
             # Erfolgreich - Ergebnis ausgeben
             sys.stdout.buffer.write(pickle.dumps((summaries, trial)))
             sys.exit(0)

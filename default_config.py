@@ -33,11 +33,13 @@ CONST_DEFAULT_CONFIG = {
         "api_key": None,
     },
     "llm": {
-        "use_summarization": False,
+        "use_llms": False,
         "model_path": "",
         "n_gpu_layers": 5,
-        "summary_languages": ["de", "en"],
+        "llm_languages": ["de", "en"],
         "verbose": False,
+        "debug_file": "",
+        "output_debug": "",
     },
     "email": {
         "smtp_server": "",

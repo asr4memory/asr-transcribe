@@ -41,12 +41,11 @@ config = get_config()
 stats = []
 warning_count = 0
 warning_audio_inputs = []
-use_speaker_diarization = config["whisper"]["use_speaker_diarization"]
-use_summarization = config["llm"]["use_summarization"]
+use_llms = config["llm"]["use_llms"]
 
 
-def get_summary_languages():
-    languages = config["llm"].get("summary_languages", ["de", "en"])
+def get_llm_languages():
+    languages = config["llm"].get("llm_languages", ["de", "en"])
     if isinstance(languages, str):
         languages = [languages]
     cleaned = []
@@ -56,7 +55,7 @@ def get_summary_languages():
     return cleaned
 
 
-SUMMARY_LANGUAGES = get_summary_languages()
+LLM_LANGUAGES = get_llm_languages()
 
 
 def _normalize_language(value, default="auto"):
@@ -140,8 +139,8 @@ def process_file(filepath: Path, output_directory: Path):
         model_used = result.get("model_name") or config["whisper"]["model"]
         model_name = Path(str(model_used)).name if model_used else "unknown-model"
 
-        summaries = {lang: "" for lang in SUMMARY_LANGUAGES}
-        if use_summarization and SUMMARY_LANGUAGES:
+        summaries = {lang: "" for lang in LLM_LANGUAGES}
+        if use_llms and LLM_LANGUAGES:
             intermediate_message_4 = (
                 "Post-processing completed for {0}, starting summarization...".format(
                     process_info.filename
@@ -163,7 +162,7 @@ def process_file(filepath: Path, output_directory: Path):
                 logger.warning(
                     f"Summarization skipped for {process_info.filename} (subprocess failed)"
                 )
-        elif use_summarization and not SUMMARY_LANGUAGES:
+        elif use_llms and not LLM_LANGUAGES:
             logger.info("Summarization enabled but no languages configured; skipping.")
             intermediate_message_5 = "Post-processing completed for {0}.".format(
                 process_info.filename
