@@ -713,7 +713,7 @@ def write_summary(path_without_ext: Path, summary: str, language_code: str = "de
     with open(full_path, "w", encoding="utf-8") as txt_file:
         txt_file.write(summary)
 
-
+## TO CHANGE. JUST FOR TESTING PURPOSES
 def write_toc(path_without_ext: Path, toc: str, language_code: str = "de"):
     """
     Write the table of contents to a localized text file in the abstracts directory.
@@ -723,8 +723,8 @@ def write_toc(path_without_ext: Path, toc: str, language_code: str = "de"):
     abstracts_dir.mkdir(parents=True, exist_ok=True)
     toc_filename = f"{path_without_ext.stem}_toc_{language_code}.vtt"
     full_path = abstracts_dir / toc_filename
-    with open(full_path, "w", encoding="utf-8") as txt_file:
-        txt_file.write(toc)
+    with open(full_path, "w", encoding="utf-8") as vtt_file:
+        vtt_file.write(toc)
 
 
 def write_output_files(
