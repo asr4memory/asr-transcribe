@@ -37,11 +37,33 @@ from post_processing import process_whisperx_segments
 
 from logger import logger, memoryHandler
 
+from dataclasses import dataclass
+from typing import Optional, Dict, Any, Tuple, List
+
+
 config = get_config()
 stats = []
 warning_count = 0
 warning_audio_inputs = []
 use_llms = config["llm"]["use_llms"]
+
+@dataclass(frozen=True)
+class LanguageMeta:
+    source_language: str
+    output_language: str
+    descriptor: str
+    target_language: str
+
+
+@dataclass(frozen=True)
+class OutputLayout:
+    dir_path: Path
+    transcripts_dir: Path
+    data_dir: Path
+    translations_dir: Path
+    output_base_path: Path
+    transcript_filename: str
+    translation_filename: str
 
 
 def get_llm_languages():
@@ -90,223 +112,326 @@ def get_language_descriptor(result: dict):
     return normalized_source, normalized_output, descriptor, normalized_target
 
 
+def init_process_info(filepath: Path) -> ProcessInfo:
+    pi = ProcessInfo(filepath.name)
+    pi.start = datetime.now()
+    return pi
+
+
+def compute_audio_length_seconds(filepath: Path) -> float:
+    # Lightweight operation (your existing helpers)
+    audio = get_audio(path=filepath)
+    return float(get_audio_length(audio))
+
+
+def run_whisper_pipeline(filepath: Path) -> Dict[str, Any]:
+    # Subprocess boundary (memory isolation)
+    return run_whisper_subprocess(filepath)
+
+
+def postprocess_pipeline(result: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
+    logger.info("Starting segment post-processing of WhisperX output...")
+    processed = process_whisperx_segments(result["segments"])
+
+    translation_processed = None
+    translation_payload = result.get("translation_result")
+    if translation_payload:
+        translation_processed = process_whisperx_segments(translation_payload["segments"])
+    
+    logger.info("Segment post-processing completed.")
+
+    return processed, translation_processed
+
+
+def build_language_meta(result: Dict[str, Any]) -> LanguageMeta:
+    src, out, desc, tgt = get_language_descriptor(result)
+    return LanguageMeta(source_language=src, output_language=out, descriptor=desc, target_language=tgt)
+
+
+def derive_model_name(result: Dict[str, Any]) -> str:
+    model_used = result.get("model_name") or config["whisper"]["model"]
+    return Path(str(model_used)).name if model_used else "unknown-model"
+
+
+def run_llm_if_enabled(segments: List[Dict[str, Any]]) -> Dict[str, str]:
+    # Always return a dict for all configured languages, default empty strings
+    summaries = {lang: "" for lang in LLM_LANGUAGES}
+
+    if not use_llms:
+        return summaries
+    if not LLM_LANGUAGES:
+        logger.info("Summarization enabled but no languages configured; skipping.")
+        return summaries
+
+    llm_result = run_llm_subprocess(segments)
+
+    if llm_result and llm_result.get("summaries"):
+        summaries.update(llm_result["summaries"])
+    else:
+        logger.warning("LLM processing skipped (subprocess failed or no summaries).")
+
+    return summaries
+
+
+def build_output_layout(
+    *,
+    output_directory: Path,
+    filename: str,
+    model_name: str,
+    language_meta: LanguageMeta,
+) -> OutputLayout:
+    file_stem = filename.split(".")[0]
+    transcript_filename = f"{file_stem}_{model_name}_{language_meta.output_language}"
+    translation_filename = f"{file_stem}_{model_name}_{language_meta.descriptor}"
+
+    dir_path = create_output_files_directory_path(output_directory, translation_filename)
+    transcripts_dir = prepare_bag_directory(dir_path)
+
+    data_dir = dir_path / "data"
+    translations_dir = data_dir / "translations"
+    output_base_path = transcripts_dir / transcript_filename
+
+    return OutputLayout(
+        dir_path=dir_path,
+        transcripts_dir=transcripts_dir,
+        data_dir=data_dir,
+        translations_dir=translations_dir,
+        output_base_path=output_base_path,
+        transcript_filename=transcript_filename,
+        translation_filename=translation_filename,
+    )
+
+
+def copy_documentation_files(dir_path: Path) -> None:
+    documentation_dir = dir_path / "documentation"
+    documentation_dir.mkdir(parents=True, exist_ok=True)
+
+    doc_files = ["asr_export_formats.rtf", "citation.txt", "ohd_upload.txt"]
+    doc_files_dir = Path(__file__).parent / "doc_files"
+    current_year = datetime.now().year
+
+    for doc_filename in doc_files:
+        doc_file = doc_files_dir / doc_filename
+        if not doc_file.exists():
+            continue
+
+        dest_file = documentation_dir / doc_file.name
+
+        if doc_filename == "citation.txt":
+            content = doc_file.read_text(encoding="utf-8")
+            content = content.replace("<{year}>", str(current_year))
+            dest_file.write_text(content, encoding="utf-8")
+        else:
+            shutil.copy2(doc_file, dest_file)
+
+
+def write_primary_outputs(
+    *,
+    layout: OutputLayout,
+    result: Dict[str, Any],
+    processed: Dict[str, Any],
+    summaries: Dict[str, str],
+) -> None:
+    write_output_files(
+        base_path=layout.output_base_path,
+        unprocessed_whisperx_output=result,
+        processed_whisperx_output=processed,
+        summaries=summaries,
+    )
+
+
+def write_translation_outputs_if_any(
+    *,
+    layout: OutputLayout,
+    translation_payload: Optional[Dict[str, Any]],
+    translation_processed: Optional[Dict[str, Any]],
+) -> None:
+    if not translation_payload:
+        return
+
+    layout.translations_dir.mkdir(parents=True, exist_ok=True)
+
+    translation_base_path = layout.translations_dir / layout.translation_filename
+
+    translation_unprocessed = translation_payload
+    if translation_processed and "word_segments" not in translation_unprocessed:
+        translation_unprocessed = dict(translation_payload)
+        translation_unprocessed["word_segments"] = translation_processed["word_segments"]
+
+    write_output_files(
+        base_path=translation_base_path,
+        unprocessed_whisperx_output=translation_unprocessed,
+        processed_whisperx_output=translation_processed,
+        summaries=None,
+    )
+
+
+def duplicate_speaker_csvs_to_ohd_import(layout: OutputLayout) -> None:
+    ohd_import_dir = layout.data_dir / "ohd_import"
+
+    speaker_csv = layout.output_base_path.with_stem(
+        layout.output_base_path.stem + "_speaker"
+    ).with_suffix(".csv")
+    if speaker_csv.exists():
+        shutil.copy2(speaker_csv, ohd_import_dir / speaker_csv.name)
+
+    speaker_nopause_csv = layout.output_base_path.with_stem(
+        layout.output_base_path.stem + "_speaker_nopause"
+    ).with_suffix(".csv")
+    if speaker_nopause_csv.exists():
+        shutil.copy2(speaker_nopause_csv, ohd_import_dir / speaker_nopause_csv.name)
+
+
+def build_bag_info(
+    *,
+    filename: str,
+    model_name: str,
+    language_meta: LanguageMeta,
+    audio_length: float,
+    translation_enabled: bool,
+) -> Dict[str, str]:
+    bag_info = {
+        "Source-Filename": filename,
+        "Model": model_name,
+        "Language": language_meta.descriptor,
+        "Audio-Length-Seconds": f"{audio_length:.2f}",
+    }
+
+    if translation_enabled:
+        bag_info["Source-Language"] = language_meta.source_language
+        bag_info["Target-Language"] = language_meta.target_language
+
+    bag_config = config.get("bag", {}) or {}
+
+    group_identifier = bag_config.get("group_identifier")
+    if group_identifier:
+        bag_info["Bag-Group-Identifier"] = group_identifier
+
+    bag_count = bag_config.get("bag_count")
+    if bag_count:
+        bag_info["Bag-Count"] = bag_count
+
+    sender_identifier = bag_config.get("internal_sender_identifier")
+    if sender_identifier:
+        bag_info["Internal-Sender-Identifier"] = sender_identifier
+
+    sender_description = bag_config.get("internal_sender_description")
+    if sender_description:
+        bag_info["Internal-Sender-Description"] = sender_description
+
+    return bag_info
+
+
+def finalize_and_zip_bag(dir_path: Path, data_dir: Path, bag_info: Dict[str, str]) -> None:
+    payload_files = [p for p in data_dir.rglob("*") if p.is_file()]
+    finalize_bag(dir_path, payload_files, bag_info)
+
+    if config["system"].get("zip_bags", True):
+        try:
+            zip_bag_directory(dir_path)
+        except Exception as zip_error:
+            logger.warning("Failed to create ZIP archive for %s: %s", dir_path, zip_error)
+
+
+def handle_hallucination_warnings_for_file(filename: str) -> None:
+    global warning_count, warning_audio_inputs
+
+    output = memoryHandler.stream.getvalue()
+    warnings = check_for_hallucination_warnings(output)
+
+    if warnings:
+        warnings_str = ", ".join(warnings)
+        logger.warning(f"Possible hallucation(s) detected: {warnings_str}")
+        warning_count += len(warnings)
+        warning_audio_inputs.append(filename)
+        send_warning_email(audio_input=filename, warnings=warnings)
+
+    # Clear buffer after checking for warnings.
+    memoryHandler.stream.truncate(0)
+    memoryHandler.stream.seek(0)
+
+
 def process_file(filepath: Path, output_directory: Path):
-    global warning_count, warning_audio_inputs, stats
+    global stats
     filename = filepath.name
 
     try:
-        process_info = ProcessInfo(filename)
-        process_info.start = datetime.now()
+        process_info = init_process_info(filepath)
 
-        # Get audio length for statistics (lightweight operation)
-        audio = get_audio(path=filepath)
-        audio_length = get_audio_length(audio)
+        audio_length = compute_audio_length_seconds(filepath)
         process_info.audio_length = audio_length
 
-        start_message = "Starting transcription of {0}, {1}...".format(
-            process_info.filename, process_info.formatted_audio_length()
+        logger.info(
+            "Starting transcription of %s, %s...",
+            process_info.filename,
+            process_info.formatted_audio_length(),
         )
-        logger.info(start_message)
 
-        # Run complete Whisper pipeline in subprocess
-        # Includes: transcription + alignment + (optional) diarization
-        # Memory is guaranteed freed when subprocess exits
-        result = run_whisper_subprocess(filepath)
+        result = run_whisper_pipeline(filepath)
         translation_payload = result.get("translation_result")
 
-        intermediate_message_3 = (
-            "Whisper pipeline completed for {0}, starting post-processing...".format(
-                process_info.filename
-            )
+        logger.info(
+            "Whisper pipeline completed for %s, starting post-processing...",
+            process_info.filename,
         )
-        logger.info(intermediate_message_3)
 
-        # Post-processing (runs in main process, lightweight)
-        processed_whisperx_output = process_whisperx_segments(result["segments"])
-        translation_processed_output = None
-        if translation_payload:
-            translation_processed_output = process_whisperx_segments(
-                translation_payload["segments"]
-            )
+        processed_whisperx_output, translation_processed_output = postprocess_pipeline(result)
 
-        (
-            source_language,
-            output_language,
-            language_descriptor,
-            target_language,
-        ) = get_language_descriptor(result)
+        language_meta = build_language_meta(result)
+        model_name = derive_model_name(result)
 
-        model_used = result.get("model_name") or config["whisper"]["model"]
-        model_name = Path(str(model_used)).name if model_used else "unknown-model"
+        # LLM summaries (subprocess)
+        summaries = run_llm_if_enabled(processed_whisperx_output["segments"])
+        logger.info("Post-processing completed for %s.", process_info.filename)
 
-        summaries = {lang: "" for lang in LLM_LANGUAGES}
-        if use_llms and LLM_LANGUAGES:
-            logger.info(
-                f"Post-processing completed for {process_info.filename}, starting LLM processes..."
-            )
-
-            # Run LLM tasks in subprocess (returns unified result dict)
-            # Memory is guaranteed freed when subprocess exits
-            llm_result = run_llm_subprocess(processed_whisperx_output["segments"])
-
-            if llm_result is not None:
-                # Process summaries
-                if llm_result.get("summaries"):
-                    summaries.update(llm_result["summaries"])
-                    logger.info(f"Summarization completed for {process_info.filename}.")
-
-                # Future: Process table of contents
-                # if llm_result.get("toc"):
-                #     toc.update(llm_result["toc"])
-                #     logger.info(f"Table of contents completed for {process_info.filename}.")
-            else:
-                logger.warning(
-                    f"LLM processing skipped for {process_info.filename} (subprocess failed)"
-                )
-        elif use_llms and not LLM_LANGUAGES:
-            logger.info("Summarization enabled but no languages configured; skipping.")
-            intermediate_message_5 = "Post-processing completed for {0}.".format(
-                process_info.filename
-            )
-            logger.info(intermediate_message_5)
-        else:
-            intermediate_message_5 = "Post-processing completed for {0}.".format(
-                process_info.filename
-            )
-            logger.info(intermediate_message_5)
-
-        file_stem = filename.split(".")[0]
-        transcript_filename = f"{file_stem}_{model_name}_{output_language}"
-        translation_filename = f"{file_stem}_{model_name}_{language_descriptor}"
-
-        dir_path = create_output_files_directory_path(
-            output_directory, translation_filename
+        # Output layout + docs + writing
+        layout = build_output_layout(
+            output_directory=output_directory,
+            filename=filename,
+            model_name=model_name,
+            language_meta=language_meta,
         )
-        transcripts_dir = prepare_bag_directory(dir_path)
 
-        # Copy documentation files to documentation/ directory
-        documentation_dir = dir_path / "documentation"
-        documentation_dir.mkdir(parents=True, exist_ok=True)
-        doc_files = ["asr_export_formats.rtf", "citation.txt", "ohd_upload.txt"]
-        doc_files_dir = Path(__file__).parent / "doc_files"
-        current_year = datetime.now().year
-        for doc_filename in doc_files:
-            doc_file = doc_files_dir / doc_filename
-            if doc_file.exists():
-                dest_file = documentation_dir / doc_file.name
-                # Special handling for citation.txt: replace <{year}> with current year
-                if doc_filename == "citation.txt":
-                    content = doc_file.read_text(encoding="utf-8")
-                    content = content.replace("<{year}>", str(current_year))
-                    dest_file.write_text(content, encoding="utf-8")
-                else:
-                    shutil.copy2(doc_file, dest_file)
+        copy_documentation_files(layout.dir_path)
 
-        output_base_path = transcripts_dir / transcript_filename
-        data_dir = dir_path / "data"
-        translations_dir = data_dir / "translations"
-
-        write_output_files(
-            base_path=output_base_path,
-            unprocessed_whisperx_output=result,
-            processed_whisperx_output=processed_whisperx_output,
+        write_primary_outputs(
+            layout=layout,
+            result=result,
+            processed=processed_whisperx_output,
             summaries=summaries,
         )
 
-        if translation_payload:
-            translations_dir.mkdir(parents=True, exist_ok=True)
-            translation_base_path = translations_dir / translation_filename
-            translation_unprocessed = translation_payload
-            if (
-                translation_processed_output
-                and "word_segments" not in translation_unprocessed
-            ):
-                translation_unprocessed = dict(translation_payload)
-                translation_unprocessed["word_segments"] = translation_processed_output[
-                    "word_segments"
-                ]
-            write_output_files(
-                base_path=translation_base_path,
-                unprocessed_whisperx_output=translation_unprocessed,
-                processed_whisperx_output=translation_processed_output,
-                summaries=None,
-            )
+        write_translation_outputs_if_any(
+            layout=layout,
+            translation_payload=translation_payload,
+            translation_processed=translation_processed_output,
+        )
 
-        # Duplicate the speaker CSV into the ohd_import directory for downstream ingestion.
-        ohd_import_dir = data_dir / "ohd_import"
-        speaker_csv = output_base_path.with_stem(
-            output_base_path.stem + "_speaker"
-        ).with_suffix(".csv")
-        if speaker_csv.exists():
-            shutil.copy2(speaker_csv, ohd_import_dir / speaker_csv.name)
-        speaker_nopause_csv = output_base_path.with_stem(
-            output_base_path.stem + "_speaker_nopause"
-        ).with_suffix(".csv")
-        if speaker_nopause_csv.exists():
-            shutil.copy2(speaker_nopause_csv, ohd_import_dir / speaker_nopause_csv.name)
+        duplicate_speaker_csvs_to_ohd_import(layout)
 
-        payload_files = [p for p in data_dir.rglob("*") if p.is_file()]
-        bag_info = {
-            "Source-Filename": filename,
-            "Model": model_name,
-            "Language": language_descriptor,
-            "Audio-Length-Seconds": f"{audio_length:.2f}",
-        }
-        if result.get("translation_enabled"):
-            bag_info["Source-Language"] = source_language
-            bag_info["Target-Language"] = target_language
-        bag_config = config.get("bag", {}) or {}
-        group_identifier = bag_config.get("group_identifier")
-        if group_identifier:
-            bag_info["Bag-Group-Identifier"] = group_identifier
+        # Bag metadata + finalize
+        bag_info = build_bag_info(
+            filename=filename,
+            model_name=model_name,
+            language_meta=language_meta,
+            audio_length=audio_length,
+            translation_enabled=bool(result.get("translation_enabled")),
+        )
+        finalize_and_zip_bag(layout.dir_path, layout.data_dir, bag_info)
 
-        bag_count = bag_config.get("bag_count")
-        if bag_count:
-            bag_info["Bag-Count"] = bag_count
-
-        sender_identifier = bag_config.get("internal_sender_identifier")
-        if sender_identifier:
-            bag_info["Internal-Sender-Identifier"] = sender_identifier
-
-        sender_description = bag_config.get("internal_sender_description")
-        if sender_description:
-            bag_info["Internal-Sender-Description"] = sender_description
-
-        finalize_bag(dir_path, payload_files, bag_info)
-
-        if config["system"].get("zip_bags", True):
-            try:
-                zip_bag_directory(dir_path)
-            except Exception as zip_error:
-                logger.warning(
-                    "Failed to create ZIP archive for %s: %s", dir_path, zip_error
-                )
-
+        # Stats + logging
         process_info.end = datetime.now()
         stats.append(process_info)
 
-        end_message = (
-            "Completed transcription process of {0} after {1} (rtf {2:.2f})".format(
-                process_info.filename,
-                process_info.formatted_process_duration(),
-                process_info.realtime_factor(),
-            )
+        logger.info(
+            "Completed transcription process of %s after %s (rtf %.2f)",
+            process_info.filename,
+            process_info.formatted_process_duration(),
+            process_info.realtime_factor(),
         )
-        logger.info(end_message)
 
-        output = memoryHandler.stream.getvalue()
-        warnings = check_for_hallucination_warnings(output)
-
-        if warnings:
-            warnings_str = ", ".join(warnings)
-            logger.warn(f"Possible hallucation(s) detected: {warnings_str}")
-            warning_count += len(warnings)
-            warning_audio_inputs.append(filename)
-            send_warning_email(audio_input=filename, warnings=warnings)
-
-        # Clear buffer after checking for warnings.
-        memoryHandler.stream.truncate(0)
-        memoryHandler.stream.seek(0)
+        # Warning scan (log buffer)
+        handle_hallucination_warnings_for_file(filename)
 
     except Exception as e:
         logger.error(e, exc_info=True)
