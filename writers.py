@@ -703,26 +703,25 @@ def write_tei_xml(path_without_ext: Path, segments: list):
 
 def write_summary(path_without_ext: Path, summary: str, language_code: str = "de"):
     """
-    Write the summary to a localized text file in the abstracts directory.
+    Write the summary to a localized text file in the llm_output directory.
     """
     bag_data_dir = path_without_ext.parent.parent
-    abstracts_dir = bag_data_dir / "abstracts"
-    abstracts_dir.mkdir(parents=True, exist_ok=True)
+    llm_output_dir = bag_data_dir / "llm_output"
+    llm_output_dir.mkdir(parents=True, exist_ok=True)
     summary_filename = f"{path_without_ext.stem}_summary_{language_code}.txt"
-    full_path = abstracts_dir / summary_filename
+    full_path = llm_output_dir / summary_filename
     with open(full_path, "w", encoding="utf-8") as txt_file:
         txt_file.write(summary)
 
-## TO CHANGE. JUST FOR TESTING PURPOSES
 def write_toc(path_without_ext: Path, toc: str, language_code: str = "de"):
     """
-    Write the table of contents to a localized text file in the abstracts directory.
+    Write the table of contents to a localized text file in the llm_output directory.
     """
     bag_data_dir = path_without_ext.parent.parent
-    abstracts_dir = bag_data_dir / "abstracts"
-    abstracts_dir.mkdir(parents=True, exist_ok=True)
+    llm_output_dir = bag_data_dir / "llm_output"
+    llm_output_dir.mkdir(parents=True, exist_ok=True)
     toc_filename = f"{path_without_ext.stem}_toc_{language_code}.vtt"
-    full_path = abstracts_dir / toc_filename
+    full_path = llm_output_dir / toc_filename
     with open(full_path, "w", encoding="utf-8") as vtt_file:
         vtt_file.write(toc)
 
@@ -731,13 +730,14 @@ def write_output_files(
     base_path: Path,
     unprocessed_whisperx_output: list,
     processed_whisperx_output: list,
-    summaries: dict[str, str] | None = None,
-    toc: dict[str, str] | None = None,
+    llm_output: dict,
 ):
     segments = processed_whisperx_output["segments"]
     word_segments = unprocessed_whisperx_output["word_segments"]
 
     """Write all types of output files."""
+
+    # 1. WhisperX output files
     write_vtt(base_path, segments)
     write_word_segments_vtt(
         base_path.with_stem(base_path.stem + "_word_segments"), word_segments
@@ -791,10 +791,17 @@ def write_output_files(
     )
     write_ods(base_path, segments)
     write_tei_xml(base_path, segments)
+
+    # 2. Write llm_output JSON to llm_output directory
+    llm_output_dir = base_path.parent.parent / "llm_output"
+    llm_output_dir.mkdir(parents=True, exist_ok=True)
+    write_json(llm_output_dir / f"{base_path.stem}_llm_output", llm_output)
+    summaries = llm_output.get("summaries", {})
     if summaries:
         for language_code, text in summaries.items():
             if text:
                 write_summary(base_path, text, language_code=language_code)
+    toc = llm_output.get("toc", {})
     if toc:
         for language_code, toc_text in toc.items():
             if toc_text:

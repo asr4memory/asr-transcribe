@@ -32,11 +32,11 @@ from utilities import (
 config = get_config()
 
 
-def print_llm_results(llm_result: dict) -> None:
+def print_llm_output(llm_output: dict) -> None:
     """Print all LLM results automatically (summaries, toc, etc.)."""
     print("\n" + "=" * 50)
 
-    for key, value in llm_result.items():
+    for key, value in llm_output.items():
         if key.startswith("_"):  # Skip meta keys like _meta
             continue
 
@@ -47,7 +47,7 @@ def print_llm_results(llm_result: dict) -> None:
                 print(f"\n[{lang.upper()}]\n{preview}")
 
     # Show metadata
-    meta = llm_result.get("_meta", {})
+    meta = llm_output.get("_meta", {})
     if meta.get("trial"):
         print(f"\n(LLM completed on trial {meta['trial']})")
 
@@ -78,7 +78,7 @@ def main():
     audio_length = 0.0
 
     # LLM subprocess
-    summaries, toc = run_llm_if_enabled(segments)
+    llm_output = run_llm_if_enabled(segments)
 
     # Output layout + docs + writing
     layout = build_output_layout(
@@ -94,8 +94,7 @@ def main():
         layout=layout,
         result=data,
         processed=data,
-        summaries=summaries,
-        toc=toc,
+        llm_output=llm_output,
     )
 
     duplicate_speaker_csvs_to_ohd_import(layout)

@@ -97,31 +97,31 @@ def postprocess_pipeline(result: Dict[str, Any]) -> Tuple[Dict[str, Any], Option
     return processed, translation_processed
 
 
-def run_llm_if_enabled(segments: List[Dict[str, Any]]) -> Dict[str, str]:
-    # Always return a dict for all configured languages, default empty strings
-    summaries = {lang: "" for lang in LLM_LANGUAGES}
-    toc = {lang: "" for lang in LLM_LANGUAGES}
+def run_llm_if_enabled(segments: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Run LLM subprocess if enabled, return unified llm_output dict."""
+    empty_result = {
+        "summaries": {lang: "" for lang in LLM_LANGUAGES},
+        "toc": {lang: "" for lang in LLM_LANGUAGES},
+    }
 
     if not use_llms:
-        return summaries, toc
+        return empty_result
     if not LLM_LANGUAGES:
         logger.info("Summarization enabled but no languages configured; skipping.")
-        return summaries, toc
+        return empty_result
 
-    llm_result = run_llm_subprocess(segments)
+    llm_output = run_llm_subprocess(segments)
 
-    if llm_result: 
-        if llm_result.get("summaries"):
-            summaries.update(llm_result["summaries"])
-        else:
-            logger.warning("No summaries found in LLM subprocess result.")
-        if llm_result.get("toc"):
-            toc.update(llm_result["toc"])
-        else:
-            logger.warning("No table of contents found in LLM subprocess result.")
-    else:
+    if not llm_output:
         logger.error("LLM subprocess failed completely or returned no result.")
-    return summaries, toc
+        return empty_result
+
+    if not llm_output.get("summaries"):
+        logger.warning("No summaries found in LLM subprocess result.")
+    if not llm_output.get("toc"):
+        logger.warning("No table of contents found in LLM subprocess result.")
+
+    return llm_output
 
 
 def build_output_layout(
@@ -158,14 +158,13 @@ def write_primary_outputs(
     layout: OutputLayout,
     result: Dict[str, Any],
     processed: Dict[str, Any],
-    summaries: Dict[str, str],
-    toc: Dict[str, str],
+    llm_output: Dict[str, Any],
 ) -> None:
     write_output_files(
         base_path=layout.output_base_path,
         unprocessed_whisperx_output=result,
         processed_whisperx_output=processed,
-        summaries=summaries,
+        llm_output=llm_output,
     )
 
 
@@ -191,7 +190,7 @@ def write_translation_outputs_if_any(
         base_path=translation_base_path,
         unprocessed_whisperx_output=translation_unprocessed,
         processed_whisperx_output=translation_processed,
-        summaries=None,
+        llm_output={},
     )
 
 
@@ -243,7 +242,7 @@ def process_file(filepath: Path, output_directory: Path):
         model_name = derive_model_name(result)
 
         # LLM subprocess
-        summaries, toc = run_llm_if_enabled(processed_whisperx_output["segments"])
+        llm_output = run_llm_if_enabled(processed_whisperx_output["segments"])
         logger.info("Post-processing completed for %s.", process_info.filename)
 
         # Output layout + docs + writing
@@ -260,8 +259,7 @@ def process_file(filepath: Path, output_directory: Path):
             layout=layout,
             result=result,
             processed=processed_whisperx_output,
-            summaries=summaries,
-            toc=toc,
+            llm_output=llm_output,
         )
 
         write_translation_outputs_if_any(

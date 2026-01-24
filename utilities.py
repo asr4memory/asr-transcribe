@@ -96,8 +96,8 @@ def prepare_bag_directory(bag_root: Path) -> Path:
     if config["whisper"].get("translation_enabled", False):
         translations_dir = data_dir / "translations"
         translations_dir.mkdir()
-    abstracts_dir = data_dir / "abstracts"
-    abstracts_dir.mkdir()
+    llm_output_dir = data_dir / "llm_output"
+    llm_output_dir.mkdir()
     ohd_import_dir = data_dir / "ohd_import"
     ohd_import_dir.mkdir()
     documentation_dir = bag_root / "documentation"
@@ -154,7 +154,7 @@ def finalize_bag(
         (
             "The bag contains multiple transcript formats and derivatives "
             "for varied use scenarios in the /data directory: "
-            "In the /abstracts directory, summaries in german and english are stored. "
+            "The /llm_output directory contains LLM-generated content such as summaries and table of contents. "
             "The /ohd_import directory contains the transcript for import into Oral-History.Digital. "
             "The /transcripts directory contains all transcripts in the original language, "
             "while /translations contains translated variants. "
