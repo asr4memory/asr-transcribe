@@ -11,7 +11,6 @@ Uses subprocess architecture for memory isolation:
 
 from datetime import datetime
 from pathlib import Path
-import shutil
 from email_notifications import (
     send_success_email,
     send_failure_email,
@@ -23,8 +22,10 @@ from utilities import (
     check_for_hallucination_warnings,
     create_output_files_directory_path,
     prepare_bag_directory,
-    finalize_bag,
-    zip_bag_directory,
+    copy_documentation_files,
+    duplicate_speaker_csvs_to_ohd_import,
+    build_bag_info,
+    finalize_and_zip_bag,
 )
 from subprocess_handler import (
     run_whisper_subprocess,
@@ -36,6 +37,12 @@ from whisper_subprocess import get_audio, get_audio_length
 from post_processing import process_whisperx_segments
 
 from logger import logger, memoryHandler
+from language_utils import (
+    LanguageMeta,
+    LLM_LANGUAGES,
+    build_language_meta,
+    derive_model_name,
+)
 
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Tuple, List
@@ -47,13 +54,6 @@ warning_count = 0
 warning_audio_inputs = []
 use_llms = config["llm"]["use_llms"]
 
-@dataclass(frozen=True)
-class LanguageMeta:
-    source_language: str
-    output_language: str
-    descriptor: str
-    target_language: str
-
 
 @dataclass(frozen=True)
 class OutputLayout:
@@ -64,52 +64,6 @@ class OutputLayout:
     output_base_path: Path
     transcript_filename: str
     translation_filename: str
-
-
-def get_llm_languages():
-    languages = config["llm"].get("llm_languages", ["de", "en"])
-    if isinstance(languages, str):
-        languages = [languages]
-    cleaned = []
-    for lang in languages:
-        if isinstance(lang, str) and lang.strip():
-            cleaned.append(lang.strip().lower())
-    return cleaned
-
-
-LLM_LANGUAGES = get_llm_languages()
-
-
-def _normalize_language(value, default="auto"):
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    return default
-
-
-def get_language_descriptor(result: dict):
-    """
-    Build language metadata for filenames/bag info.
-    Returns (source_language, output_language, descriptor_string, target_language).
-    """
-    configured_language = config["whisper"].get("language")
-    translation_enabled = result.get("translation_enabled", False)
-    source_language = result.get("source_language") or configured_language
-    output_language = result.get("output_language") or source_language
-    target_language = (
-        result.get("translation_target_language")
-        or result.get("translation_output_language")
-        or output_language
-    )
-
-    normalized_source = _normalize_language(source_language)
-    normalized_output = _normalize_language(output_language, default=normalized_source)
-    normalized_target = _normalize_language(target_language, default=normalized_output)
-
-    descriptor = normalized_output
-    if translation_enabled:
-        descriptor = f"{normalized_source}_to_{normalized_target}"
-
-    return normalized_source, normalized_output, descriptor, normalized_target
 
 
 def init_process_info(filepath: Path) -> ProcessInfo:
@@ -141,16 +95,6 @@ def postprocess_pipeline(result: Dict[str, Any]) -> Tuple[Dict[str, Any], Option
     logger.info("Segment post-processing completed.")
 
     return processed, translation_processed
-
-
-def build_language_meta(result: Dict[str, Any]) -> LanguageMeta:
-    src, out, desc, tgt = get_language_descriptor(result)
-    return LanguageMeta(source_language=src, output_language=out, descriptor=desc, target_language=tgt)
-
-
-def derive_model_name(result: Dict[str, Any]) -> str:
-    model_used = result.get("model_name") or config["whisper"]["model"]
-    return Path(str(model_used)).name if model_used else "unknown-model"
 
 
 def run_llm_if_enabled(segments: List[Dict[str, Any]]) -> Dict[str, str]:
@@ -209,29 +153,6 @@ def build_output_layout(
     )
 
 
-def copy_documentation_files(dir_path: Path) -> None:
-    documentation_dir = dir_path / "documentation"
-    documentation_dir.mkdir(parents=True, exist_ok=True)
-
-    doc_files = ["asr_export_formats.rtf", "citation.txt", "ohd_upload.txt"]
-    doc_files_dir = Path(__file__).parent / "doc_files"
-    current_year = datetime.now().year
-
-    for doc_filename in doc_files:
-        doc_file = doc_files_dir / doc_filename
-        if not doc_file.exists():
-            continue
-
-        dest_file = documentation_dir / doc_file.name
-
-        if doc_filename == "citation.txt":
-            content = doc_file.read_text(encoding="utf-8")
-            content = content.replace("<{year}>", str(current_year))
-            dest_file.write_text(content, encoding="utf-8")
-        else:
-            shutil.copy2(doc_file, dest_file)
-
-
 def write_primary_outputs(
     *,
     layout: OutputLayout,
@@ -272,73 +193,6 @@ def write_translation_outputs_if_any(
         processed_whisperx_output=translation_processed,
         summaries=None,
     )
-
-
-def duplicate_speaker_csvs_to_ohd_import(layout: OutputLayout) -> None:
-    ohd_import_dir = layout.data_dir / "ohd_import"
-
-    speaker_csv = layout.output_base_path.with_stem(
-        layout.output_base_path.stem + "_speaker"
-    ).with_suffix(".csv")
-    if speaker_csv.exists():
-        shutil.copy2(speaker_csv, ohd_import_dir / speaker_csv.name)
-
-    speaker_nopause_csv = layout.output_base_path.with_stem(
-        layout.output_base_path.stem + "_speaker_nopause"
-    ).with_suffix(".csv")
-    if speaker_nopause_csv.exists():
-        shutil.copy2(speaker_nopause_csv, ohd_import_dir / speaker_nopause_csv.name)
-
-
-def build_bag_info(
-    *,
-    filename: str,
-    model_name: str,
-    language_meta: LanguageMeta,
-    audio_length: float,
-    translation_enabled: bool,
-) -> Dict[str, str]:
-    bag_info = {
-        "Source-Filename": filename,
-        "Model": model_name,
-        "Language": language_meta.descriptor,
-        "Audio-Length-Seconds": f"{audio_length:.2f}",
-    }
-
-    if translation_enabled:
-        bag_info["Source-Language"] = language_meta.source_language
-        bag_info["Target-Language"] = language_meta.target_language
-
-    bag_config = config.get("bag", {}) or {}
-
-    group_identifier = bag_config.get("group_identifier")
-    if group_identifier:
-        bag_info["Bag-Group-Identifier"] = group_identifier
-
-    bag_count = bag_config.get("bag_count")
-    if bag_count:
-        bag_info["Bag-Count"] = bag_count
-
-    sender_identifier = bag_config.get("internal_sender_identifier")
-    if sender_identifier:
-        bag_info["Internal-Sender-Identifier"] = sender_identifier
-
-    sender_description = bag_config.get("internal_sender_description")
-    if sender_description:
-        bag_info["Internal-Sender-Description"] = sender_description
-
-    return bag_info
-
-
-def finalize_and_zip_bag(dir_path: Path, data_dir: Path, bag_info: Dict[str, str]) -> None:
-    payload_files = [p for p in data_dir.rglob("*") if p.is_file()]
-    finalize_bag(dir_path, payload_files, bag_info)
-
-    if config["system"].get("zip_bags", True):
-        try:
-            zip_bag_directory(dir_path)
-        except Exception as zip_error:
-            logger.warning("Failed to create ZIP archive for %s: %s", dir_path, zip_error)
 
 
 def handle_hallucination_warnings_for_file(filename: str) -> None:

@@ -9,8 +9,10 @@ from pathlib import Path
 from decimal import Decimal
 import gc
 import shutil
+from typing import Dict, Any
 import torch
 from app_config import get_config
+from logger import logger
 
 config = get_config()
 device = config["whisper"]["device"]
@@ -252,3 +254,97 @@ def sha512(path: Path) -> str:
         for chunk in iter(lambda: handle.read(8192), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def copy_documentation_files(dir_path: Path) -> None:
+    """Copy documentation files to the output directory."""
+    documentation_dir = dir_path / "documentation"
+    documentation_dir.mkdir(parents=True, exist_ok=True)
+
+    doc_files = ["asr_export_formats.rtf", "citation.txt", "ohd_upload.txt"]
+    doc_files_dir = Path(__file__).parent / "doc_files"
+    current_year = datetime.now().year
+
+    for doc_filename in doc_files:
+        doc_file = doc_files_dir / doc_filename
+        if not doc_file.exists():
+            continue
+
+        dest_file = documentation_dir / doc_file.name
+
+        if doc_filename == "citation.txt":
+            content = doc_file.read_text(encoding="utf-8")
+            content = content.replace("<{year}>", str(current_year))
+            dest_file.write_text(content, encoding="utf-8")
+        else:
+            shutil.copy2(doc_file, dest_file)
+
+
+def duplicate_speaker_csvs_to_ohd_import(layout: Any) -> None:
+    """Copy speaker CSV files to the OHD import directory."""
+    ohd_import_dir = layout.data_dir / "ohd_import"
+
+    speaker_csv = layout.output_base_path.with_stem(
+        layout.output_base_path.stem + "_speaker"
+    ).with_suffix(".csv")
+    if speaker_csv.exists():
+        shutil.copy2(speaker_csv, ohd_import_dir / speaker_csv.name)
+
+    speaker_nopause_csv = layout.output_base_path.with_stem(
+        layout.output_base_path.stem + "_speaker_nopause"
+    ).with_suffix(".csv")
+    if speaker_nopause_csv.exists():
+        shutil.copy2(speaker_nopause_csv, ohd_import_dir / speaker_nopause_csv.name)
+
+
+def build_bag_info(
+    *,
+    filename: str,
+    model_name: str,
+    language_meta: Any,
+    audio_length: float,
+    translation_enabled: bool,
+) -> Dict[str, str]:
+    """Build bag-info metadata dictionary."""
+    bag_info = {
+        "Source-Filename": filename,
+        "Model": model_name,
+        "Language": language_meta.descriptor,
+        "Audio-Length-Seconds": f"{audio_length:.2f}",
+    }
+
+    if translation_enabled:
+        bag_info["Source-Language"] = language_meta.source_language
+        bag_info["Target-Language"] = language_meta.target_language
+
+    bag_config = config.get("bag", {}) or {}
+
+    group_identifier = bag_config.get("group_identifier")
+    if group_identifier:
+        bag_info["Bag-Group-Identifier"] = group_identifier
+
+    bag_count = bag_config.get("bag_count")
+    if bag_count:
+        bag_info["Bag-Count"] = bag_count
+
+    sender_identifier = bag_config.get("internal_sender_identifier")
+    if sender_identifier:
+        bag_info["Internal-Sender-Identifier"] = sender_identifier
+
+    sender_description = bag_config.get("internal_sender_description")
+    if sender_description:
+        bag_info["Internal-Sender-Description"] = sender_description
+
+    return bag_info
+
+
+def finalize_and_zip_bag(dir_path: Path, data_dir: Path, bag_info: Dict[str, str]) -> None:
+    """Finalize the bag and create a ZIP archive if configured."""
+    payload_files = [p for p in data_dir.rglob("*") if p.is_file()]
+    finalize_bag(dir_path, payload_files, bag_info)
+
+    if config["system"].get("zip_bags", True):
+        try:
+            zip_bag_directory(dir_path)
+        except Exception as zip_error:
+            logger.warning("Failed to create ZIP archive for %s: %s", dir_path, zip_error)
