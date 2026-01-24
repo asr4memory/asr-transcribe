@@ -388,7 +388,7 @@ def process_file(filepath: Path, output_directory: Path):
         language_meta = build_language_meta(result)
         model_name = derive_model_name(result)
 
-        # LLM summaries (subprocess)
+        # LLM subprocess
         summaries, toc = run_llm_if_enabled(processed_whisperx_output["segments"])
         logger.info("Post-processing completed for %s.", process_info.filename)
 

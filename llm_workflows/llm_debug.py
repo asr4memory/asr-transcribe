@@ -12,8 +12,18 @@ import json
 from datetime import datetime
 from pathlib import Path
 from app_config import get_config
-from subprocess_handler import run_llm_subprocess
-from writers import write_output_files
+from asr_workflow import (
+    run_llm_if_enabled,
+    build_output_layout,
+    copy_documentation_files,
+    write_primary_outputs,
+    duplicate_speaker_csvs_to_ohd_import,
+    build_bag_info,
+    finalize_and_zip_bag,
+    derive_model_name,
+    build_language_meta,
+)
+
 
 config = get_config()
 
@@ -58,26 +68,43 @@ def main():
 
     print(f"Running LLM on {len(segments)} segments...")
 
-    # Run LLM subprocess (returns unified result dict)
-    llm_result = run_llm_subprocess(segments)
+    language_meta = build_language_meta(data)
+    model_name = derive_model_name(data)
+    # Audio length not available in debug mode (no audio file)
+    audio_length = 0.0
 
-    if llm_result is None:
-        print("LLM subprocess failed.")
-        return 1
+    # LLM subprocess
+    summaries, toc = run_llm_if_enabled(segments)
 
-    # Write all output files (like the full workflow, without BagIt)
-    # NOTE: Extend parameters here when adding new LLM tasks to write_output_files
-    base_path = run_dir / debug_file.stem
-    write_output_files(
-        base_path=base_path,
-        unprocessed_whisperx_output=data,
-        processed_whisperx_output=data,
-        summaries=llm_result.get("summaries"),
-        toc=llm_result.get("toc"),
+    # Output layout + docs + writing
+    layout = build_output_layout(
+        output_directory=output_dir,
+        filename=debug_file.name,
+        model_name=model_name,
+        language_meta=language_meta,
     )
 
-    print(f"\nOutput written to {run_dir}/")
-    return 0
+    copy_documentation_files(layout.dir_path)
+
+    write_primary_outputs(
+        layout=layout,
+        result=data,
+        processed=data,
+        summaries=summaries,
+        toc=toc,
+    )
+
+    duplicate_speaker_csvs_to_ohd_import(layout)
+
+    # Bag metadata + finalize
+    bag_info = build_bag_info(
+        filename=debug_file.name,
+        model_name=model_name,
+        language_meta=language_meta,
+        audio_length=audio_length,
+        translation_enabled=False,
+    )
+    finalize_and_zip_bag(layout.dir_path, layout.data_dir, bag_info)
 
 
 if __name__ == "__main__":
