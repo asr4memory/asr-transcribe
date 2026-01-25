@@ -5,7 +5,7 @@ TEI-XML Builder with lxml
 import re
 from typing import List, Dict, Set, Tuple, Optional
 from lxml import etree
-from tei_builder.models import WhisperSegment
+from output.tei_builder.models import WhisperSegment
 
 
 class TEIBuilder:

@@ -15,10 +15,9 @@ Returns a unified result dict:
 import sys
 import pickle
 from llama_cpp import Llama
-from app_config import get_config
-from utilities import cleanup_cuda_memory
-from llm_workflows.llm_summarization import system_prompt_summaries
-from llm_workflows.llm_toc import system_prompt_toc
+from config.app_config import get_config
+from utils.utilities import cleanup_cuda_memory
+from llm_workflows import system_prompt_summaries, system_prompt_toc
 
 config = get_config()
 n_gpu_layers = config["llm"]["n_gpu_layers"]

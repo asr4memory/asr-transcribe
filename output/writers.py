@@ -12,12 +12,12 @@ from unicodedata import normalize
 from jinja2 import Environment, PackageLoader, select_autoescape
 from pyexcel_ods3 import save_data
 from xhtml2pdf import pisa
-from tei_builder.converter import WhisperToTEIConverter
+from output.tei_builder import WhisperToTEIConverter
 
-from app_config import get_config
-from utilities import format_timestamp
+from config.app_config import get_config
+from utils.utilities import format_timestamp
 
-env = Environment(loader=PackageLoader("writers"), autoescape=select_autoescape())
+env = Environment(loader=PackageLoader("output.writers"), autoescape=select_autoescape())
 
 config = get_config()
 
@@ -730,7 +730,7 @@ def write_output_files(
     base_path: Path,
     unprocessed_whisperx_output: list,
     processed_whisperx_output: list,
-    llm_output: dict,
+    llm_output: dict = None,
 ):
     segments = processed_whisperx_output["segments"]
     word_segments = unprocessed_whisperx_output["word_segments"]
@@ -792,17 +792,18 @@ def write_output_files(
     write_ods(base_path, segments)
     write_tei_xml(base_path, segments)
 
-    # 2. Write llm_output JSON to llm_output directory
-    llm_output_dir = base_path.parent.parent / "llm_output"
-    llm_output_dir.mkdir(parents=True, exist_ok=True)
-    write_json(llm_output_dir / f"{base_path.stem}_llm_output", llm_output)
-    summaries = llm_output.get("summaries", {})
-    if summaries:
-        for language_code, text in summaries.items():
-            if text:
-                write_summary(base_path, text, language_code=language_code)
-    toc = llm_output.get("toc", {})
-    if toc:
-        for language_code, toc_text in toc.items():
-            if toc_text:
-                write_toc(base_path, toc_text, language_code=language_code)
+    # 2. Write llm_output JSON to llm_output directory (if provided)
+    if llm_output:
+        llm_output_dir = base_path.parent.parent / "llm_output"
+        llm_output_dir.mkdir(parents=True, exist_ok=True)
+        write_json(llm_output_dir / f"{base_path.stem}_llm_output", llm_output)
+        summaries = llm_output.get("summaries", {})
+        if summaries:
+            for language_code, text in summaries.items():
+                if text:
+                    write_summary(base_path, text, language_code=language_code)
+        toc = llm_output.get("toc", {})
+        if toc:
+            for language_code, toc_text in toc.items():
+                if toc_text:
+                    write_toc(base_path, toc_text, language_code=language_code)

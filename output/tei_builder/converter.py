@@ -5,8 +5,8 @@ Main converter: Whisper-JSON → TEI-XML
 import json
 from pathlib import Path
 from typing import Union, List, Dict, Set
-from tei_builder.models import WhisperSegment
-from tei_builder.tei_builder import TEIBuilder
+from output.tei_builder.models import WhisperSegment
+from output.tei_builder.tei_builder import TEIBuilder
 
 
 class WhisperToTEIConverter:

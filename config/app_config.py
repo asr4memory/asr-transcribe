@@ -5,8 +5,8 @@ Application configuration.
 from pathlib import Path
 import toml
 
-from logger import logger
-from default_config import CONST_DEFAULT_CONFIG
+from config.logger import logger
+from config.default_config import CONST_DEFAULT_CONFIG
 
 combined_config = {}
 

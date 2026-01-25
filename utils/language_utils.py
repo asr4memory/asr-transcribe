@@ -5,7 +5,7 @@ Language utilities for ASR workflow.
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
-from app_config import get_config
+from config.app_config import get_config
 
 config = get_config()
 

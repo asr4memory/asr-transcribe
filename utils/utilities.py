@@ -11,8 +11,8 @@ import gc
 import shutil
 from typing import Dict, Any
 import torch
-from app_config import get_config
-from logger import logger
+from config.app_config import get_config
+from config.logger import logger
 
 config = get_config()
 device = config["whisper"]["device"]

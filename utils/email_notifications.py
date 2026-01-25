@@ -9,13 +9,13 @@ from datetime import datetime
 import socket
 import getpass
 
-from app_config import (
+from config.app_config import (
     get_config,
     whisper_config_html,
     llm_config_html,
     bag_config_html,
 )
-from logger import logger
+from config.logger import logger
 
 computer_host_name = socket.gethostname()
 computer_host_ip = socket.gethostbyname(computer_host_name)

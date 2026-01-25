@@ -11,17 +11,17 @@ Usage:
 import json
 from datetime import datetime
 from pathlib import Path
-from app_config import get_config
+from config.app_config import get_config
 from asr_workflow import (
     run_llm_if_enabled,
     build_output_layout,
     write_primary_outputs,
 )
-from language_utils import (
+from utils.language_utils import (
     build_language_meta,
     derive_model_name,
 )
-from utilities import (
+from utils.utilities import (
     copy_documentation_files,
     duplicate_speaker_csvs_to_ohd_import,
     build_bag_info,

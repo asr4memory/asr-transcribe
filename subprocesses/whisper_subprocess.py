@@ -10,8 +10,8 @@ import logging
 import warnings
 from typing import Optional
 import whisperx
-from app_config import get_config
-from logger import logger
+from config.app_config import get_config
+from config.logger import logger
 
 # Suppress whisperx and its dependencies' logging to keep stdout clean for pickle
 logging.getLogger("whisperx").setLevel(logging.WARNING)

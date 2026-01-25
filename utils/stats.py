@@ -1,4 +1,4 @@
-from utilities import format_timestamp
+from utils.utilities import format_timestamp
 
 
 class ProcessInfo:

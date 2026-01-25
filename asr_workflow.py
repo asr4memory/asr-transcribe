@@ -11,13 +11,13 @@ Uses subprocess architecture for memory isolation:
 
 from datetime import datetime
 from pathlib import Path
-from email_notifications import (
+from utils.email_notifications import (
     send_success_email,
     send_failure_email,
     send_warning_email,
 )
-from app_config import get_config, log_config
-from utilities import (
+from config.app_config import get_config, log_config
+from utils.utilities import (
     should_be_processed,
     check_for_hallucination_warnings,
     create_output_files_directory_path,
@@ -27,17 +27,17 @@ from utilities import (
     build_bag_info,
     finalize_and_zip_bag,
 )
-from subprocess_handler import (
+from subprocesses.subprocess_handler import (
     run_whisper_subprocess,
     run_llm_subprocess,
 )
-from writers import write_output_files
-from stats import ProcessInfo
-from whisper_subprocess import get_audio, get_audio_length
-from post_processing import process_whisperx_segments
+from output.writers import write_output_files
+from utils.stats import ProcessInfo
+from subprocesses.whisper_subprocess import get_audio, get_audio_length
+from output.post_processing import process_whisperx_segments
 
-from logger import logger, memoryHandler
-from language_utils import (
+from config.logger import logger, memoryHandler
+from utils.language_utils import (
     LanguageMeta,
     LLM_LANGUAGES,
     build_language_meta,
@@ -190,7 +190,6 @@ def write_translation_outputs_if_any(
         base_path=translation_base_path,
         unprocessed_whisperx_output=translation_unprocessed,
         processed_whisperx_output=translation_processed,
-        llm_output={},
     )
 
 

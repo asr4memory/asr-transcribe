@@ -2,7 +2,7 @@ import subprocess
 import sys
 import threading
 import pickle
-from logger import logger
+from config.logger import logger
 
 
 def stream_subprocess_output(
@@ -86,7 +86,7 @@ def run_whisper_subprocess(audio_path: str):
 
     # Use Popen for real-time output streaming
     process = subprocess.Popen(
-        [sys.executable, "whisper_subprocess.py", str(audio_path)],
+        [sys.executable, "-m", "subprocesses.whisper_subprocess", str(audio_path)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -131,7 +131,7 @@ def run_llm_subprocess(segments):
 
     # Use Popen for real-time output streaming
     process = subprocess.Popen(
-        [sys.executable, "llm_subprocess.py"],
+        [sys.executable, "-m", "subprocesses.llm_subprocess"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
