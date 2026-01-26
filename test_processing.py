@@ -1,13 +1,13 @@
 import copy
 import pytest
 import zipfile
-from post_processing import (
+from output.post_processing import (
     sentence_is_incomplete,
     uppercase_sentences,
     split_long_sentences,
 )
-from utilities import prepare_bag_directory, finalize_bag, sha512, zip_bag_directory
-from writers import write_summary
+from utils.utilities import prepare_bag_directory, finalize_bag, sha512, zip_bag_directory
+from output.writers import write_summary
 
 
 class TestSentenceIsIncomplete:
@@ -242,7 +242,7 @@ def test_zip_bag_directory_creates_archive(bagit_test_structure):
 
 
 def test_write_summary_multiple_languages(tmp_path):
-    """Ensure summary files for DE and EN are written into abstracts."""
+    """Ensure summary files for DE and EN are written into llm_output."""
     bag_root = tmp_path / "bag"
     data_transcripts = bag_root / "data" / "transcripts"
     data_transcripts.mkdir(parents=True)
@@ -251,9 +251,9 @@ def test_write_summary_multiple_languages(tmp_path):
     write_summary(base_path, "Zusammenfassung DE")
     write_summary(base_path, "Summary EN", language_code="en")
 
-    abstracts_dir = bag_root / "data" / "abstracts"
-    de_file = abstracts_dir / "sample_summary_de.txt"
-    en_file = abstracts_dir / "sample_summary_en.txt"
+    llm_output_dir = bag_root / "data" / "llm_output"
+    de_file = llm_output_dir / "sample_summary_de.txt"
+    en_file = llm_output_dir / "sample_summary_en.txt"
 
     assert de_file.exists()
     assert en_file.exists()
