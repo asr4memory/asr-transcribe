@@ -43,7 +43,7 @@ def load_model(trial: int) -> Llama:
             model_path=model_path,
             n_gpu_layers=n_gpu_layers,
             n_ctx=32768,
-            n_batch=512,
+            n_batch=1024,
             verbose=verbose,
         )
     return Llama(
@@ -60,89 +60,214 @@ def user_prompt(segments) -> str:
     return "\n".join(segment["text"] for segment in segments)
 
 
-def generate(llm: Llama, system_prompt: str, user_prompt: str) -> str:
+def user_prompt_with_timestamps(segments) -> str:
+    """Return segments as JSON with start/end timestamps for TOC generation."""
+    import json
+
+    data = [
+        {
+            "start": seg.get("start", 0),
+            "end": seg.get("end", 0),
+            "text": seg.get("text", ""),
+        }
+        for seg in segments
+    ]
+    return json.dumps(data, ensure_ascii=False)
+
+
+def strip_reasoning(text: str) -> str:
+    """Removes model reasoning/analysis from output, keeping only final response."""
+    if not text:
+        return ""
+
+    # Pattern 1: <|channel|>final<|message|> marks the final output
+    if "<|channel|>final<|message|>" in text:
+        text = text.split("<|channel|>final<|message|>")[-1]
+        # Also remove any trailing channel markers
+        if "<|" in text:
+            text = text.split("<|")[0]
+        return text.strip()
+
+    # Pattern 2: Old delimiter format
+    old_delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
+    if old_delimiter in text:
+        return text.split(old_delimiter, 1)[1].strip()
+
+    # Pattern 3: Remove anything starting with <|channel|>analysis
+    if "<|channel|>analysis" in text:
+        # Take everything before the analysis starts
+        text = text.split("<|channel|>analysis")[0]
+        return text.strip()
+
+    return text
+
+
+def generate(
+    llm: Llama,
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int = 4096,
+    temperature: float = 0.3,
+    top_p: float = 0.9,
+    repeat_penalty: float = 1.2,
+) -> str:
     """Generate a summary using llama_cpp for a given prompt."""
     output = llm.create_chat_completion(
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        max_tokens=4000,
-        temperature=0.3,
-        top_p=0.9,
-        repeat_penalty=1.2,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        repeat_penalty=repeat_penalty,
     )
-    summary = output["choices"][0]["message"]["content"]
+    result = output["choices"][0]["message"]["content"]
 
-    delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
-    if delimiter in summary:
-        summary = summary.split(delimiter, 1)[1]
+    return strip_reasoning(result)
 
-    return summary.strip()
+
+def parse_json_output(text: str) -> dict | list:
+    """
+    Parse LLM output as JSON.
+    Returns parsed JSON (list or dict) if valid, otherwise returns dict with _error key.
+    """
+    import json
+    import re
+
+    # Strip markdown code blocks if present
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        return {"_error": str(e), "_raw": text}
+
+
+def generate_task(
+    llm: Llama,
+    task_name: str,
+    languages: list[str],
+    prompt_fn,
+    user_prompt_text: str,
+    max_tokens: int = 4096,
+    temperature: float = 0.3,
+    top_p: float = 0.9,
+    repeat_penalty: float = 1.2,
+    parse_json: bool = False,
+) -> dict:
+    """
+    Generate LLM output for a task across all languages.
+    Returns dict with language codes as keys.
+    """
+    results = {}
+    for language in languages:
+        system_prompt = prompt_fn(language)
+        output = generate(
+            llm,
+            system_prompt,
+            user_prompt_text,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            repeat_penalty=repeat_penalty,
+        )
+        if parse_json:
+            results[language] = parse_json_output(output)
+        else:
+            results[language] = output
+        print(f"{task_name} ({language}): done", file=sys.stderr)
+    return results
 
 
 def main():
     """Main subprocess entry point."""
     max_trials = 2
     languages = get_languages()
-    llm = None
 
     # Return empty result if no languages configured
     if not languages:
-        result = {"summaries": {}, "_meta": {"trial": 0}}
+        result = {"summaries": {}, "toc": {}}
         sys.stdout.buffer.write(pickle.dumps(result))
         sys.exit(0)
 
+    # Read segments from stdin
+    input_data = sys.stdin.buffer.read()
+    segments = pickle.loads(input_data)
+
+    user_prompt_text = user_prompt(segments)
+    user_prompt_toc_text = user_prompt_with_timestamps(segments)
+
+    result = {}
+    llm = None
+
+    # 1. Generate Summaries (with retries)
     for trial in range(1, max_trials + 1):
         try:
-            # Read pickled segments from stdin (only on first attempt)
-            if trial == 1:
-                input_data = sys.stdin.buffer.read()
-                segments = pickle.loads(input_data)
-
-            llm = load_model(trial)
-            user_prompt_text = user_prompt(segments)
-
-            # Generate LLM outputs for each language
-            # 1. Summaries
-            summaries = {}
-            for language in languages:
-                system_prompt = system_prompt_summaries(language)
-                summaries[language] = generate(llm, system_prompt, user_prompt_text)
-
-            # 2. Table of Contents
-            toc = {}  
-            for language in languages:
-                system_prompt = system_prompt_toc(language)
-                toc[language] = generate(llm, system_prompt, user_prompt_text)
-
-            # Build unified result dict
-            result = {
-                "summaries": summaries,
-                "toc": toc,
-                "_meta": {"trial": trial},
-            }
-            sys.stdout.buffer.write(pickle.dumps(result))
-            sys.exit(0)
-
+            if llm is None:
+                llm = load_model(trial)
+            result["summaries"] = generate_task(
+                llm,
+                "Summary",
+                languages,
+                system_prompt_summaries,
+                user_prompt_text,
+                max_tokens=4096,
+                temperature=0.3,
+                top_p=0.9,
+                repeat_penalty=1.2,
+            )
+            break
         except Exception as e:
-            # Cleanup the failed model and free GPU memory
             if llm is not None:
                 del llm
+                llm = None
             cleanup_cuda_memory()
-
             if trial < max_trials:
-                print(
-                    f"LLM subprocess error on trial {trial}. Retrying with trial {trial + 1}...",
-                    file=sys.stderr,
-                )
+                print(f"Summary error on trial {trial}, retrying...", file=sys.stderr)
             else:
-                # Letzter Versuch fehlgeschlagen
-                print(f"LLM subprocess error: {e}", file=sys.stderr)
-                import traceback
+                print(f"Summary failed: {e}", file=sys.stderr)
+                result["summaries"] = {lang: "" for lang in languages}
 
-                traceback.print_exc(file=sys.stderr)
-                sys.exit(1)
+    # 2. Generate TOC (with retries)
+    for trial in range(1, max_trials + 1):
+        try:
+            if llm is None:
+                llm = load_model(trial)
+            result["toc"] = generate_task(
+                llm,
+                "TOC",
+                languages,
+                system_prompt_toc,
+                user_prompt_toc_text,
+                max_tokens=8192,
+                temperature=0.3,
+                top_p=0.9,
+                repeat_penalty=1.2,
+                parse_json=True,
+            )
+            break
+        except Exception as e:
+            if llm is not None:
+                del llm
+                llm = None
+            cleanup_cuda_memory()
+            if trial < max_trials:
+                print(f"TOC error on trial {trial}, retrying...", file=sys.stderr)
+            else:
+                print(f"TOC failed: {e}", file=sys.stderr)
+                result["toc"] = {lang: {"_error": str(e)} for lang in languages}
+
+    # Cleanup
+    if llm is not None:
+        del llm
+    cleanup_cuda_memory()
+
+    sys.stdout.buffer.write(pickle.dumps(result))
+    sys.exit(0)
 
 
 if __name__ == "__main__":

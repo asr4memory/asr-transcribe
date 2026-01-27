@@ -69,7 +69,9 @@ def get_language_descriptor(result: dict) -> Tuple[str, str, str, str]:
 def build_language_meta(result: Dict[str, Any]) -> LanguageMeta:
     """Build LanguageMeta from whisper result dict."""
     src, out, desc, tgt = get_language_descriptor(result)
-    return LanguageMeta(source_language=src, output_language=out, descriptor=desc, target_language=tgt)
+    return LanguageMeta(
+        source_language=src, output_language=out, descriptor=desc, target_language=tgt
+    )
 
 
 def derive_model_name(result: Dict[str, Any]) -> str:

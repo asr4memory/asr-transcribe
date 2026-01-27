@@ -17,11 +17,15 @@ from output.tei_builder import WhisperToTEIConverter
 from config.app_config import get_config
 from utils.utilities import format_timestamp
 
-env = Environment(loader=PackageLoader("output.writers"), autoescape=select_autoescape())
+env = Environment(
+    loader=PackageLoader("output.writers"), autoescape=select_autoescape()
+)
 
 config = get_config()
 
 USE_SPEAKER_DIARIZATION = config["whisper"].get("use_speaker_diarization", False)
+
+
 def _resolve_pause_threshold() -> float:
     value = config["whisper"].get("pause_marker_threshold", 2.0)
     try:
@@ -713,17 +717,46 @@ def write_summary(path_without_ext: Path, summary: str, language_code: str = "de
     with open(full_path, "w", encoding="utf-8") as txt_file:
         txt_file.write(summary)
 
-def write_toc(path_without_ext: Path, toc: str, language_code: str = "de"):
+
+def write_toc(path_without_ext: Path, toc: dict | list, language_code: str = "de"):
     """
-    Write the table of contents to a localized text file in the llm_output directory.
+    Write the table of contents to a VTT file in the llm_output directory.
+    Converts TOC entries (with start, end, title, level) to VTT format.
+    TOC is expected to be a flat list of entries.
     """
+    from config.logger import logger
+
+    # Skip if TOC has parse error (error case returns a dict with _error)
+    if isinstance(toc, dict) and "_error" in toc:
+        logger.warning(f"TOC ({language_code}): Invalid JSON - {toc['_error']}")
+        return
+
+    # TOC should be a list
+    if not isinstance(toc, list):
+        logger.warning(
+            f"TOC ({language_code}): Expected list, got {type(toc).__name__}"
+        )
+        return
+
     bag_data_dir = path_without_ext.parent.parent
     llm_output_dir = bag_data_dir / "llm_output"
     llm_output_dir.mkdir(parents=True, exist_ok=True)
     toc_filename = f"{path_without_ext.stem}_toc_{language_code}.vtt"
     full_path = llm_output_dir / toc_filename
+
+    cues = toc
     with open(full_path, "w", encoding="utf-8") as vtt_file:
-        vtt_file.write(toc)
+        vtt_file.write("WEBVTT\n\n")
+        for i, cue in enumerate(cues):
+            _, start_time = format_timestamp(cue.get("start", 0))
+            _, end_time = format_timestamp(cue.get("end", 0))
+            level = cue.get("level", "")
+            title = cue.get("title", "")
+            # Format: [H1] Title
+            text = f"[{level}] {title}" if level else title
+            vtt_file.write(f"{i + 1}\n")
+            vtt_file.write(f"{start_time} --> {end_time}\n")
+            vtt_file.write(f"{text}\n\n")
 
 
 def write_output_files(

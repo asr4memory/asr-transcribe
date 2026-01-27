@@ -12,19 +12,32 @@ Each entry **MUST** be mapped to a precise time range derived from the transcrip
 
 ---
 
-## INPUT
-- **Language:** German (names, technical terms, abbreviations may appear)
-- **Transcript:** Timestamped sentences; timestamps may appear as:
-  - **A.** Seconds with milliseconds: `SS.mmm`
-  - **B.** Ranges: `SS.mmm --> SS.mmm`
-- Timestamps may contain minor inconsistencies (rare out-of-order lines, missing milliseconds)
+## INPUT 
+The input is already a **JSON array of objects** (e.g., WhisperX segments), e.g.:
+
+```json
+[
+  {"start": 0.000, "end": 2.340, "text": "…"},
+  {"start": 2.340, "end": 6.120, "text": "…"}
+]
+```
+
+**Field meaning:**
+- `start`: start time in seconds (float, millisecond precision)
+- `end`: end time in seconds (float, millisecond precision)
+- `text`: segment text
+
+**Input constraints:**
+- Use **only** these `start`/`end` values for time mapping.
+- Do not invent times outside the input span.
+- If segments are slightly inconsistent (rare out-of-order), apply **minimal** adjustments to restore monotonic order.
 
 ---
 
 ## OUTPUT (ABSOLUTELY STRICT)
 Return **ONLY** a **valid, parseable JSON document**:
 - UTF-8
-- A single JSON object
+- A JSON array (list)
 - No comments
 - No trailing commas
 - No additional fields
@@ -34,41 +47,36 @@ Return **ONLY** a **valid, parseable JSON document**:
 ## JSON STRUCTURE (MANDATORY)
 
 ```json
-{
-  "meta": {
-    "language": "de",
-    "time_format": "SS.mmm",
-    "t_start": 0.000,
-    "t_end": 1234.567
+[
+  {
+    "level": "H1",
+    "title": "Introduction to the Topic",
+    "start": 0.000,
+    "end": 120.500,
+    "keywords": ["topic", "introduction", "overview", "basics"]
   },
-  "cues": [
-    {
-      "level": "H1 | H2 | H3",
-      "title": "string (≤80 characters)",
-      "start": 12.345,
-      "end": 67.890,
-      "keywords": ["string", "..."]
-    }
-  ]
-}
+  {
+    "level": "H2",
+    "title": "First Subcategory",
+    "start": 120.500,
+    "end": 245.300,
+    "keywords": ["detail", "example", "explanation", "concept"]
+  }
+]
 ```
 
 ---
 
 ## FIELD RULES (HARD CONSTRAINTS)
 
-### meta
-- `t_start` = earliest timestamp in the transcript (float, seconds)
-- `t_end` = latest timestamp in the transcript (float, seconds)
-
-### cues[]
+### List structure
 - Order = **chronological coverage**
-- Each cue appears **exactly once**
+- Each entry appears **exactly once**
 - `start < end`
-- First cue: `start == meta.t_start`
-- For all `i > 0`:  
-  `cues[i].start MUST equal cues[i-1].end`
-- Final cue: `end == meta.t_end`
+- First entry: `start` = smallest `start` value in the input
+- For all `i > 0`:
+  `list[i].start` MUST equal `list[i-1].end`
+- Final entry: `end` = largest `end` value in the input
 
 ### level
 - Allowed values only: `"H1"`, `"H2"`, `"H3"`
@@ -83,16 +91,16 @@ Return **ONLY** a **valid, parseable JSON document**:
 ### keywords
 - **H1/H2:** 4–8 keywords (required)
 - **H3:** empty array `[]` unless keywords are essential for disambiguation
-- Keywords **MUST** appear verbatim in the transcript (case-insensitive)
+- Keywords **MUST** appear verbatim in the input `text` fields (case-insensitive)
 - No synonyms, paraphrases, translations, or inferred entities
 
 ---
 
 ## TIME FORMAT (MANDATORY)
-- All times are **float values in seconds** with millisecond precision
+- All times are **float values in seconds** with millisecond precision (`SS.mmm`)
 - Missing milliseconds → `.000`
-- **Do not invent** timestamps outside `[t_start, t_end]`
-- If ambiguous, apply minimal adjustment to preserve order and contiguity
+- Do not invent timestamps outside `[t_start, t_end]`
+- Cue boundaries must be derivable from existing segment times (close to segment boundaries)
 
 ---
 
@@ -115,7 +123,7 @@ Return **ONLY** a **valid, parseable JSON document**:
 ## SEGMENTATION RULES
 - Split on **clear semantic topic shifts**
 - Do **NOT** split on:
-  - Filler words (“uh”, “well”, “so”)
+  - Filler words (in German transcript: “äh”, “also”, “nun”)
   - Pauses or silence
   - Speaker changes alone
 - Avoid micro-segmentation
@@ -129,12 +137,12 @@ Return **ONLY** a **valid, parseable JSON document**:
 - [ ] No gaps, no overlaps
 - [ ] Entire range `[t_start, t_end]` is covered
 - [ ] Titles ≤80 characters
-- [ ] Keywords appear in transcript only
+- [ ] Keywords appear in input `text` only
 - [ ] Hierarchy follows chronological order
 
 ---
 
 ## CRITICAL REMINDER
-Output **JSON ONLY**.  
-The first character of your response must be `{`.  
+Output **JSON ONLY**.
+The first character of your response must be `[`.
 No preamble. No explanations.

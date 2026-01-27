@@ -6,7 +6,12 @@ from output.post_processing import (
     uppercase_sentences,
     split_long_sentences,
 )
-from utils.utilities import prepare_bag_directory, finalize_bag, sha512, zip_bag_directory
+from utils.utilities import (
+    prepare_bag_directory,
+    finalize_bag,
+    sha512,
+    zip_bag_directory,
+)
 from output.writers import write_summary
 
 

@@ -160,13 +160,9 @@ def run_llm_subprocess(segments):
     # Log trial info from metadata
     trial = llm_result.get("_meta", {}).get("trial", 0)
     if trial == 1:
-        logger.info(
-            "LLM subprocess succeeded on first trial with 32k context window"
-        )
+        logger.info("LLM subprocess succeeded on first trial with 32k context window")
     elif trial == 2:
-        logger.info(
-            "LLM subprocess succeeded on second trial with 64k context window"
-        )
+        logger.info("LLM subprocess succeeded on second trial with 64k context window")
 
     logger.info("LLM subprocess completed successfully")
 

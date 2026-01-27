@@ -83,15 +83,19 @@ def run_whisper_pipeline(filepath: Path) -> Dict[str, Any]:
     return run_whisper_subprocess(filepath)
 
 
-def postprocess_pipeline(result: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
+def postprocess_pipeline(
+    result: Dict[str, Any],
+) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
     logger.info("Starting segment post-processing of WhisperX output...")
     processed = process_whisperx_segments(result["segments"])
 
     translation_processed = None
     translation_payload = result.get("translation_result")
     if translation_payload:
-        translation_processed = process_whisperx_segments(translation_payload["segments"])
-    
+        translation_processed = process_whisperx_segments(
+            translation_payload["segments"]
+        )
+
     logger.info("Segment post-processing completed.")
 
     return processed, translation_processed
@@ -135,7 +139,9 @@ def build_output_layout(
     transcript_filename = f"{file_stem}_{model_name}_{language_meta.output_language}"
     translation_filename = f"{file_stem}_{model_name}_{language_meta.descriptor}"
 
-    dir_path = create_output_files_directory_path(output_directory, translation_filename)
+    dir_path = create_output_files_directory_path(
+        output_directory, translation_filename
+    )
     transcripts_dir = prepare_bag_directory(dir_path)
 
     data_dir = dir_path / "data"
@@ -184,7 +190,9 @@ def write_translation_outputs_if_any(
     translation_unprocessed = translation_payload
     if translation_processed and "word_segments" not in translation_unprocessed:
         translation_unprocessed = dict(translation_payload)
-        translation_unprocessed["word_segments"] = translation_processed["word_segments"]
+        translation_unprocessed["word_segments"] = translation_processed[
+            "word_segments"
+        ]
 
     write_output_files(
         base_path=translation_base_path,
@@ -235,7 +243,9 @@ def process_file(filepath: Path, output_directory: Path):
             process_info.filename,
         )
 
-        processed_whisperx_output, translation_processed_output = postprocess_pipeline(result)
+        processed_whisperx_output, translation_processed_output = postprocess_pipeline(
+            result
+        )
 
         language_meta = build_language_meta(result)
         model_name = derive_model_name(result)

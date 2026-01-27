@@ -338,7 +338,9 @@ def build_bag_info(
     return bag_info
 
 
-def finalize_and_zip_bag(dir_path: Path, data_dir: Path, bag_info: Dict[str, str]) -> None:
+def finalize_and_zip_bag(
+    dir_path: Path, data_dir: Path, bag_info: Dict[str, str]
+) -> None:
     """Finalize the bag and create a ZIP archive if configured."""
     payload_files = [p for p in data_dir.rglob("*") if p.is_file()]
     finalize_bag(dir_path, payload_files, bag_info)
@@ -347,4 +349,6 @@ def finalize_and_zip_bag(dir_path: Path, data_dir: Path, bag_info: Dict[str, str
         try:
             zip_bag_directory(dir_path)
         except Exception as zip_error:
-            logger.warning("Failed to create ZIP archive for %s: %s", dir_path, zip_error)
+            logger.warning(
+                "Failed to create ZIP archive for %s: %s", dir_path, zip_error
+            )

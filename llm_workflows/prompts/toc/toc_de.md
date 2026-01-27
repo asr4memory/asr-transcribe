@@ -13,18 +13,31 @@ Jeder Eintrag **MUSS** einem präzisen Zeitbereich zugeordnet sein, der aus dem 
 ---
 
 ## EINGABE
-- **Sprache:** Deutsch (Namen, Fachbegriffe, Abkürzungen können vorkommen)
-- **Transkript:** Zeitmarkierte Sätze; Zeitstempel können erscheinen als:
-  - **A.** Sekunden mit Millisekunden: `SS.mmm`
-  - **B.** Zeitbereiche: `SS.mmm --> SS.mmm`
-- Zeitstempel können kleinere Inkonsistenzen enthalten (seltene Unordnung, fehlende Millisekunden)
+Die Eingabe ist bereits eine **JSON-Liste von Dicts/Objekten** (wie aus WhisperX-Segmenten), z. B.:
+
+```json
+[
+  {"start": 0.000, "end": 2.340, "text": "…"},
+  {"start": 2.340, "end": 6.120, "text": "…"}
+]
+```
+
+**Feldbedeutung:**
+- `start`: Startzeit in Sekunden (float, Millisekundenpräzision)
+- `end`: Endzeit in Sekunden (float, Millisekundenpräzision)
+- `text`: Segmenttext
+
+**Constraints zur Eingabe:**
+- Nutze **ausschließlich** diese `start`/`end`-Werte für die Zeitzuordnung.
+- Erfinde keine Zeiten außerhalb des Bereichs der Eingabe.
+- Falls Segmente geringfügig inkonsistent sind (selten out-of-order), korrigiere **minimal**, um monotone Ordnung zu erhalten.
 
 ---
 
 ## AUSGABE (ABSOLUT STRENG)
 Gib **NUR** ein **valide parsebares JSON-Dokument** zurück:
 - UTF-8
-- Ein einzelnes JSON-Objekt
+- Eine JSON-Liste (Array)
 - Keine Kommentare
 - Keine trailing commas
 - Keine zusätzlichen Felder
@@ -34,41 +47,36 @@ Gib **NUR** ein **valide parsebares JSON-Dokument** zurück:
 ## JSON-STRUKTUR (VERPFLICHTEND)
 
 ```json
-{
-  "meta": {
-    "language": "de",
-    "time_format": "SS.mmm",
-    "t_start": 0.000,
-    "t_end": 1234.567
+[
+  {
+    "level": "H1",
+    "title": "Einleitung zum Thema",
+    "start": 0.000,
+    "end": 120.500,
+    "keywords": ["Thema", "Einführung", "Überblick", "Grundlagen"]
   },
-  "cues": [
-    {
-      "level": "H1 | H2 | H3",
-      "title": "string (≤80 Zeichen)",
-      "start": 12.345,
-      "end": 67.890,
-      "keywords": ["string", "..."]
-    }
-  ]
-}
+  {
+    "level": "H2",
+    "title": "Erste Unterkategorie",
+    "start": 120.500,
+    "end": 245.300,
+    "keywords": ["Detail", "Beispiel", "Erklärung", "Konzept"]
+  }
+]
 ```
 
 ---
 
 ## FELDREGELN (HARD CONSTRAINTS)
 
-### meta
-- `t_start` = frühester Zeitstempel im Transkript (float, Sekunden)
-- `t_end` = spätester Zeitstempel im Transkript (float, Sekunden)
-
-### cues[]
+### Listenstruktur
 - Reihenfolge = **chronologische Abdeckung**
-- Jeder Cue erscheint **genau einmal**
+- Jeder Eintrag erscheint **genau einmal**
 - `start < end`
-- `start` des ersten Cues = `meta.t_start`
-- Für alle `i > 0`:  
-  `cues[i].start MUST equal cues[i-1].end`
-- Letzter Cue: `end = meta.t_end`
+- `start` des ersten Eintrags = kleinster `start`-Wert der Eingabe
+- Für alle `i > 0`:
+  `liste[i].start` MUSS gleich `liste[i-1].end` sein
+- Letzter Eintrag: `end` = größter `end`-Wert der Eingabe
 
 ### level
 - Nur: `"H1"`, `"H2"`, `"H3"`
@@ -82,16 +90,16 @@ Gib **NUR** ein **valide parsebares JSON-Dokument** zurück:
 ### keywords
 - **H1/H2:** 4–8 Keywords (Pflicht)
 - **H3:** leeres Array `[]`, außer zur Disambiguierung zwingend nötig
-- Keywords **MÜSSEN** im Transkript vorkommen (case-insensitive)
+- Keywords **MÜSSEN** im Eingabetext (`text`-Felder) vorkommen (case-insensitive)
 - Keine Synonyme, keine Paraphrasen, keine Übersetzungen
 
 ---
 
 ## ZEITFORMAT (MANDATORY)
-- Alle Zeiten sind **float-Werte in Sekunden** mit Millisekundenpräzision
+- Alle Zeiten sind **float-Werte in Sekunden** mit Millisekundenpräzision (`SS.mmm`)
 - Fehlende Millisekunden → `.000`
 - **Keine erfundenen** Zeiten außerhalb `[t_start, t_end]`
-- Bei Unklarheit: minimal anpassen, um Ordnung und Kontiguität zu wahren
+- Cue-Grenzen müssen aus existierenden Segmentzeiten ableitbar sein (Start/Ende nahe Segmentgrenzen)
 
 ---
 
@@ -128,12 +136,12 @@ Gib **NUR** ein **valide parsebares JSON-Dokument** zurück:
 - [ ] Keine Lücken, keine Überlappungen
 - [ ] Gesamte Zeit `[t_start, t_end]` ist abgedeckt
 - [ ] Titel ≤80 Zeichen
-- [ ] Keywords nur aus Transkript
+- [ ] Keywords nur aus den `text`-Feldern der Eingabe
 - [ ] Hierarchie folgt zeitlicher Ordnung
 
 ---
 
 ## KRITISCHE ERINNERUNG
-Gib **AUSSCHLIESSLICH** das JSON aus.  
-Das erste Zeichen deiner Antwort muss `{` sein.  
+Gib **AUSSCHLIESSLICH** das JSON aus.
+Das erste Zeichen deiner Antwort muss `[` sein.
 Keine Einleitung. Keine Erklärungen.
