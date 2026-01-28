@@ -52,7 +52,8 @@ config = get_config()
 stats = []
 warning_count = 0
 warning_audio_inputs = []
-use_llms = config["llm"]["use_llms"]
+use_summarization = config["llm"].get("use_summarization", False)
+use_toc = config["llm"].get("use_toc", False)
 
 
 @dataclass(frozen=True)
@@ -103,12 +104,13 @@ def postprocess_pipeline(
 
 def run_llm_if_enabled(segments: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Run LLM subprocess if enabled, return unified llm_output dict."""
-    empty_result = {
-        "summaries": {lang: "" for lang in LLM_LANGUAGES},
-        "toc": {lang: "" for lang in LLM_LANGUAGES},
-    }
+    empty_result = {}
+    if use_summarization:
+        empty_result["summaries"] = {lang: "" for lang in LLM_LANGUAGES}
+    if use_toc:
+        empty_result["toc"] = {lang: "" for lang in LLM_LANGUAGES}
 
-    if not use_llms:
+    if not use_summarization and not use_toc:
         return empty_result
     if not LLM_LANGUAGES:
         logger.info("LLM usage enabled but no languages configured; skipping.")
@@ -120,9 +122,9 @@ def run_llm_if_enabled(segments: List[Dict[str, Any]]) -> Dict[str, Any]:
         logger.error("LLM subprocess failed completely or returned no result.")
         return empty_result
 
-    if not llm_output.get("summaries"):
+    if not llm_output.get("summaries") and use_summarization:
         logger.warning("No summaries found in LLM subprocess result.")
-    if not llm_output.get("toc"):
+    if not llm_output.get("toc") and use_toc:
         logger.warning("No table of contents found in LLM subprocess result.")
 
     return llm_output

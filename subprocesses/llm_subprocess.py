@@ -23,6 +23,8 @@ config = get_config()
 n_gpu_layers = config["llm"]["n_gpu_layers"]
 model_path = config["llm"]["model_path"]
 verbose = config["llm"].get("verbose", False)
+use_summarization = config["llm"].get("use_summarization", False)
+use_toc = config["llm"].get("use_toc", False)
 
 
 def get_languages() -> list[str]:
@@ -205,61 +207,63 @@ def main():
     llm = None
 
     # 1. Generate Summaries (with retries)
-    for trial in range(1, max_trials + 1):
-        try:
-            if llm is None:
-                llm = load_model(trial)
-            result["summaries"] = generate_task(
-                llm,
-                "Summary",
-                languages,
-                system_prompt_summaries,
-                user_prompt_text,
-                max_tokens=4096,
-                temperature=0.3,
-                top_p=0.9,
-                repeat_penalty=1.2,
-            )
-            break
-        except Exception as e:
-            if llm is not None:
-                del llm
-                llm = None
-            cleanup_cuda_memory()
-            if trial < max_trials:
-                print(f"Summary error on trial {trial}, retrying...", file=sys.stderr)
-            else:
-                print(f"Summary failed: {e}", file=sys.stderr)
-                result["summaries"] = {lang: "" for lang in languages}
+    if use_summarization:
+        for trial in range(1, max_trials + 1):
+            try:
+                if llm is None:
+                    llm = load_model(trial)
+                result["summaries"] = generate_task(
+                    llm,
+                    "Summary",
+                    languages,
+                    system_prompt_summaries,
+                    user_prompt_text,
+                    max_tokens=4096,
+                    temperature=0.3,
+                    top_p=0.9,
+                    repeat_penalty=1.2,
+                )
+                break
+            except Exception as e:
+                if llm is not None:
+                    del llm
+                    llm = None
+                cleanup_cuda_memory()
+                if trial < max_trials:
+                    print(f"Summary error on trial {trial}, retrying...", file=sys.stderr)
+                else:
+                    print(f"Summary failed: {e}", file=sys.stderr)
+                    result["summaries"] = {lang: "" for lang in languages}
 
     # 2. Generate TOC (with retries)
-    for trial in range(1, max_trials + 1):
-        try:
-            if llm is None:
-                llm = load_model(trial)
-            result["toc"] = generate_task(
-                llm,
-                "TOC",
-                languages,
-                system_prompt_toc,
-                user_prompt_toc_text,
-                max_tokens=8192,
-                temperature=0.3,
-                top_p=0.9,
-                repeat_penalty=1.1,
-                parse_json=True,
-            )
-            break
-        except Exception as e:
-            if llm is not None:
-                del llm
+    if use_toc:
+        for trial in range(1, max_trials + 1):
+            try:
+                if llm is None:
+                    llm = load_model(trial)
+                result["toc"] = generate_task(
+                    llm,
+                    "TOC",
+                    languages,
+                    system_prompt_toc,
+                    user_prompt_toc_text,
+                    max_tokens=8192,
+                    temperature=0.3,
+                    top_p=0.9,
+                    repeat_penalty=1.1,
+                    parse_json=True,
+                )
+                break
+            except Exception as e:
+                if llm is not None:
+                    del llm
                 llm = None
-            cleanup_cuda_memory()
-            if trial < max_trials:
-                print(f"TOC error on trial {trial}, retrying...", file=sys.stderr)
-            else:
-                print(f"TOC failed: {e}", file=sys.stderr)
-                result["toc"] = {lang: {"_error": str(e)} for lang in languages}
+                cleanup_cuda_memory()
+                if trial < max_trials:
+                    print(f"TOC error on trial {trial}, retrying...", file=sys.stderr)
+                else:
+                    print(f"TOC failed: {e}", file=sys.stderr)
+                    result["toc"] = {lang: {"_error": str(e)} for lang in languages}
 
     # Cleanup
     if llm is not None:

@@ -15,6 +15,8 @@ _output
 .env
 data
 .direnv
+.claude
+.pytest_cache
 
 models 
 asr_watch_DE.py

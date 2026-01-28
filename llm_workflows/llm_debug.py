@@ -56,10 +56,6 @@ def main():
     debug_file = Path(config["llm"]["debug_file"])
     output_dir = Path(config["llm"]["output_debug"])
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = output_dir / f"{debug_file.stem}_{timestamp}"
-    run_dir.mkdir(parents=True, exist_ok=True)
-
     print(f"Loading {debug_file}...")
 
     with open(debug_file, encoding="utf-8") as f:

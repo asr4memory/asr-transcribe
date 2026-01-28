@@ -247,7 +247,7 @@ def test_zip_bag_directory_creates_archive(bagit_test_structure):
 
 
 def test_write_summary_multiple_languages(tmp_path):
-    """Ensure summary files for DE and EN are written into llm_output."""
+    """Ensure summary files for DE and EN are written into content_extraction."""
     bag_root = tmp_path / "bag"
     data_transcripts = bag_root / "data" / "transcripts"
     data_transcripts.mkdir(parents=True)
@@ -256,9 +256,9 @@ def test_write_summary_multiple_languages(tmp_path):
     write_summary(base_path, "Zusammenfassung DE")
     write_summary(base_path, "Summary EN", language_code="en")
 
-    llm_output_dir = bag_root / "data" / "llm_output"
-    de_file = llm_output_dir / "sample_summary_de.txt"
-    en_file = llm_output_dir / "sample_summary_en.txt"
+    content_extraction_dir = bag_root / "data" / "content_extraction"
+    de_file = content_extraction_dir / "sample_summary_de.txt"
+    en_file = content_extraction_dir / "sample_summary_en.txt"
 
     assert de_file.exists()
     assert en_file.exists()

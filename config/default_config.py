@@ -33,7 +33,8 @@ CONST_DEFAULT_CONFIG = {
         "api_key": None,
     },
     "llm": {
-        "use_llms": False,
+        "use_summarization": False,
+        "use_toc": False,
         "model_path": "",
         "n_gpu_layers": 5,
         "llm_languages": ["de", "en"],

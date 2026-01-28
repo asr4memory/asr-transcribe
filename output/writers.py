@@ -707,13 +707,13 @@ def write_tei_xml(path_without_ext: Path, segments: list):
 
 def write_summary(path_without_ext: Path, summary: str, language_code: str = "de"):
     """
-    Write the summary to a localized text file in the llm_output directory.
+    Write the summary to a localized text file in the content_extraction directory.
     """
     bag_data_dir = path_without_ext.parent.parent
-    llm_output_dir = bag_data_dir / "llm_output"
-    llm_output_dir.mkdir(parents=True, exist_ok=True)
+    content_extraction_dir = bag_data_dir / "content_extraction"
+    content_extraction_dir.mkdir(parents=True, exist_ok=True)
     summary_filename = f"{path_without_ext.stem}_summary_{language_code}.txt"
-    full_path = llm_output_dir / summary_filename
+    full_path = content_extraction_dir / summary_filename
     with open(full_path, "w", encoding="utf-8") as txt_file:
         txt_file.write(summary)
 
@@ -739,10 +739,10 @@ def write_toc(path_without_ext: Path, toc: dict | list, language_code: str = "de
         return
 
     bag_data_dir = path_without_ext.parent.parent
-    llm_output_dir = bag_data_dir / "llm_output"
-    llm_output_dir.mkdir(parents=True, exist_ok=True)
+    content_extraction_dir = bag_data_dir / "content_extraction"
+    content_extraction_dir.mkdir(parents=True, exist_ok=True)
     toc_filename = f"{path_without_ext.stem}_toc_{language_code}.vtt"
-    full_path = llm_output_dir / toc_filename
+    full_path = content_extraction_dir / toc_filename
 
     cues = toc
     with open(full_path, "w", encoding="utf-8") as vtt_file:
@@ -825,11 +825,11 @@ def write_output_files(
     write_ods(base_path, segments)
     write_tei_xml(base_path, segments)
 
-    # 2. Write llm_output JSON to llm_output directory (if provided)
+    # 2. Write llm_output JSON to content_extraction directory (if provided)
     if llm_output:
-        llm_output_dir = base_path.parent.parent / "llm_output"
-        llm_output_dir.mkdir(parents=True, exist_ok=True)
-        write_json(llm_output_dir / f"{base_path.stem}_llm_output", llm_output)
+        content_extraction_dir = base_path.parent.parent / "content_extraction"
+        content_extraction_dir.mkdir(parents=True, exist_ok=True)
+        write_json(content_extraction_dir / f"{base_path.stem}_llm_output", llm_output)
         summaries = llm_output.get("summaries", {})
         if summaries:
             for language_code, text in summaries.items():
