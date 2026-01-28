@@ -246,7 +246,7 @@ def main():
                 max_tokens=8192,
                 temperature=0.3,
                 top_p=0.9,
-                repeat_penalty=1.2,
+                repeat_penalty=1.1,
                 parse_json=True,
             )
             break

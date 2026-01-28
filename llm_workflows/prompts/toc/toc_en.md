@@ -7,7 +7,8 @@ Do **not** output commentary, explanations, Markdown, code blocks, or any text o
 ---
 
 ## TASK
-Generate a structured table of contents (outline) from the German audio transcript below.  
+Generate a structured table of contents (outline) **IN ENGLISH** from the German audio transcript below.
+All titles and keywords must be in English (translate from German if needed).
 Each entry **MUST** be mapped to a precise time range derived from the transcript.
 
 ---
@@ -52,15 +53,13 @@ Return **ONLY** a **valid, parseable JSON document**:
     "level": "H1",
     "title": "Introduction to the Topic",
     "start": 0.000,
-    "end": 120.500,
-    "keywords": ["topic", "introduction", "overview", "basics"]
+    "end": 120.500
   },
   {
     "level": "H2",
     "title": "First Subcategory",
     "start": 120.500,
-    "end": 245.300,
-    "keywords": ["detail", "example", "explanation", "concept"]
+    "end": 245.300
   }
 ]
 ```
@@ -88,12 +87,6 @@ Return **ONLY** a **valid, parseable JSON document**:
 - Must be grounded in transcript content
 - Do not introduce new facts or names
 
-### keywords
-- **H1/H2:** 4–8 keywords (required)
-- **H3:** empty array `[]` unless keywords are essential for disambiguation
-- Keywords **MUST** appear verbatim in the input `text` fields (case-insensitive)
-- No synonyms, paraphrases, translations, or inferred entities
-
 ---
 
 ## TIME FORMAT (MANDATORY)
@@ -106,9 +99,13 @@ Return **ONLY** a **valid, parseable JSON document**:
 
 ## OUTLINE DESIGN
 
+**CRITICAL: You MUST create MULTIPLE entries. A single entry covering the entire transcript is NOT acceptable.**
+
 ### H1 (Main sections)
+- **MINIMUM 3 entries**, even for short transcripts
 - Target: 4–10 items for ~60 minutes (scale proportionally)
 - Typical duration: 2–10 minutes
+- Every topic shift, new question, or thematic change warrants a new H1
 
 ### H2 (Subsections)
 - 1–6 per H1 (only if it improves navigation)

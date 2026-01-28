@@ -52,15 +52,13 @@ Gib **NUR** ein **valide parsebares JSON-Dokument** zurück:
     "level": "H1",
     "title": "Einleitung zum Thema",
     "start": 0.000,
-    "end": 120.500,
-    "keywords": ["Thema", "Einführung", "Überblick", "Grundlagen"]
+    "end": 120.500
   },
   {
     "level": "H2",
     "title": "Erste Unterkategorie",
     "start": 120.500,
-    "end": 245.300,
-    "keywords": ["Detail", "Beispiel", "Erklärung", "Konzept"]
+    "end": 245.300
   }
 ]
 ```
@@ -87,12 +85,6 @@ Gib **NUR** ein **valide parsebares JSON-Dokument** zurück:
 - Keine abschließende Interpunktion
 - Keine neuen Fakten oder Namen
 
-### keywords
-- **H1/H2:** 4–8 Keywords (Pflicht)
-- **H3:** leeres Array `[]`, außer zur Disambiguierung zwingend nötig
-- Keywords **MÜSSEN** im Eingabetext (`text`-Felder) vorkommen (case-insensitive)
-- Keine Synonyme, keine Paraphrasen, keine Übersetzungen
-
 ---
 
 ## ZEITFORMAT (MANDATORY)
@@ -105,9 +97,13 @@ Gib **NUR** ein **valide parsebares JSON-Dokument** zurück:
 
 ## OUTLINE-DESIGN
 
+**KRITISCH: Du MUSST MEHRERE Einträge erstellen. Ein einzelner Eintrag für das gesamte Transkript ist NICHT akzeptabel.**
+
 ### H1 (Hauptabschnitte)
+- **MINDESTENS 3 Einträge**, auch bei kurzen Transkripten
 - Ziel: 4–10 für ~60 Minuten (proportional skalieren)
 - Typisch: 2–10 Minuten
+- Jeder Themenwechsel, jede neue Frage oder thematische Änderung rechtfertigt einen neuen H1
 
 ### H2 (Unterabschnitte)
 - 1–6 pro H1 (nur wenn navigativ sinnvoll)

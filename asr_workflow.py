@@ -111,7 +111,7 @@ def run_llm_if_enabled(segments: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not use_llms:
         return empty_result
     if not LLM_LANGUAGES:
-        logger.info("Summarization enabled but no languages configured; skipping.")
+        logger.info("LLM usage enabled but no languages configured; skipping.")
         return empty_result
 
     llm_output = run_llm_subprocess(segments)
