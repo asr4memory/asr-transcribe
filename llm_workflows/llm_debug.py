@@ -9,7 +9,6 @@ Usage:
 """
 
 import json
-from datetime import datetime
 from pathlib import Path
 from config.app_config import get_config
 from asr_workflow import (

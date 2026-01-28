@@ -230,7 +230,9 @@ def main():
                     llm = None
                 cleanup_cuda_memory()
                 if trial < max_trials:
-                    print(f"Summary error on trial {trial}, retrying...", file=sys.stderr)
+                    print(
+                        f"Summary error on trial {trial}, retrying...", file=sys.stderr
+                    )
                 else:
                     print(f"Summary failed: {e}", file=sys.stderr)
                     result["summaries"] = {lang: "" for lang in languages}
