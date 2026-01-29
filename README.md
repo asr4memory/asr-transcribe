@@ -128,11 +128,15 @@ The `config.toml` file is used to configure the application. You can copy the `c
 
 ### LLM Options (`[llm]`)
 
-- **`use_summarization`**: Toggles the LLM subprocess that generates summaries after transcription finishes.
+- **`use_summarization`**: Enables LLM-generated summaries after transcription finishes.
+- **`use_toc`**: Enables LLM-generated table of contents with hierarchical chapter markers (H1/H2/H3).
 - **`model_path`**: Filesystem path to a llama-cpp-compatible GGUF model (e.g., stored under `models/`).
-- **`n_gpu_layers`**: GPU offloading depth for llama-cpp; adjust based on your hardware.  
+- **`n_gpu_layers`**: GPU offloading depth for llama-cpp; adjust based on your hardware.
   The model is loaded inside `llm_subprocess.py`, so no additional services are required.
-- **`summary_languages`**: List of language codes (currently `["de", "en"]`) that should receive summaries. Remove or limit entries to skip specific languages.
+- **`llm_languages`**: List of language codes (e.g., `["de", "en"]`) for summaries and TOC. Remove or limit entries to skip specific languages.
+- **`verbose`**: Enables verbose output from llama-cpp; useful for debugging model loading issues.
+- **`debug_file`**: Path to a JSON file with WhisperX segments for testing LLM workflows without running transcription.
+- **`output_debug`**: Output directory for debug runs via `python -m llm_workflows.llm_debug`.
 
 ### BagIt Options (`[bag]`)
 
@@ -152,7 +156,18 @@ For example, with the default `["de", "en"]` configuration:
 - `_summary_de.txt` contains the German abstract.
 - `_summary_en.txt` contains the English abstract.
 
-Both files are stored inside each bag’s `data/abstracts/` directory. The prompts favour concise, third-person prose and silently correct minor ASR issues. When the LLM step fails, transcription continues without summaries.
+Both files are stored inside each bag's `data/content_extraction/` directory. The prompts favour concise, third-person prose and silently correct minor ASR issues. When the LLM step fails, transcription continues without summaries.
+
+## Table of Contents (experimental)
+
+If `llm.use_toc` is enabled, the workflow generates a structured table of contents from the transcript. The LLM analyses topic shifts and creates a hierarchical outline with timestamps.
+
+For example, with the default `["de", "en"]` configuration:
+
+- `_toc_de.vtt` contains the German table of contents.
+- `_toc_en.vtt` contains the English table of contents.
+
+The output is a VTT file with chapter markers (H1/H2/H3 levels) that can be used for navigation in media players. Each entry includes a title and precise time range derived from the transcript. When the LLM step fails, transcription continues without the table of contents.
 
 ## Output
 
