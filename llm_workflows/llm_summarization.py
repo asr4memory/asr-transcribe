@@ -1,17 +1,8 @@
+from pathlib import Path
+
+
 def system_prompt_summaries(language: str) -> str:
     """Build system prompt instructions for summaries based on language."""
-    if language == "en":
-        with open(
-            "llm_workflows/prompts/summarization/summary_en.md",
-            "r",
-        ) as f:
-            system_prompt = f.read()
-        return system_prompt
-
-    else:
-        with open(
-            "llm_workflows/prompts/summarization/summary_de.md",
-            "r",
-        ) as f:
-            system_prompt = f.read()
-        return system_prompt
+    base = Path(__file__).parent / "prompts" / "summarization"
+    filename = "summary_en.md" if language == "en" else "summary_de.md"
+    return (base / filename).read_text()
