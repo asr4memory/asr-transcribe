@@ -20,14 +20,12 @@ data
 .pytest_cache
 
 models 
-asr_watch_DE.py
-asr_watch_EN.py
-asr_watch_FR.py
-asr_watch_ES.py
-asr_watch_PL.py
-asr_watch_RU.py
-asr_watch_AUTO.py
-
+watchfolder_crontabs/
+watchfolder_crontabs/__pycache__/
+watchfolder_crontabs/asr_watch_config.toml
+.cache/
+.nv/
+nltk_data/
 whisper_tools_finetuned.py
 
 /asr_venv

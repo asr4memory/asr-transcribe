@@ -1,6 +1,7 @@
 import copy
 import pytest
 import zipfile
+from datetime import datetime
 from output.post_processing import (
     sentence_is_incomplete,
     uppercase_sentences,
@@ -11,6 +12,7 @@ from utils.utilities import (
     finalize_bag,
     sha512,
     zip_bag_directory,
+    copy_documentation_files,
 )
 from output.writers import write_summary
 
@@ -264,3 +266,21 @@ def test_write_summary_multiple_languages(tmp_path):
     assert en_file.exists()
     assert "Zusammenfassung" in de_file.read_text(encoding="utf-8")
     assert "Summary EN" in en_file.read_text(encoding="utf-8")
+
+
+def test_copy_documentation_files_copies_required_docs_and_updates_citation(tmp_path):
+    """Ensure all documentation files are copied and citation year is rendered."""
+    bag_root = tmp_path / "bag"
+
+    copy_documentation_files(bag_root)
+
+    documentation_dir = bag_root / "documentation"
+    assert documentation_dir.exists()
+
+    required_docs = ["asr_export_formats.rtf", "citation.txt", "ohd_upload.txt"]
+    for filename in required_docs:
+        assert (documentation_dir / filename).exists()
+
+    citation_text = (documentation_dir / "citation.txt").read_text(encoding="utf-8")
+    assert "<{year}>" not in citation_text
+    assert str(datetime.now().year) in citation_text

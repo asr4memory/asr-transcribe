@@ -262,22 +262,62 @@ def copy_documentation_files(dir_path: Path) -> None:
     documentation_dir.mkdir(parents=True, exist_ok=True)
 
     doc_files = ["asr_export_formats.rtf", "citation.txt", "ohd_upload.txt"]
-    doc_files_dir = Path(__file__).parent / "doc_files"
+    doc_file_candidates = [
+        Path(__file__).resolve().parents[1] / "doc_files",
+        Path(__file__).resolve().parent / "doc_files",
+        Path.cwd().resolve() / "doc_files",
+    ]
+
+    # Keep candidate order but avoid duplicate paths.
+    seen = set()
+    unique_candidates = []
+    for candidate in doc_file_candidates:
+        key = str(candidate)
+        if key not in seen:
+            seen.add(key)
+            unique_candidates.append(candidate)
+
+    selected_doc_files_dir = None
+    missing_per_candidate = {}
+    for candidate in unique_candidates:
+        missing = [name for name in doc_files if not (candidate / name).is_file()]
+        missing_per_candidate[candidate] = missing
+        if not missing:
+            selected_doc_files_dir = candidate
+            break
+
+    if selected_doc_files_dir is None:
+        missing_details = "; ".join(
+            f"{candidate}: {', '.join(missing)}"
+            for candidate, missing in missing_per_candidate.items()
+        )
+        logger.warning(
+            "Documentation files could not be copied; no valid doc_files source found. Checked: %s",
+            missing_details,
+        )
+        return
+
     current_year = datetime.now().year
 
     for doc_filename in doc_files:
-        doc_file = doc_files_dir / doc_filename
-        if not doc_file.exists():
-            continue
-
+        doc_file = selected_doc_files_dir / doc_filename
         dest_file = documentation_dir / doc_file.name
 
-        if doc_filename == "citation.txt":
-            content = doc_file.read_text(encoding="utf-8")
-            content = content.replace("<{year}>", str(current_year))
-            dest_file.write_text(content, encoding="utf-8")
-        else:
-            shutil.copy2(doc_file, dest_file)
+        try:
+            if doc_filename == "citation.txt":
+                content = doc_file.read_text(encoding="utf-8")
+                content = content.replace("<{year}>", str(current_year))
+                dest_file.write_text(content, encoding="utf-8")
+            else:
+                shutil.copy2(doc_file, dest_file)
+        except Exception as copy_error:
+            logger.warning(
+                "Failed to copy documentation file '%s' from '%s' to '%s': %s",
+                doc_filename,
+                doc_file,
+                dest_file,
+                copy_error,
+            )
 
 
 def duplicate_speaker_csvs_to_ohd_import(layout: Any) -> None:
