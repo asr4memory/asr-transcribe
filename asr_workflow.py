@@ -137,7 +137,7 @@ def build_output_layout(
     model_name: str,
     language_meta: LanguageMeta,
 ) -> OutputLayout:
-    file_stem = filename.split(".")[0]
+    file_stem = Path(filename).stem
     transcript_filename = f"{file_stem}_{model_name}_{language_meta.output_language}"
     translation_filename = f"{file_stem}_{model_name}_{language_meta.descriptor}"
 
@@ -321,6 +321,7 @@ def process_directory(input_directory: Path, output_directory: Path):
 
     if len(filtered_paths) == 0:
         logger.info("No files found.")
+        return
     elif len(filtered_paths) == 1:
         logger.info("Processing 1 file...")
     else:

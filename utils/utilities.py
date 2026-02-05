@@ -70,8 +70,7 @@ def create_output_files_directory_path(
     now = datetime.now(tz=timezone.utc)
     date_suffix = now.strftime(".%Y-%m-%dT%H%M%SZ")
     dir_path = output_directory / filename_base
-    result = dir_path.with_suffix(date_suffix)
-    return result
+    return dir_path.parent / f"{dir_path.name}{date_suffix}"
 
 
 def cleanup_cuda_memory():

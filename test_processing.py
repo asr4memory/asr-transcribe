@@ -13,6 +13,7 @@ from utils.utilities import (
     sha512,
     zip_bag_directory,
     copy_documentation_files,
+    create_output_files_directory_path,
 )
 from output.writers import write_summary
 
@@ -284,3 +285,90 @@ def test_copy_documentation_files_copies_required_docs_and_updates_citation(tmp_
     citation_text = (documentation_dir / "citation.txt").read_text(encoding="utf-8")
     assert "<{year}>" not in citation_text
     assert str(datetime.now().year) in citation_text
+
+
+def test_build_output_layout_preserves_multiple_dots_in_filename(tmp_path, monkeypatch):
+    """Ensure only the last dot is treated as extension separator."""
+    import socket
+
+    monkeypatch.setattr(socket, "gethostbyname", lambda _name: "127.0.0.1")
+    from asr_workflow import build_output_layout
+    from utils.language_utils import LanguageMeta
+
+    language_meta = LanguageMeta(
+        source_language="de",
+        output_language="de",
+        descriptor="de",
+        target_language="de",
+    )
+    layout = build_output_layout(
+        output_directory=tmp_path,
+        filename="interview.v1.final.wav",
+        model_name="large-v3",
+        language_meta=language_meta,
+    )
+
+    assert "interview.v1.final" in layout.output_base_path.name
+
+
+def test_create_output_files_directory_path_preserves_multiple_dots(tmp_path):
+    """Ensure timestamp is appended without truncating dotted names."""
+    result = create_output_files_directory_path(
+        tmp_path, "PART2.Pagenstecher.vorstellung_de_large-v3_de_to_en"
+    )
+    assert result.name.startswith(
+        "PART2.Pagenstecher.vorstellung_de_large-v3_de_to_en."
+    )
+
+
+def test_process_directory_skips_success_email_when_no_files(tmp_path, monkeypatch):
+    """No files in input directory should not trigger a success email."""
+    import socket
+
+    monkeypatch.setattr(socket, "gethostbyname", lambda _name: "127.0.0.1")
+    import asr_workflow
+
+    called = {"count": 0}
+
+    def _fake_send_success_email(**_kwargs):
+        called["count"] += 1
+
+    monkeypatch.setattr(asr_workflow, "send_success_email", _fake_send_success_email)
+
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "output"
+    input_dir.mkdir()
+    output_dir.mkdir()
+
+    asr_workflow.process_directory(input_dir, output_dir)
+
+    assert called["count"] == 0
+
+
+def test_process_directory_sends_success_email_when_files_exist(tmp_path, monkeypatch):
+    """At least one file should trigger a success email."""
+    import socket
+
+    monkeypatch.setattr(socket, "gethostbyname", lambda _name: "127.0.0.1")
+    import asr_workflow
+
+    called = {"count": 0}
+
+    def _fake_send_success_email(**_kwargs):
+        called["count"] += 1
+
+    def _fake_process_file(_filepath, _output_directory):
+        return None
+
+    monkeypatch.setattr(asr_workflow, "send_success_email", _fake_send_success_email)
+    monkeypatch.setattr(asr_workflow, "process_file", _fake_process_file)
+
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "output"
+    input_dir.mkdir()
+    output_dir.mkdir()
+    (input_dir / "sample.wav").write_text("data", encoding="utf-8")
+
+    asr_workflow.process_directory(input_dir, output_dir)
+
+    assert called["count"] == 1
