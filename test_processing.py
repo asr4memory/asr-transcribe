@@ -2,6 +2,7 @@ import copy
 import pytest
 import zipfile
 from datetime import datetime
+from types import SimpleNamespace
 from output.post_processing import (
     sentence_is_incomplete,
     uppercase_sentences,
@@ -14,8 +15,10 @@ from utils.utilities import (
     zip_bag_directory,
     copy_documentation_files,
     create_output_files_directory_path,
+    append_affix,
+    duplicate_speaker_csvs_to_ohd_import,
 )
-from output.writers import write_summary
+from output.writers import write_summary, write_text, write_text_speaker
 
 
 class TestSentenceIsIncomplete:
@@ -105,6 +108,62 @@ def test_split_sentences():
     actual_segments = list(split_long_sentences(original_segments))
 
     assert expected_segments == actual_segments
+
+
+def test_split_long_sentences_repeated_splits_keep_time_continuity():
+    segment = {
+        "text": (
+            "A" * 60
+            + ", "
+            + "B" * 60
+            + ", "
+            + "C" * 60
+            + ", "
+            + "D" * 60
+        ),
+        "start": 0.0,
+        "end": 40.0,
+        "words": [],
+    }
+    result = list(
+        split_long_sentences([segment], use_speaker_diarization=False, max_sentence_length=50)
+    )
+
+    assert len(result) > 2
+    assert result[0]["start"] == pytest.approx(0.0)
+    assert result[-1]["end"] == pytest.approx(40.0)
+
+    for idx in range(len(result) - 1):
+        assert result[idx]["end"] == pytest.approx(result[idx + 1]["start"])
+        assert result[idx]["start"] < result[idx]["end"]
+
+    total_duration = result[-1]["end"] - result[0]["start"]
+    assert total_duration == pytest.approx(40.0)
+
+
+def test_split_long_sentences_stops_when_no_comma_after_threshold():
+    segment = {
+        "text": "A" * 60 + ", " + "B" * 200,
+        "start": 5.0,
+        "end": 25.0,
+        "words": [],
+    }
+    result = list(
+        split_long_sentences([segment], use_speaker_diarization=False, max_sentence_length=50)
+    )
+
+    assert len(result) == 2
+    assert result[0]["end"] == pytest.approx(result[1]["start"])
+    assert result[-1]["end"] == pytest.approx(25.0)
+
+
+def test_split_long_sentences_no_comma_no_split():
+    segment = {"text": "A" * 200, "start": 0.0, "end": 10.0, "words": []}
+    result = list(
+        split_long_sentences([segment], use_speaker_diarization=False, max_sentence_length=50)
+    )
+
+    assert result == [segment]
 
 
 # --- BagIt Tests ---
@@ -254,19 +313,59 @@ def test_write_summary_multiple_languages(tmp_path):
     bag_root = tmp_path / "bag"
     data_transcripts = bag_root / "data" / "transcripts"
     data_transcripts.mkdir(parents=True)
-    base_path = data_transcripts / "sample"
+    base_path = data_transcripts / "sample.v1.final"
 
     write_summary(base_path, "Zusammenfassung DE")
     write_summary(base_path, "Summary EN", language_code="en")
 
     content_extraction_dir = bag_root / "data" / "content_extraction"
-    de_file = content_extraction_dir / "sample_summary_de.txt"
-    en_file = content_extraction_dir / "sample_summary_en.txt"
+    de_file = content_extraction_dir / "sample.v1.final_summary_de.txt"
+    en_file = content_extraction_dir / "sample.v1.final_summary_en.txt"
 
     assert de_file.exists()
     assert en_file.exists()
     assert "Zusammenfassung" in de_file.read_text(encoding="utf-8")
     assert "Summary EN" in en_file.read_text(encoding="utf-8")
+
+
+def test_write_text_preserves_multiple_dots(tmp_path):
+    base_path = tmp_path / "PART2.Pagenstecher.vorstellung_de"
+    segments = [{"text": "Hallo", "start": 0.0, "end": 1.0}]
+
+    write_text(base_path, segments)
+
+    assert (tmp_path / "PART2.Pagenstecher.vorstellung_de.txt").exists()
+
+
+def test_write_text_speaker_preserves_multiple_dots(tmp_path):
+    base_path = tmp_path / "PART2.Pagenstecher.vorstellung_de"
+    segments = [
+        {"text": "Hallo", "start": 0.0, "end": 1.0, "speaker": "SPEAKER_00"}
+    ]
+
+    write_text_speaker(base_path, segments)
+
+    assert (tmp_path / "PART2.Pagenstecher.vorstellung_de_speaker.txt").exists()
+
+
+def test_duplicate_speaker_csvs_preserves_multiple_dots(tmp_path):
+    data_dir = tmp_path / "bag" / "data"
+    transcripts_dir = data_dir / "transcripts"
+    ohd_import_dir = data_dir / "ohd_import"
+    transcripts_dir.mkdir(parents=True)
+    ohd_import_dir.mkdir(parents=True)
+
+    base_path = transcripts_dir / "PART2.Pagenstecher.vorstellung_de"
+    speaker_csv = append_affix(base_path, "_speaker", ".csv")
+    speaker_nopause_csv = append_affix(base_path, "_speaker_nopause", ".csv")
+    speaker_csv.write_text("speaker", encoding="utf-8")
+    speaker_nopause_csv.write_text("speaker", encoding="utf-8")
+
+    layout = SimpleNamespace(data_dir=data_dir, output_base_path=base_path)
+    duplicate_speaker_csvs_to_ohd_import(layout)
+
+    assert (ohd_import_dir / speaker_csv.name).exists()
+    assert (ohd_import_dir / speaker_nopause_csv.name).exists()
 
 
 def test_copy_documentation_files_copies_required_docs_and_updates_citation(tmp_path):

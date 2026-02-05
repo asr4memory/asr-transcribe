@@ -50,6 +50,16 @@ def format_timestamp(seconds, milli_separator="."):
     return formatted_time, formatted_time_ms
 
 
+def append_suffix(path: Path, suffix: str) -> Path:
+    """Append a suffix to a path name without interpreting dots as extensions."""
+    return path.with_name(f"{path.name}{suffix}")
+
+
+def append_affix(path: Path, affix: str, suffix: str = "") -> Path:
+    """Append an affix and optional suffix to a path name without truncating dots."""
+    return path.with_name(f"{path.name}{affix}{suffix}")
+
+
 def check_for_hallucination_warnings(text: str) -> list:
     """
     Check the output for the message "Failed to align segment" in the
@@ -323,15 +333,13 @@ def duplicate_speaker_csvs_to_ohd_import(layout: Any) -> None:
     """Copy speaker CSV files to the OHD import directory."""
     ohd_import_dir = layout.data_dir / "ohd_import"
 
-    speaker_csv = layout.output_base_path.with_stem(
-        layout.output_base_path.stem + "_speaker"
-    ).with_suffix(".csv")
+    speaker_csv = append_affix(layout.output_base_path, "_speaker", ".csv")
     if speaker_csv.exists():
         shutil.copy2(speaker_csv, ohd_import_dir / speaker_csv.name)
 
-    speaker_nopause_csv = layout.output_base_path.with_stem(
-        layout.output_base_path.stem + "_speaker_nopause"
-    ).with_suffix(".csv")
+    speaker_nopause_csv = append_affix(
+        layout.output_base_path, "_speaker_nopause", ".csv"
+    )
     if speaker_nopause_csv.exists():
         shutil.copy2(speaker_nopause_csv, ohd_import_dir / speaker_nopause_csv.name)
 

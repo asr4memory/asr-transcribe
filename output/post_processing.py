@@ -247,6 +247,7 @@ def split_long_sentences(
     The end time of the first segment, that is, the start time of the
     second segment, are estimated based on the len of the two sentence
     parts.
+    max_sentence_length: normally injected from config; default is fallback only.
     """
     for segment in segments:
         sentence = segment["text"]
@@ -256,51 +257,82 @@ def split_long_sentences(
 
         if len(sentence) <= max_sentence_length:
             yield segment
-        else:
-            split_index = sentence.find(",", max_sentence_length)
-            if split_index == -1:
-                yield segment
-            else:
-                sentence_part1 = sentence[: split_index + 1].strip()
-                sentence_part2 = sentence[split_index + 1 :].strip()
-                duration = segment["end"] - segment["start"]
-                split_time = segment["start"] + duration * len(sentence_part1) / len(
-                    sentence
-                )
+            continue
 
-                # Split words basierend auf Anzahl der Wörter im Text
-                words_count_part1 = len(sentence_part1.split())
-                words_part1 = segment_words[:words_count_part1]
-                words_part2 = segment_words[words_count_part1:]
+        current_sentence = sentence
+        current_words = segment_words
+        current_start = segment["start"]
+        current_end = segment["end"]
 
+        while True:
+            if len(current_sentence) <= max_sentence_length:
                 if use_speaker_diarization:
                     yield {
-                        "start": segment["start"],
-                        "end": split_time,
-                        "text": sentence_part1,
+                        "start": current_start,
+                        "end": current_end,
+                        "text": current_sentence,
                         "speaker": segment_speaker,
-                        "words": words_part1,
-                    }
-                    yield {
-                        "start": split_time,
-                        "end": segment["end"],
-                        "text": sentence_part2,
-                        "speaker": segment_speaker,
-                        "words": words_part2,
+                        "words": current_words,
                     }
                 else:
                     yield {
-                        "start": segment["start"],
-                        "end": split_time,
-                        "text": sentence_part1,
-                        "words": words_part1,
+                        "start": current_start,
+                        "end": current_end,
+                        "text": current_sentence,
+                        "words": current_words,
                     }
+                break
+
+            split_index = current_sentence.find(",", max_sentence_length)
+            if split_index == -1:
+                if use_speaker_diarization:
                     yield {
-                        "start": split_time,
-                        "end": segment["end"],
-                        "text": sentence_part2,
-                        "words": words_part2,
+                        "start": current_start,
+                        "end": current_end,
+                        "text": current_sentence,
+                        "speaker": segment_speaker,
+                        "words": current_words,
                     }
+                else:
+                    yield {
+                        "start": current_start,
+                        "end": current_end,
+                        "text": current_sentence,
+                        "words": current_words,
+                    }
+                break
+
+            sentence_part1 = current_sentence[: split_index + 1].strip()
+            sentence_part2 = current_sentence[split_index + 1 :].strip()
+            duration = current_end - current_start
+            split_time = current_start + duration * len(sentence_part1) / len(
+                current_sentence
+            )
+
+            # Split words basierend auf Anzahl der Wörter im Text
+            words_count_part1 = len(sentence_part1.split())
+            words_part1 = current_words[:words_count_part1]
+            words_part2 = current_words[words_count_part1:]
+
+            if use_speaker_diarization:
+                yield {
+                    "start": current_start,
+                    "end": split_time,
+                    "text": sentence_part1,
+                    "speaker": segment_speaker,
+                    "words": words_part1,
+                }
+            else:
+                yield {
+                    "start": current_start,
+                    "end": split_time,
+                    "text": sentence_part1,
+                    "words": words_part1,
+                }
+
+            current_start = split_time
+            current_sentence = sentence_part2
+            current_words = words_part2
 
 
 def process_whisperx_segments(segments):

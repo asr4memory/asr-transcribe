@@ -15,7 +15,7 @@ from xhtml2pdf import pisa
 from output.tei_builder import WhisperToTEIConverter
 
 from config.app_config import get_config
-from utils.utilities import format_timestamp
+from utils.utilities import format_timestamp, append_suffix, append_affix
 
 env = Environment(
     loader=PackageLoader("output.writers"), autoescape=select_autoescape()
@@ -39,7 +39,7 @@ PAUSE_MARKER_THRESHOLD = _resolve_pause_threshold()
 
 def write_vtt(path_without_ext: Path, segments: list):
     """Write the processed segments to a VTT subtitle file."""
-    full_path = path_without_ext.with_suffix(".vtt")
+    full_path = append_suffix(path_without_ext, ".vtt")
     with open(full_path, "w", encoding="utf-8") as file:
         file.write("WEBVTT\n\n")
         for i, seg in enumerate(segments):
@@ -52,7 +52,7 @@ def write_vtt(path_without_ext: Path, segments: list):
 
 def write_word_segments_vtt(path_without_ext: Path, word_segments: list):
     """Convert processed word segments to VTT format."""
-    full_path = path_without_ext.with_suffix(".vtt")
+    full_path = append_suffix(path_without_ext, ".vtt")
     with open(full_path, "w", encoding="utf-8") as vtt_file:
         vtt_file.write("WEBVTT\n\n")
         for i, word_seg in enumerate(word_segments):
@@ -66,7 +66,7 @@ def write_word_segments_vtt(path_without_ext: Path, word_segments: list):
 
 def write_srt(path_without_ext: Path, segments: list):
     """Write the processed segments to an SRT subtitle file."""
-    full_path = path_without_ext.with_suffix(".srt")
+    full_path = append_suffix(path_without_ext, ".srt")
     with open(full_path, "w", encoding="utf-8") as file:
         for i, seg in enumerate(segments):
             _, start_time = format_timestamp(seg["start"], milli_separator=",")
@@ -81,7 +81,7 @@ def write_text(path_without_ext: Path, segments: list):
     Write the processed segments to a text file.
     This file will contain only the transcribed text of each segment.
     """
-    full_path = path_without_ext.with_suffix(".txt")
+    full_path = append_suffix(path_without_ext, ".txt")
     with open(full_path, "w", encoding="utf-8") as txt_file:
         for seg in segments:
             if "text" in seg:
@@ -94,9 +94,7 @@ def write_text_speaker(path_without_ext: Path, segments: list):
     This file will contain the transcribed text of each segment with speaker information
     and start/end timestamps for each segment.
     """
-    full_path = path_without_ext.with_stem(
-        path_without_ext.stem + "_speaker"
-    ).with_suffix(".txt")
+    full_path = append_affix(path_without_ext, "_speaker", ".txt")
     with open(full_path, "w", encoding="utf-8") as txt_file:
         last_speaker = ""
         for seg in segments:
@@ -122,9 +120,7 @@ def write_text_speaker_tab(path_without_ext: Path, segments: list):
     Write the processed segments to a tab-delimited text file.
     This file will contain IN timestamp, SPEAKER, and TRANSCRIPT columns.
     """
-    full_path = path_without_ext.with_stem(path_without_ext.stem + "_tab").with_suffix(
-        ".txt"
-    )
+    full_path = append_affix(path_without_ext, "_tab", ".txt")
     with open(full_path, "w", encoding="utf-8") as txt_file:
         # Write header without OUT column
         txt_file.write("IN\tSPEAKER\tTRANSCRIPT\n")
@@ -227,9 +223,7 @@ def write_text_speaker_maxqda(
     Write the processed segments to a tab-delimited text file for MAXQDA imports.
     Uses truncated timestamps (h:mm:ss.x), omits headers, and appends a colon to speaker labels.
     """
-    full_path = path_without_ext.with_stem(
-        path_without_ext.stem + "_speaker_maxqda"
-    ).with_suffix(".txt")
+    full_path = append_affix(path_without_ext, "_speaker_maxqda", ".txt")
     pause_markers = _collect_pause_markers_per_segment(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
         for idx, seg in enumerate(segments):
@@ -251,9 +245,7 @@ def write_text_speaker_segment_maxqda(
     Inserts pause markers (>=2s) based on word-level timing, attached to the
     preceding segment text.
     """
-    full_path = path_without_ext.with_stem(
-        path_without_ext.stem + "_speaker_segment_maxqda"
-    ).with_suffix(".txt")
+    full_path = append_affix(path_without_ext, "_speaker_segment_maxqda", ".txt")
     pause_markers = _collect_pause_markers_per_segment(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
         last_speaker = ""
@@ -300,9 +292,7 @@ def write_text_maxqda(
     Write the processed segments to a tab-delimited text file for MAXQDA without speaker labels.
     Each line contains the truncated timestamp and transcript text.
     """
-    full_path = path_without_ext.with_stem(
-        path_without_ext.stem + "_maxqda"
-    ).with_suffix(".txt")
+    full_path = append_affix(path_without_ext, "_maxqda", ".txt")
     pause_markers = _collect_pause_markers_per_segment(segments, word_segments)
     with open(full_path, "w", encoding="utf-8") as txt_file:
         for idx, seg in enumerate(segments):
@@ -318,7 +308,7 @@ def write_rtf(path_without_ext: Path, segments: list):
     Write the processed segments to an RTF file.
     This file will contain only the transcribed text of each segment.
     """
-    full_path = path_without_ext.with_suffix(".rtf")
+    full_path = append_suffix(path_without_ext, ".rtf")
     with open(full_path, "w", encoding="utf-8") as rtf_file:
         # RTF header
         rtf_file.write("{\\rtf1\\ansi\\ansicpg1252\\cocoartf2580\\cocoasubrtf220\n")
@@ -347,9 +337,7 @@ def write_rtf_speaker(path_without_ext: Path, segments: list):
     This file will contain the transcribed text of each segment with speaker information
     and start/end timestamps for each segment.
     """
-    full_path = path_without_ext.with_stem(
-        path_without_ext.stem + "_speaker"
-    ).with_suffix(".rtf")
+    full_path = append_affix(path_without_ext, "_speaker", ".rtf")
     with open(full_path, "w", encoding="utf-8") as rtf_file:
         # RTF header
         rtf_file.write("{\\rtf1\\ansi\\ansicpg1252\\cocoartf2580\\cocoasubrtf220\n")
@@ -426,7 +414,7 @@ def write_csv(
         ["IN", "SPEAKER", "TRANSCRIPT"] if speaker_column else ["IN", "TRANSCRIPT"]
     )
 
-    full_path = path_without_ext.with_suffix(".csv")
+    full_path = append_suffix(path_without_ext, ".csv")
 
     pause_markers = None
     if include_pause_markers and speaker_column and word_segments:
@@ -465,7 +453,7 @@ def write_word_segments_csv(
 ):
     """Write the processed word segments to a CSV file."""
     fieldnames = ["WORD", "START", "END", "SCORE"]
-    full_path = path_without_ext.with_suffix(".csv")
+    full_path = append_suffix(path_without_ext, ".csv")
     with open(full_path, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=delimiter)
         writer.writeheader()
@@ -486,7 +474,7 @@ def write_word_segments_csv(
 
 def write_json(path_without_ext: Path, segments: list):
     """Write a dictionary as a JSON file."""
-    full_path = path_without_ext.with_suffix(".json")
+    full_path = append_suffix(path_without_ext, ".json")
     with open(full_path, "w", encoding="utf-8") as f:
         json.dump(segments, f, indent=4, ensure_ascii=False)
 
@@ -494,14 +482,14 @@ def write_json(path_without_ext: Path, segments: list):
 def write_pdf(path_without_ext: Path, segments: list):
     """Write a PDF file with the transcript text."""
     template = env.get_template("pdf_template.html")
-    normalized_filename = normalize("NFC", path_without_ext.stem)
+    normalized_filename = normalize("NFC", path_without_ext.name)
     segments_for_template = prepare_segments_for_template(segments)
 
     html_content = template.render(
         lang="en", filename=normalized_filename, segments=segments_for_template
     )
 
-    full_path = path_without_ext.with_suffix(".pdf")
+    full_path = append_suffix(path_without_ext, ".pdf")
     with open(full_path, "wb") as file:
         pisa.CreatePDF(html_content, dest=file)
 
@@ -509,7 +497,7 @@ def write_pdf(path_without_ext: Path, segments: list):
 def write_pdf_timestamps(path_without_ext: Path, segments: list):
     """Write a PDF file with the transcript text and timestamps."""
     template = env.get_template("pdf_template.html")
-    normalized_filename = normalize("NFC", path_without_ext.stem)
+    normalized_filename = normalize("NFC", path_without_ext.name)
 
     # Modify segments to include timestamps in text
     modified_segments = []
@@ -530,9 +518,7 @@ def write_pdf_timestamps(path_without_ext: Path, segments: list):
         lang="en", filename=normalized_filename, segments=segments_for_template
     )
 
-    full_path = path_without_ext.with_stem(
-        path_without_ext.stem + "_timestamps"
-    ).with_suffix(".pdf")
+    full_path = append_affix(path_without_ext, "_timestamps", ".pdf")
     with open(full_path, "wb") as file:
         pisa.CreatePDF(html_content, dest=file)
 
@@ -572,7 +558,7 @@ def write_ods(path_without_ext: Path, segments: list):
     data = OrderedDict()
     data.update({"Sheet 1": rows})
 
-    full_path = path_without_ext.with_suffix(".ods")
+    full_path = append_suffix(path_without_ext, ".ods")
     save_data(str(full_path), data)
 
 
@@ -586,7 +572,7 @@ def write_odt(path_without_ext: Path, segments: list):
     import zipfile
     import io
 
-    full_path = path_without_ext.with_suffix(".odt")
+    full_path = append_suffix(path_without_ext, ".odt")
 
     # Create a new zip file (ODT is a zip file with XML content)
     with zipfile.ZipFile(full_path, "w") as odt_zip:
@@ -698,7 +684,7 @@ def write_tei_xml(path_without_ext: Path, segments: list):
     """
     Write TEI XML file
     """
-    full_path = path_without_ext.with_suffix(".tei.xml")
+    full_path = append_suffix(path_without_ext, ".tei.xml")
     converter = WhisperToTEIConverter()
     tei_xml_content = converter.convert(segments, full_path.name)
     with open(full_path, "w", encoding="utf-8") as xml_file:
@@ -712,7 +698,7 @@ def write_summary(path_without_ext: Path, summary: str, language_code: str = "de
     bag_data_dir = path_without_ext.parent.parent
     content_extraction_dir = bag_data_dir / "content_extraction"
     content_extraction_dir.mkdir(parents=True, exist_ok=True)
-    summary_filename = f"{path_without_ext.stem}_summary_{language_code}.txt"
+    summary_filename = f"{path_without_ext.name}_summary_{language_code}.txt"
     full_path = content_extraction_dir / summary_filename
     with open(full_path, "w", encoding="utf-8") as txt_file:
         txt_file.write(summary)
@@ -741,7 +727,7 @@ def write_toc(path_without_ext: Path, toc: dict | list, language_code: str = "de
     bag_data_dir = path_without_ext.parent.parent
     content_extraction_dir = bag_data_dir / "content_extraction"
     content_extraction_dir.mkdir(parents=True, exist_ok=True)
-    toc_filename = f"{path_without_ext.stem}_toc_{language_code}.vtt"
+    toc_filename = f"{path_without_ext.name}_toc_{language_code}.vtt"
     full_path = content_extraction_dir / toc_filename
 
     cues = toc
@@ -772,9 +758,7 @@ def write_output_files(
 
     # 1. WhisperX output files
     write_vtt(base_path, segments)
-    write_word_segments_vtt(
-        base_path.with_stem(base_path.stem + "_word_segments"), word_segments
-    )
+    write_word_segments_vtt(append_affix(base_path, "_word_segments"), word_segments)
     write_srt(base_path, segments)
     write_text(base_path, segments)
     write_text_speaker(base_path, segments)
@@ -795,7 +779,7 @@ def write_output_files(
         write_header=False,
     )
     write_csv(
-        base_path.with_stem(base_path.stem + "_speaker"),
+        append_affix(base_path, "_speaker"),
         segments,
         delimiter="\t",
         speaker_column=True,
@@ -804,7 +788,7 @@ def write_output_files(
         pause_formatter=_format_pause_marker_tag_floor,
     )
     write_csv(
-        base_path.with_stem(base_path.stem + "_speaker_nopause"),
+        append_affix(base_path, "_speaker_nopause"),
         segments,
         delimiter="\t",
         speaker_column=True,
@@ -813,13 +797,13 @@ def write_output_files(
         include_pause_markers=False,
     )
     write_word_segments_csv(
-        base_path.with_stem(base_path.stem + "_word_segments"),
+        append_affix(base_path, "_word_segments"),
         word_segments,
         delimiter="\t",
     )
     write_json(base_path, processed_whisperx_output)
     write_json(
-        base_path.with_stem(base_path.stem + "_unprocessed"),
+        append_affix(base_path, "_unprocessed"),
         unprocessed_whisperx_output,
     )
     write_ods(base_path, segments)
@@ -829,7 +813,9 @@ def write_output_files(
     if llm_output:
         content_extraction_dir = base_path.parent.parent / "content_extraction"
         content_extraction_dir.mkdir(parents=True, exist_ok=True)
-        write_json(content_extraction_dir / f"{base_path.stem}_llm_output", llm_output)
+        write_json(
+            content_extraction_dir / f"{base_path.name}_llm_output", llm_output
+        )
         summaries = llm_output.get("summaries", {})
         if summaries:
             for language_code, text in summaries.items():
