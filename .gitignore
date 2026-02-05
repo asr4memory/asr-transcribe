@@ -4,7 +4,7 @@
 .mypy_cache
 __pycache__
 .ruff_cache
-claude.md
+cla*
 
 # Specific directories
 /.idea
@@ -16,7 +16,7 @@ _output
 .env
 data
 .direnv
-.claude
+.cla*
 .pytest_cache
 
 models 
