@@ -33,6 +33,8 @@ llm_languages = ["de", "en"]  # Choose any subset of ["de", "en"]
 verbose = false # Can be useful for debugging 
 debug_file = "path/to/debug_file_json" # must be original WhisperX output json or processed output json
 output_debug = "path/to/debug_output"
+reasoning_log = "" # JSONL path; supports {run_id} or directory (trailing /); empty disables
+reasoning_log_max_chars = 20000 # 0 = no truncation
 
 [email]
 smtp_server = "mail.example.com"

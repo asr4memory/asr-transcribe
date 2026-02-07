@@ -14,6 +14,10 @@ Returns a unified result dict:
 
 import sys
 import pickle
+import json
+import os
+from datetime import datetime
+from pathlib import Path
 from llama_cpp import Llama
 from config.app_config import get_config
 from utils.utilities import cleanup_cuda_memory
@@ -25,6 +29,63 @@ model_path = config["llm"]["model_path"]
 verbose = config["llm"].get("verbose", False)
 use_summarization = config["llm"].get("use_summarization", False)
 use_toc = config["llm"].get("use_toc", False)
+reasoning_log_path = config["llm"].get("reasoning_log", "")
+reasoning_log_max_chars = int(config["llm"].get("reasoning_log_max_chars", 0) or 0)
+run_id = f"{datetime.utcnow().isoformat(timespec='seconds')}Z_{os.getpid()}"
+
+
+def _resolve_reasoning_log_path() -> str:
+    if not reasoning_log_path:
+        return ""
+    if "{run_id}" in reasoning_log_path:
+        return reasoning_log_path.format(run_id=run_id)
+    path = Path(reasoning_log_path).expanduser()
+    if str(reasoning_log_path).endswith(os.sep) or path.is_dir():
+        filename = f"llm_reasoning_{run_id}.jsonl"
+        return str(path / filename)
+    return str(path)
+
+
+reasoning_log_file = _resolve_reasoning_log_path()
+
+
+def log_reasoning(entry: dict) -> None:
+    """Best-effort JSONL logging of removed reasoning blocks."""
+    if not reasoning_log_file:
+        return
+    try:
+        log_path = Path(reasoning_log_file).expanduser()
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception:
+        # Never break LLM flow due to logging issues.
+        pass
+
+
+def _truncate_reasoning(text: str) -> str:
+    if not text:
+        return ""
+    if reasoning_log_max_chars > 0 and len(text) > reasoning_log_max_chars:
+        return text[:reasoning_log_max_chars] + "…"
+    return text
+
+
+def _log_removed_reasoning(
+    removed: str, kind: str, meta: dict | None = None
+) -> None:
+    if not reasoning_log_file or removed is None:
+        return
+    entry = {
+        "ts": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "run_id": run_id,
+        "kind": kind,
+        "removed_len": len(removed),
+        "removed": _truncate_reasoning(removed),
+    }
+    if meta:
+        entry.update(meta)
+    log_reasoning(entry)
 
 
 def get_languages() -> list[str]:
@@ -77,14 +138,20 @@ def user_prompt_with_timestamps(segments) -> str:
     return json.dumps(data, ensure_ascii=False)
 
 
-def strip_reasoning(text: str) -> str:
+def strip_reasoning(text: str, meta: dict | None = None) -> str:
     """Removes model reasoning/analysis from output, keeping only final response."""
     if not text:
         return ""
 
     # Pattern 1: <|channel|>final<|message|> marks the final output
     if "<|channel|>final<|message|>" in text:
-        text = text.split("<|channel|>final<|message|>")[-1]
+        before, after = text.split("<|channel|>final<|message|>", 1)
+        _log_removed_reasoning(
+            removed=before,
+            kind="final_marker",
+            meta=meta,
+        )
+        text = after
         # Also remove any trailing channel markers
         if "<|" in text:
             text = text.split("<|")[0]
@@ -93,13 +160,24 @@ def strip_reasoning(text: str) -> str:
     # Pattern 2: Old delimiter format
     old_delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
     if old_delimiter in text:
-        return text.split(old_delimiter, 1)[1].strip()
+        before, after = text.split(old_delimiter, 1)
+        _log_removed_reasoning(
+            removed=before,
+            kind="old_delimiter",
+            meta=meta,
+        )
+        return after.strip()
 
     # Pattern 3: Remove anything starting with <|channel|>analysis
     if "<|channel|>analysis" in text:
         # Take everything before the analysis starts
-        text = text.split("<|channel|>analysis")[0]
-        return text.strip()
+        before, after = text.split("<|channel|>analysis", 1)
+        _log_removed_reasoning(
+            removed="<|channel|>analysis" + after,
+            kind="analysis_block",
+            meta=meta,
+        )
+        return before.strip()
 
     return text
 
@@ -112,6 +190,7 @@ def generate(
     temperature: float = 0.3,
     top_p: float = 0.9,
     repeat_penalty: float = 1.2,
+    meta: dict | None = None,
 ) -> str:
     """Generate a summary using llama_cpp for a given prompt."""
     output = llm.create_chat_completion(
@@ -126,7 +205,7 @@ def generate(
     )
     result = output["choices"][0]["message"]["content"]
 
-    return strip_reasoning(result)
+    return strip_reasoning(result, meta=meta)
 
 
 def parse_json_output(text: str) -> dict | list:
@@ -160,6 +239,7 @@ def generate_task(
     top_p: float = 0.9,
     repeat_penalty: float = 1.2,
     parse_json: bool = False,
+    trial: int = 0,
 ) -> dict:
     """
     Generate LLM output for a task across all languages.
@@ -167,6 +247,11 @@ def generate_task(
     """
     results = {}
     for language in languages:
+        meta = {
+            "task": task_name,
+            "lang": language,
+            "trial": trial,
+        }
         system_prompt = prompt_fn(language)
         output = generate(
             llm,
@@ -176,6 +261,7 @@ def generate_task(
             temperature=temperature,
             top_p=top_p,
             repeat_penalty=repeat_penalty,
+            meta=meta,
         )
         if parse_json:
             results[language] = parse_json_output(output)
@@ -218,10 +304,11 @@ def main():
                     languages,
                     system_prompt_summaries,
                     user_prompt_text,
-                    max_tokens=4096,
-                    temperature=0.3,
-                    top_p=0.9,
-                    repeat_penalty=1.2,
+                    max_tokens=12288, #originally 4096
+                    temperature=0.0, #originally 0.3
+                    top_p=1.0, #originally 0.9
+                    repeat_penalty=1.0, #originally 1.2
+                    trial=trial,
                 )
                 break
             except Exception as e:
@@ -254,6 +341,7 @@ def main():
                     top_p=0.9,
                     repeat_penalty=1.1,
                     parse_json=True,
+                    trial=trial,
                 )
                 break
             except Exception as e:
