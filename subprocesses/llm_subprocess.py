@@ -124,12 +124,13 @@ def user_prompt(segments) -> str:
 
 
 def user_prompt_with_timestamps(segments) -> str:
-    """Return segments as compact timestamped lines for TOC generation."""
-    lines = []
+    """Return segments as tab-separated lines (start, end, text) for TOC generation."""
+    lines = ["start\tend\ttranscript"]
     for seg in segments:
         start = seg.get("start", 0)
         end = seg.get("end", start)
-        lines.append(f"[{start}-{end}] {seg.get('text', '')}")
+        text = seg.get("text", "")
+        lines.append(f"{start}\t{end}\t{text}")
     return "\n".join(lines)
 
 
@@ -199,6 +200,9 @@ def generate(
         repeat_penalty=repeat_penalty,
     )
     result = output["choices"][0]["message"]["content"]
+    finish_reason = output["choices"][0].get("finish_reason", "unknown")
+    if not result or result.strip() == "":
+        print(f"DEBUG: empty LLM output, finish_reason={finish_reason}, meta={meta}", file=sys.stderr)
 
     return strip_reasoning(result, meta=meta)
 
@@ -313,7 +317,7 @@ def main():
                 cleanup_cuda_memory()
                 if trial < max_trials:
                     print(
-                        f"Summary error on trial {trial}, retrying...", file=sys.stderr
+                        f"Summary error on trial {trial}: {e}, retrying...", file=sys.stderr
                     )
                 else:
                     print(f"Summary failed: {e}", file=sys.stderr)
@@ -345,7 +349,7 @@ def main():
                 llm = None
                 cleanup_cuda_memory()
                 if trial < max_trials:
-                    print(f"TOC error on trial {trial}, retrying...", file=sys.stderr)
+                    print(f"TOC error on trial {trial}: {e}, retrying...", file=sys.stderr)
                 else:
                     print(f"TOC failed: {e}", file=sys.stderr)
                     result["toc"] = {lang: {"_error": str(e)} for lang in languages}

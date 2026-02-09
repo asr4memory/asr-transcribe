@@ -14,23 +14,21 @@ Each entry **MUST** be mapped to a precise time range derived from the transcrip
 ---
 
 ## INPUT
-The input is a **timestamped transcript** with one segment per line:
+The input is a **tab-separated transcript** with one segment per line (columns: start, end, text):
 
 ```
-[start-end] segment text
+start	end	transcript
+0.000	2.340	Welcome to the presentation.
+2.340	6.120	Today we will discuss several topics.
 ```
 
-- `start`: start time in seconds (float, e.g. `0.0`, `127.84`)
-- `end`: end time in seconds (float)
-
-Example:
-```
-[0.0-2.34] Welcome to the presentation.
-[2.34-6.12] Today we will discuss several topics.
-```
+The first line is the header. Each subsequent line is a segment with tab-separated columns:
+- `start`: start time in seconds (float, millisecond precision)
+- `end`: end time in seconds (float, millisecond precision)
+- `transcript`: segment text
 
 **Input constraints:**
-- Use **only** the provided time values for time mapping.
+- Use **only** the provided start/end values for time mapping.
 - Do not invent times outside the input span.
 - If segments are slightly inconsistent (rare out-of-order), apply **minimal** adjustments to restore monotonic order.
 

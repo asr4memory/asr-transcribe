@@ -13,23 +13,21 @@ Jeder Eintrag **MUSS** einem präzisen Zeitbereich zugeordnet sein, der aus dem 
 ---
 
 ## EINGABE
-Die Eingabe ist ein **zeitmarkiertes Transkript** mit einem Segment pro Zeile:
+Die Eingabe ist ein **tabulatorgetrenntes Transkript** mit einem Segment pro Zeile (Spalten: Start, Ende, Text):
 
 ```
-[start-end] Segmenttext
+start	end	transcript
+0.000	2.340	Willkommen zur Präsentation.
+2.340	6.120	Heute besprechen wir verschiedene Themen.
 ```
 
-- `start`: Startzeit in Sekunden (float, z. B. `0.0`, `127.84`)
-- `end`: Endzeit in Sekunden (float)
-
-Beispiel:
-```
-[0.0-2.34] Willkommen zur Präsentation.
-[2.34-6.12] Heute besprechen wir verschiedene Themen.
-```
+Die erste Zeile ist der Header. Jede weitere Zeile ist ein Segment mit tabulatorgetrennten Spalten:
+- `start`: Startzeit in Sekunden (float, Millisekundenpräzision)
+- `end`: Endzeit in Sekunden (float, Millisekundenpräzision)
+- `transcript`: Segmenttext
 
 **Constraints zur Eingabe:**
-- Nutze **ausschließlich** die angegebenen Zeitwerte für die Zeitzuordnung.
+- Nutze **ausschließlich** die angegebenen Start-/Endwerte für die Zeitzuordnung.
 - Erfinde keine Zeiten außerhalb des Bereichs der Eingabe.
 - Falls Segmente geringfügig inkonsistent sind (selten out-of-order), korrigiere **minimal**, um monotone Ordnung zu erhalten.
 
