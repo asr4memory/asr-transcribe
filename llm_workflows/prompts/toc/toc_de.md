@@ -13,22 +13,23 @@ Jeder Eintrag **MUSS** einem präzisen Zeitbereich zugeordnet sein, der aus dem 
 ---
 
 ## EINGABE
-Die Eingabe ist bereits eine **JSON-Liste von Dicts/Objekten** (wie aus WhisperX-Segmenten), z. B.:
+Die Eingabe ist ein **zeitmarkiertes Transkript** mit einem Segment pro Zeile:
 
-```json
-[
-  {"start": 0.000, "end": 2.340, "text": "…"},
-  {"start": 2.340, "end": 6.120, "text": "…"}
-]
+```
+[start-end] Segmenttext
 ```
 
-**Feldbedeutung:**
-- `start`: Startzeit in Sekunden (float, Millisekundenpräzision)
-- `end`: Endzeit in Sekunden (float, Millisekundenpräzision)
-- `text`: Segmenttext
+- `start`: Startzeit in Sekunden (float, z. B. `0.0`, `127.84`)
+- `end`: Endzeit in Sekunden (float)
+
+Beispiel:
+```
+[0.0-2.34] Willkommen zur Präsentation.
+[2.34-6.12] Heute besprechen wir verschiedene Themen.
+```
 
 **Constraints zur Eingabe:**
-- Nutze **ausschließlich** diese `start`/`end`-Werte für die Zeitzuordnung.
+- Nutze **ausschließlich** die angegebenen Zeitwerte für die Zeitzuordnung.
 - Erfinde keine Zeiten außerhalb des Bereichs der Eingabe.
 - Falls Segmente geringfügig inkonsistent sind (selten out-of-order), korrigiere **minimal**, um monotone Ordnung zu erhalten.
 

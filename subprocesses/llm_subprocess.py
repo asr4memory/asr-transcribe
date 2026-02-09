@@ -40,7 +40,7 @@ def _resolve_reasoning_log_path() -> str:
     if "{run_id}" in reasoning_log_path:
         return reasoning_log_path.format(run_id=run_id)
     path = Path(reasoning_log_path).expanduser()
-    if str(reasoning_log_path).endswith(os.sep) or path.is_dir():
+    if str(reasoning_log_path).endswith(os.sep) or path.is_dir() or not path.suffix:
         filename = f"llm_reasoning_{run_id}.jsonl"
         return str(path / filename)
     return str(path)
@@ -124,18 +124,13 @@ def user_prompt(segments) -> str:
 
 
 def user_prompt_with_timestamps(segments) -> str:
-    """Return segments as JSON with start/end timestamps for TOC generation."""
-    import json
-
-    data = [
-        {
-            "start": seg.get("start", 0),
-            "end": seg.get("end", 0),
-            "text": seg.get("text", ""),
-        }
-        for seg in segments
-    ]
-    return json.dumps(data, ensure_ascii=False)
+    """Return segments as compact timestamped lines for TOC generation."""
+    lines = []
+    for seg in segments:
+        start = seg.get("start", 0)
+        end = seg.get("end", start)
+        lines.append(f"[{start}-{end}] {seg.get('text', '')}")
+    return "\n".join(lines)
 
 
 def strip_reasoning(text: str, meta: dict | None = None) -> str:
@@ -336,7 +331,7 @@ def main():
                     languages,
                     system_prompt_toc,
                     user_prompt_toc_text,
-                    max_tokens=8192,
+                    max_tokens=12288,
                     temperature=0.3,
                     top_p=0.9,
                     repeat_penalty=1.1,
