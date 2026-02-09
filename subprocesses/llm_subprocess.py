@@ -33,6 +33,14 @@ reasoning_log_path = config["llm"].get("reasoning_log", "")
 reasoning_log_max_chars = int(config["llm"].get("reasoning_log_max_chars", 0) or 0)
 run_id = f"{datetime.utcnow().isoformat(timespec='seconds')}Z_{os.getpid()}"
 
+class JSONParsingError(Exception):
+    """Raised when LLM output cannot be parsed as valid JSON."""
+    def __init__(self, error_msg: str, raw_output: str, truncated: bool = False):
+        self.error_msg = error_msg
+        self.raw_output = raw_output
+        self.truncated = truncated
+        super().__init__(f"JSON parsing failed{' (truncated)' if truncated else ''}: {error_msg}")
+
 
 def _resolve_reasoning_log_path() -> str:
     if not reasoning_log_path:
@@ -139,12 +147,12 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
     if not text:
         return ""
 
-    # Pattern 1: <|channel|>final<|message|> marks the final output
+    # Pattern 1: Multi-step reasoning — analysis block followed by final output
     if "<|channel|>final<|message|>" in text:
         before, after = text.split("<|channel|>final<|message|>", 1)
         _log_removed_reasoning(
             removed=before,
-            kind="final_marker",
+            kind="multi_step",
             meta=meta,
         )
         text = after
@@ -153,24 +161,23 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
             text = text.split("<|")[0]
         return text.strip()
 
-    # Pattern 2: Old delimiter format
-    old_delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
-    if old_delimiter in text:
-        before, after = text.split(old_delimiter, 1)
+    # Pattern 2: Single-step reasoning — direct final output without separate analysis block
+    single_step_delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
+    if single_step_delimiter in text:
+        before, after = text.split(single_step_delimiter, 1)
         _log_removed_reasoning(
             removed=before,
-            kind="old_delimiter",
+            kind="single_step",
             meta=meta,
         )
         return after.strip()
 
-    # Pattern 3: Remove anything starting with <|channel|>analysis
+    # Pattern 3: Incomplete reasoning — model stuck in analysis, no final output produced
     if "<|channel|>analysis" in text:
-        # Take everything before the analysis starts
         before, after = text.split("<|channel|>analysis", 1)
         _log_removed_reasoning(
             removed="<|channel|>analysis" + after,
-            kind="analysis_block",
+            kind="incomplete_reasoning",
             meta=meta,
         )
         return before.strip()
@@ -187,8 +194,8 @@ def generate(
     top_p: float = 0.9,
     repeat_penalty: float = 1.2,
     meta: dict | None = None,
-) -> str:
-    """Generate a summary using llama_cpp for a given prompt."""
+) -> tuple[str, str]:
+    """Generate using llama_cpp. Returns (content, finish_reason)."""
     output = llm.create_chat_completion(
         messages=[
             {"role": "system", "content": system_prompt},
@@ -200,11 +207,9 @@ def generate(
         repeat_penalty=repeat_penalty,
     )
     result = output["choices"][0]["message"]["content"]
-    finish_reason = output["choices"][0].get("finish_reason", "unknown")
-    if not result or result.strip() == "":
-        print(f"DEBUG: empty LLM output, finish_reason={finish_reason}, meta={meta}", file=sys.stderr)
+    finish_reason = output["choices"][0].get("finish_reason", "stop")
 
-    return strip_reasoning(result, meta=meta)
+    return strip_reasoning(result, meta=meta), finish_reason
 
 
 def parse_json_output(text: str) -> dict | list:
@@ -252,7 +257,7 @@ def generate_task(
             "trial": trial,
         }
         system_prompt = prompt_fn(language)
-        output = generate(
+        output, finish_reason = generate(
             llm,
             system_prompt,
             user_prompt_text,
@@ -263,10 +268,18 @@ def generate_task(
             meta=meta,
         )
         if parse_json:
-            results[language] = parse_json_output(output)
+            parsed = parse_json_output(output)
+            if isinstance(parsed, dict) and "_error" in parsed:
+                parsed["_truncated"] = (finish_reason == "length")
+                results[language] = parsed
+                label = "truncated" if parsed["_truncated"] else "invalid"
+                print(f"{task_name} ({language}): JSON parsing failed ({label})", file=sys.stderr)
+            else:
+                results[language] = parsed
+                print(f"{task_name} ({language}): done", file=sys.stderr)
         else:
             results[language] = output
-        print(f"{task_name} ({language}): done", file=sys.stderr)
+            print(f"{task_name} ({language}): done", file=sys.stderr)
     return results
 
 
@@ -323,27 +336,51 @@ def main():
                     print(f"Summary failed: {e}", file=sys.stderr)
                     result["summaries"] = {lang: "" for lang in languages}
 
-    # 2. Generate TOC (with retries)
+    # 2. Generate TOC (with retries, per-language)
     if use_toc:
+        result["toc"] = {}
+        toc_languages = list(languages)
         for trial in range(1, max_trials + 1):
             try:
                 if llm is None:
                     llm = load_model(trial)
-                result["toc"] = generate_task(
+                toc_result = generate_task(
                     llm,
                     "TOC",
-                    languages,
+                    toc_languages,
                     system_prompt_toc,
                     user_prompt_toc_text,
-                    max_tokens=12288,
+                    max_tokens=16384,
                     temperature=0.3,
                     top_p=0.9,
                     repeat_penalty=1.1,
                     parse_json=True,
                     trial=trial,
                 )
-                break
+                # Collect successes and failures per language
+                failed_langs = []
+                for lang in toc_languages:
+                    val = toc_result.get(lang)
+                    if isinstance(val, dict) and "_error" in val:
+                        failed_langs.append(lang)
+                    else:
+                        result["toc"][lang] = val
+
+                if not failed_langs:
+                    break
+
+                if trial < max_trials:
+                    trunc = [l for l in failed_langs if toc_result[l].get("_truncated")]
+                    print(f"TOC JSON errors on trial {trial} for {failed_langs}"
+                          f"{' (truncated: ' + str(trunc) + ')' if trunc else ''}"
+                          f", retrying...", file=sys.stderr)
+                    toc_languages = failed_langs
+                else:
+                    for lang in failed_langs:
+                        result["toc"][lang] = toc_result[lang]
+                    print(f"TOC failed (JSON) for {failed_langs}", file=sys.stderr)
             except Exception as e:
+                # Other errors: reload model with larger context
                 if llm is not None:
                     del llm
                 llm = None
@@ -352,7 +389,8 @@ def main():
                     print(f"TOC error on trial {trial}: {e}, retrying...", file=sys.stderr)
                 else:
                     print(f"TOC failed: {e}", file=sys.stderr)
-                    result["toc"] = {lang: {"_error": str(e)} for lang in languages}
+                    for lang in toc_languages:
+                        result["toc"][lang] = {"_error": str(e)}
 
     # Cleanup
     if llm is not None:
