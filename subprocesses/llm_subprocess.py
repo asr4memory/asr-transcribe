@@ -283,9 +283,84 @@ def generate_task(
     return results
 
 
+def run_task_with_retries(
+    llm: Llama | None,
+    task_name: str,
+    languages: list[str],
+    prompt_fn,
+    user_prompt_text: str,
+    max_tokens: int = 4096,
+    temperature: float = 0.3,
+    top_p: float = 0.9,
+    repeat_penalty: float = 1.2,
+    parse_json: bool = False,
+    max_trials: int = 2,
+    error_default=None,
+) -> tuple[dict, Llama | None]:
+    """
+    Run an LLM task with per-language retries.
+    Only failed languages are retried on the next trial.
+    Returns (results_dict, llm) — llm may be None if reloaded on error.
+    """
+    results = {}
+    remaining_languages = list(languages)
+    for trial in range(1, max_trials + 1):
+        try:
+            if llm is None:
+                llm = load_model(trial)
+            task_result = generate_task(
+                llm,
+                task_name,
+                remaining_languages,
+                prompt_fn,
+                user_prompt_text,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                repeat_penalty=repeat_penalty,
+                parse_json=parse_json,
+                trial=trial,
+            )
+            # Collect successes and failures per language
+            failed_langs = []
+            for lang in remaining_languages:
+                val = task_result.get(lang)
+                if parse_json and isinstance(val, dict) and "_error" in val:
+                    failed_langs.append(lang)
+                else:
+                    results[lang] = val
+
+            if not failed_langs:
+                break
+
+            if trial < max_trials:
+                trunc = [l for l in failed_langs if task_result[l].get("_truncated")]
+                print(f"{task_name} JSON errors on trial {trial} for {failed_langs}"
+                      f"{' (truncated: ' + str(trunc) + ')' if trunc else ''}"
+                      f", retrying...", file=sys.stderr)
+                remaining_languages = failed_langs
+            else:
+                for lang in failed_langs:
+                    results[lang] = task_result[lang]
+                print(f"{task_name} failed (JSON) for {failed_langs}", file=sys.stderr)
+        except Exception as e:
+            # Other errors: reload model with larger context
+            if llm is not None:
+                del llm
+            llm = None
+            cleanup_cuda_memory()
+            if trial < max_trials:
+                print(f"{task_name} error on trial {trial}: {e}, retrying...", file=sys.stderr)
+            else:
+                print(f"{task_name} failed: {e}", file=sys.stderr)
+                default = error_default if error_default is not None else ""
+                for lang in remaining_languages:
+                    results[lang] = default if not parse_json else {"_error": str(e)}
+    return results, llm
+
+
 def main():
     """Main subprocess entry point."""
-    max_trials = 2
     languages = get_languages()
 
     # Return empty result if no languages configured
@@ -306,91 +381,33 @@ def main():
 
     # 1. Generate Summaries (with retries)
     if use_summarization:
-        for trial in range(1, max_trials + 1):
-            try:
-                if llm is None:
-                    llm = load_model(trial)
-                result["summaries"] = generate_task(
-                    llm,
-                    "Summary",
-                    languages,
-                    system_prompt_summaries,
-                    user_prompt_text,
-                    max_tokens=12288, #originally 4096
-                    temperature=0.0, #originally 0.3
-                    top_p=1.0, #originally 0.9
-                    repeat_penalty=1.0, #originally 1.2
-                    trial=trial,
-                )
-                break
-            except Exception as e:
-                if llm is not None:
-                    del llm
-                    llm = None
-                cleanup_cuda_memory()
-                if trial < max_trials:
-                    print(
-                        f"Summary error on trial {trial}: {e}, retrying...", file=sys.stderr
-                    )
-                else:
-                    print(f"Summary failed: {e}", file=sys.stderr)
-                    result["summaries"] = {lang: "" for lang in languages}
+        result["summaries"], llm = run_task_with_retries(
+            llm,
+            "Summary",
+            languages,
+            system_prompt_summaries,
+            user_prompt_text,
+            max_tokens=12288,
+            temperature=0.0,
+            top_p=1.0,
+            repeat_penalty=1.0,
+            error_default="",
+        )
 
     # 2. Generate TOC (with retries, per-language)
     if use_toc:
-        result["toc"] = {}
-        toc_languages = list(languages)
-        for trial in range(1, max_trials + 1):
-            try:
-                if llm is None:
-                    llm = load_model(trial)
-                toc_result = generate_task(
-                    llm,
-                    "TOC",
-                    toc_languages,
-                    system_prompt_toc,
-                    user_prompt_toc_text,
-                    max_tokens=16384,
-                    temperature=0.3,
-                    top_p=0.9,
-                    repeat_penalty=1.1,
-                    parse_json=True,
-                    trial=trial,
-                )
-                # Collect successes and failures per language
-                failed_langs = []
-                for lang in toc_languages:
-                    val = toc_result.get(lang)
-                    if isinstance(val, dict) and "_error" in val:
-                        failed_langs.append(lang)
-                    else:
-                        result["toc"][lang] = val
-
-                if not failed_langs:
-                    break
-
-                if trial < max_trials:
-                    trunc = [l for l in failed_langs if toc_result[l].get("_truncated")]
-                    print(f"TOC JSON errors on trial {trial} for {failed_langs}"
-                          f"{' (truncated: ' + str(trunc) + ')' if trunc else ''}"
-                          f", retrying...", file=sys.stderr)
-                    toc_languages = failed_langs
-                else:
-                    for lang in failed_langs:
-                        result["toc"][lang] = toc_result[lang]
-                    print(f"TOC failed (JSON) for {failed_langs}", file=sys.stderr)
-            except Exception as e:
-                # Other errors: reload model with larger context
-                if llm is not None:
-                    del llm
-                llm = None
-                cleanup_cuda_memory()
-                if trial < max_trials:
-                    print(f"TOC error on trial {trial}: {e}, retrying...", file=sys.stderr)
-                else:
-                    print(f"TOC failed: {e}", file=sys.stderr)
-                    for lang in toc_languages:
-                        result["toc"][lang] = {"_error": str(e)}
+        result["toc"], llm = run_task_with_retries(
+            llm,
+            "TOC",
+            languages,
+            system_prompt_toc,
+            user_prompt_toc_text,
+            max_tokens=16384,
+            temperature=0.3,
+            top_p=0.9,
+            repeat_penalty=1.1,
+            parse_json=True,
+        )
 
     # Cleanup
     if llm is not None:
