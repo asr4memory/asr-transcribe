@@ -13,23 +13,22 @@ Each entry **MUST** be mapped to a precise time range derived from the transcrip
 
 ---
 
-## INPUT 
-The input is already a **JSON array of objects** (e.g., WhisperX segments), e.g.:
+## INPUT
+The input is a **tab-separated transcript** with one segment per line (columns: start, end, text):
 
-```json
-[
-  {"start": 0.000, "end": 2.340, "text": "…"},
-  {"start": 2.340, "end": 6.120, "text": "…"}
-]
+```
+start	end	transcript
+0.000	2.340	Welcome to the presentation.
+2.340	6.120	Today we will discuss several topics.
 ```
 
-**Field meaning:**
+The first line is the header. Each subsequent line is a segment with tab-separated columns:
 - `start`: start time in seconds (float, millisecond precision)
 - `end`: end time in seconds (float, millisecond precision)
-- `text`: segment text
+- `transcript`: segment text
 
 **Input constraints:**
-- Use **only** these `start`/`end` values for time mapping.
+- Use **only** the provided start/end values for time mapping.
 - Do not invent times outside the input span.
 - If segments are slightly inconsistent (rare out-of-order), apply **minimal** adjustments to restore monotonic order.
 
