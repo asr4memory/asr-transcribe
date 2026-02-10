@@ -813,9 +813,7 @@ def write_output_files(
     if llm_output:
         content_extraction_dir = base_path.parent.parent / "content_extraction"
         content_extraction_dir.mkdir(parents=True, exist_ok=True)
-        write_json(
-            content_extraction_dir / f"{base_path.name}_llm_output", llm_output
-        )
+        write_json(content_extraction_dir / f"{base_path.name}_llm_output", llm_output)
         summaries = llm_output.get("summaries", {})
         if summaries:
             for language_code, text in summaries.items():

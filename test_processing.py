@@ -112,21 +112,15 @@ def test_split_sentences():
 
 def test_split_long_sentences_repeated_splits_keep_time_continuity():
     segment = {
-        "text": (
-            "A" * 60
-            + ", "
-            + "B" * 60
-            + ", "
-            + "C" * 60
-            + ", "
-            + "D" * 60
-        ),
+        "text": ("A" * 60 + ", " + "B" * 60 + ", " + "C" * 60 + ", " + "D" * 60),
         "start": 0.0,
         "end": 40.0,
         "words": [],
     }
     result = list(
-        split_long_sentences([segment], use_speaker_diarization=False, max_sentence_length=50)
+        split_long_sentences(
+            [segment], use_speaker_diarization=False, max_sentence_length=50
+        )
     )
 
     assert len(result) > 2
@@ -149,7 +143,9 @@ def test_split_long_sentences_stops_when_no_comma_after_threshold():
         "words": [],
     }
     result = list(
-        split_long_sentences([segment], use_speaker_diarization=False, max_sentence_length=50)
+        split_long_sentences(
+            [segment], use_speaker_diarization=False, max_sentence_length=50
+        )
     )
 
     assert len(result) == 2
@@ -160,7 +156,9 @@ def test_split_long_sentences_stops_when_no_comma_after_threshold():
 def test_split_long_sentences_no_comma_no_split():
     segment = {"text": "A" * 200, "start": 0.0, "end": 10.0, "words": []}
     result = list(
-        split_long_sentences([segment], use_speaker_diarization=False, max_sentence_length=50)
+        split_long_sentences(
+            [segment], use_speaker_diarization=False, max_sentence_length=50
+        )
     )
 
     assert result == [segment]
@@ -339,9 +337,7 @@ def test_write_text_preserves_multiple_dots(tmp_path):
 
 def test_write_text_speaker_preserves_multiple_dots(tmp_path):
     base_path = tmp_path / "PART2.Pagenstecher.vorstellung_de"
-    segments = [
-        {"text": "Hallo", "start": 0.0, "end": 1.0, "speaker": "SPEAKER_00"}
-    ]
+    segments = [{"text": "Hallo", "start": 0.0, "end": 1.0, "speaker": "SPEAKER_00"}]
 
     write_text_speaker(base_path, segments)
 

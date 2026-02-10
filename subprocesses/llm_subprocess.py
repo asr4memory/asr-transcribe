@@ -33,13 +33,17 @@ reasoning_log_path = config["llm"].get("reasoning_log", "")
 reasoning_log_max_chars = int(config["llm"].get("reasoning_log_max_chars", 0) or 0)
 run_id = f"{datetime.utcnow().isoformat(timespec='seconds')}Z_{os.getpid()}"
 
+
 class JSONParsingError(Exception):
     """Raised when LLM output cannot be parsed as valid JSON."""
+
     def __init__(self, error_msg: str, raw_output: str, truncated: bool = False):
         self.error_msg = error_msg
         self.raw_output = raw_output
         self.truncated = truncated
-        super().__init__(f"JSON parsing failed{' (truncated)' if truncated else ''}: {error_msg}")
+        super().__init__(
+            f"JSON parsing failed{' (truncated)' if truncated else ''}: {error_msg}"
+        )
 
 
 def _resolve_reasoning_log_path() -> str:
@@ -79,9 +83,7 @@ def _truncate_reasoning(text: str) -> str:
     return text
 
 
-def _log_removed_reasoning(
-    removed: str, kind: str, meta: dict | None = None
-) -> None:
+def _log_removed_reasoning(removed: str, kind: str, meta: dict | None = None) -> None:
     if not reasoning_log_file or removed is None:
         return
     entry = {
@@ -270,10 +272,13 @@ def generate_task(
         if parse_json:
             parsed = parse_json_output(output)
             if isinstance(parsed, dict) and "_error" in parsed:
-                parsed["_truncated"] = (finish_reason == "length")
+                parsed["_truncated"] = finish_reason == "length"
                 results[language] = parsed
                 label = "truncated" if parsed["_truncated"] else "invalid"
-                print(f"{task_name} ({language}): JSON parsing failed ({label})", file=sys.stderr)
+                print(
+                    f"{task_name} ({language}): JSON parsing failed ({label})",
+                    file=sys.stderr,
+                )
             else:
                 results[language] = parsed
                 print(f"{task_name} ({language}): done", file=sys.stderr)
@@ -334,10 +339,15 @@ def run_task_with_retries(
                 break
 
             if trial < max_trials:
-                trunc = [l for l in failed_langs if task_result[l].get("_truncated")]
-                print(f"{task_name} JSON errors on trial {trial} for {failed_langs}"
-                      f"{' (truncated: ' + str(trunc) + ')' if trunc else ''}"
-                      f", retrying...", file=sys.stderr)
+                trunc = [
+                    lang for lang in failed_langs if task_result[lang].get("_truncated")
+                ]
+                print(
+                    f"{task_name} JSON errors on trial {trial} for {failed_langs}"
+                    f"{' (truncated: ' + str(trunc) + ')' if trunc else ''}"
+                    f", retrying...",
+                    file=sys.stderr,
+                )
                 remaining_languages = failed_langs
             else:
                 for lang in failed_langs:
@@ -350,7 +360,10 @@ def run_task_with_retries(
             llm = None
             cleanup_cuda_memory()
             if trial < max_trials:
-                print(f"{task_name} error on trial {trial}: {e}, retrying...", file=sys.stderr)
+                print(
+                    f"{task_name} error on trial {trial}: {e}, retrying...",
+                    file=sys.stderr,
+                )
             else:
                 print(f"{task_name} failed: {e}", file=sys.stderr)
                 default = error_default if error_default is not None else ""
