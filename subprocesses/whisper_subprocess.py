@@ -12,6 +12,7 @@ from typing import Optional
 import whisperx
 from config.app_config import get_config
 from config.logger import logger
+import os
 
 # Suppress whisperx and its dependencies' logging to keep stdout clean for pickle
 logging.getLogger("whisperx").setLevel(logging.WARNING)
@@ -55,8 +56,8 @@ def is_multilingual_model(name: Optional[str]) -> bool:
     """Return True if the provided model name is multilingual-capable."""
     if not name:
         return False
-    name = name.lower()
-    return any(name.startswith(prefix) for prefix in MULTILINGUAL_PREFIXES)
+    basename = os.path.basename(name).lower()
+    return any(prefix in basename for prefix in MULTILINGUAL_PREFIXES)
 
 
 def resolve_model_name() -> str:

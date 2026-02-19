@@ -222,6 +222,7 @@ def handle_hallucination_warnings_for_file(filename: str) -> None:
 
 
 def process_file(filepath: Path, output_directory: Path):
+    """Process a single audio file through the ASR workflow."""
     global stats
     filename = filepath.name
 

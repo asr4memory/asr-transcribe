@@ -228,6 +228,8 @@ def uppercase_sentences(custom_segs):
     Turn the first letter of a sentence to uppercase if it needs to be.
     """
     for i in range(1, len(custom_segs)):
+        if not custom_segs[i]["text"] or not custom_segs[i - 1]["text"]:
+            continue
         if (custom_segs[i - 1]["text"][-1] != ",") and (
             custom_segs[i]["text"][0].islower()
         ):
