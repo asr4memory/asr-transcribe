@@ -52,8 +52,8 @@ def print_llm_output(llm_output: dict) -> None:
 
 
 def main():
-    debug_file = Path(config["llm"]["debug_file"])
-    output_dir = Path(config["llm"]["output_debug"])
+    debug_file = Path(config["llm_meta"]["debug_file"])
+    output_dir = Path(config["llm_meta"]["output_debug"])
 
     print(f"Loading {debug_file}...")
 

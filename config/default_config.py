@@ -32,15 +32,23 @@ CONST_DEFAULT_CONFIG = {
         "pause_marker_threshold": 2.0,
         "api_key": None,
     },
-    "llm": {
+    "llm_meta": {
         "use_summarization": False,
         "use_toc": False,
-        "model_path": "",
-        "n_gpu_layers": 5,
         "llm_languages": ["de", "en"],
         "verbose": False,
         "debug_file": "",
         "output_debug": "",
+        "reasoning_log": "",
+        "reasoning_log_max_chars": 0,
+    },
+    "summarization": {
+        "sum_model_path": "",
+        "sum_n_gpu_layers": 5,
+    },
+    "toc": {
+        "toc_model_path": "",
+        "toc_n_gpu_layers": 5,
     },
     "email": {
         "smtp_server": "",

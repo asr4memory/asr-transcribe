@@ -138,8 +138,14 @@ def run_llm_subprocess(segments):
     )
 
     # Send input data and stream stderr in real-time
-    process.stdin.write(input_data)
-    process.stdin.close()
+    try:
+        process.stdin.write(input_data)
+        process.stdin.close()
+    except BrokenPipeError:
+        try:
+            process.stdin.close()
+        except Exception:
+            pass
 
     stdout_data, stderr_data = stream_subprocess_output(
         process, "LLM", log_stderr_to_logger=True

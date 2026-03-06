@@ -20,7 +20,7 @@ class LanguageMeta:
 
 def get_llm_languages() -> List[str]:
     """Get configured LLM languages from config."""
-    languages = config["llm"].get("llm_languages", ["de", "en"])
+    languages = config["llm_meta"].get("llm_languages", ["de", "en"])
     if isinstance(languages, str):
         languages = [languages]
     cleaned = []

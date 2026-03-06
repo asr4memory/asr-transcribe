@@ -52,8 +52,8 @@ config = get_config()
 stats = []
 warning_count = 0
 warning_audio_inputs = []
-use_summarization = config["llm"].get("use_summarization", False)
-use_toc = config["llm"].get("use_toc", False)
+use_summarization = config["llm_meta"].get("use_summarization", False)
+use_toc = config["llm_meta"].get("use_toc", False)
 
 
 @dataclass(frozen=True)

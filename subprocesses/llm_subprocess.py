@@ -24,13 +24,15 @@ from utils.utilities import cleanup_cuda_memory
 from llm_workflows import system_prompt_summaries, system_prompt_toc
 
 config = get_config()
-n_gpu_layers = config["llm"]["n_gpu_layers"]
-model_path = config["llm"]["model_path"]
-verbose = config["llm"].get("verbose", False)
-use_summarization = config["llm"].get("use_summarization", False)
-use_toc = config["llm"].get("use_toc", False)
-reasoning_log_path = config["llm"].get("reasoning_log", "")
-reasoning_log_max_chars = int(config["llm"].get("reasoning_log_max_chars", 0) or 0)
+sum_n_gpu_layers = config["summarization"]["sum_n_gpu_layers"]
+toc_n_gpu_layers = config["toc"]["toc_n_gpu_layers"]
+sum_model_path = config["summarization"]["sum_model_path"]
+toc_model_path = config["toc"]["toc_model_path"]
+verbose = config["llm_meta"].get("verbose", False)
+use_summarization = config["llm_meta"].get("use_summarization", False)
+use_toc = config["llm_meta"].get("use_toc", False)
+reasoning_log_path = config["llm_meta"].get("reasoning_log", "")
+reasoning_log_max_chars = int(config["llm_meta"].get("reasoning_log_max_chars", 0) or 0)
 run_id = f"{datetime.utcnow().isoformat(timespec='seconds')}Z_{os.getpid()}"
 
 
@@ -99,7 +101,7 @@ def _log_removed_reasoning(removed: str, kind: str, meta: dict | None = None) ->
 
 
 def get_languages() -> list[str]:
-    languages = config["llm"].get("summary_languages", ["de", "en"])
+    languages = config["llm_meta"].get("llm_languages", ["de", "en"])
     if isinstance(languages, str):
         languages = [languages]
     cleaned = []
@@ -109,8 +111,14 @@ def get_languages() -> list[str]:
     return cleaned
 
 
-def load_model(trial: int) -> Llama:
+def load_model(trial: int, task_name: str) -> Llama:
     """Initialise the Llama model with trial-specific context settings."""
+    if task_name == "Summary":
+        model_path = sum_model_path
+        n_gpu_layers = sum_n_gpu_layers
+    elif task_name == "TOC":
+        model_path = toc_model_path
+        n_gpu_layers = toc_n_gpu_layers
     if trial == 1:
         return Llama(
             model_path=model_path,
@@ -312,7 +320,7 @@ def run_task_with_retries(
     for trial in range(1, max_trials + 1):
         try:
             if llm is None:
-                llm = load_model(trial)
+                llm = load_model(trial, task_name)
             task_result = generate_task(
                 llm,
                 task_name,
@@ -406,6 +414,11 @@ def main():
             repeat_penalty=1.0,
             error_default="",
         )
+    
+    # Cleanup
+    if llm is not None and sum_model_path != toc_model_path:
+        del llm
+    cleanup_cuda_memory()
 
     # 2. Generate TOC (with retries, per-language)
     if use_toc:
