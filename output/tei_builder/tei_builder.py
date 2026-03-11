@@ -25,7 +25,8 @@ class TEIBuilder:
         segments: List[WhisperSegment],
         timeline_points: List[float],
         timeline_mapping: Dict[float, str],
-        word_timeline_mapping: Dict[float, str],
+        word_timeline_entries: List[Tuple[float, str]],
+        word_to_wt_id: List[List[str]],
         speakers: Set[str],
         source_filename: str = "Whisper Transkription",
         summaries: Optional[Dict[str, str]] = None,
@@ -37,7 +38,8 @@ class TEIBuilder:
             segments: List of WhisperSegments
             timeline_points: Sorted list of timestamps (segment + word combined)
             timeline_mapping: Dictionary timestamp -> segment timeline_id (T0, T1, ...)
-            word_timeline_mapping: Dictionary timestamp -> word timeline_id (wT0, wT1, ...)
+            word_timeline_entries: Sorted list of (timestamp, wT_id) for word timecodes
+            word_to_wt_id: Nested list [seg_idx][word_idx] -> wT_id string
             speakers: Set of speaker IDs
             source_filename: Name of the source file for the title
             summaries: Optional dict of language_code -> summary text
@@ -45,7 +47,8 @@ class TEIBuilder:
         self.segments = segments
         self.timeline_points = timeline_points
         self.timeline_mapping = timeline_mapping
-        self.word_timeline_mapping = word_timeline_mapping
+        self.word_timeline_entries = word_timeline_entries
+        self.word_to_wt_id = word_to_wt_id
         self.speakers = speakers
         self.source_filename = source_filename
         self.summaries = summaries
@@ -160,6 +163,8 @@ class TEIBuilder:
     def _build_timeline(self) -> etree.Element:
         """
         Builds the timeline with when elements for both segment and word timestamps.
+        Segment entries get type="seg", word entries get type="w".
+        At equal timestamps, segment entries come before word entries.
 
         Returns:
             etree.Element: timeline Element
@@ -167,26 +172,22 @@ class TEIBuilder:
         timeline = etree.Element("timeline")
         timeline.set("unit", "s")
 
-        for timestamp in self.timeline_points:
-            # Segment timeline entry (T_START, T0, T1, ...)
-            if timestamp in self.timeline_mapping:
-                when = etree.SubElement(timeline, "when")
-                when.set(
-                    "{http://www.w3.org/XML/1998/namespace}id",
-                    self.timeline_mapping[timestamp],
-                )
-                when.set("interval", f"{timestamp:.3f}")
-                when.set("since", "T_START")
+        # Collect all entries: (timestamp, id, type)
+        entries = []
+        for ts, tid in self.timeline_mapping.items():
+            entries.append((ts, tid, "seg"))
+        for ts, wt_id in self.word_timeline_entries:
+            entries.append((ts, wt_id, "w"))
 
-            # Word timeline entry (wT0, wT1, ...)
-            if timestamp in self.word_timeline_mapping:
-                when = etree.SubElement(timeline, "when")
-                when.set(
-                    "{http://www.w3.org/XML/1998/namespace}id",
-                    self.word_timeline_mapping[timestamp],
-                )
-                when.set("interval", f"{timestamp:.3f}")
-                when.set("since", "T_START")
+        # Sort: primary by timestamp, secondary seg before w
+        entries.sort(key=lambda e: (e[0], 0 if e[2] == "seg" else 1))
+
+        for ts, tid, entry_type in entries:
+            when = etree.SubElement(timeline, "when")
+            when.set("{http://www.w3.org/XML/1998/namespace}id", tid)
+            when.set("type", entry_type)
+            when.set("interval", f"{ts:.3f}")
+            when.set("since", "T_START")
 
         return timeline
 
@@ -251,6 +252,7 @@ class TEIBuilder:
 
         # Words - Tokenize words and punctuation
         token_index = 0
+        word_idx = 0
         prev_word_end = None
 
         for word in segment.words:
@@ -275,10 +277,9 @@ class TEIBuilder:
                     "{http://www.w3.org/XML/1998/namespace}id",
                     f"{seg_id}_{token_index}",
                 )
-                # Reference word timeline ID if available
-                word_timeline_id = self.word_timeline_mapping.get(word.start)
-                if word_timeline_id:
-                    w.set("synch", word_timeline_id)
+                # Reference word timeline ID from segment-based mapping
+                word_timeline_id = self.word_to_wt_id[current_index][word_idx]
+                w.set("synch", word_timeline_id)
                 w.text = word_text
                 token_index += 1
 
@@ -293,6 +294,7 @@ class TEIBuilder:
                 token_index += 1
 
             prev_word_end = word.end
+            word_idx += 1
 
         # End anchor
         anchor_end = etree.SubElement(seg, "anchor")

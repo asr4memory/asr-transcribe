@@ -4,7 +4,7 @@ Main converter: Whisper-JSON → TEI-XML
 
 import json
 from pathlib import Path
-from typing import Optional, Union, List, Dict, Set
+from typing import Optional, Union, List, Dict, Set, Tuple
 from output.tei_builder.models import WhisperSegment
 from output.tei_builder.tei_builder import TEIBuilder
 
@@ -14,7 +14,8 @@ class WhisperToTEIConverter:
 
     def __init__(self):
         self.timeline_mapping: Dict[float, str] = {}  # timestamp -> timeline_id
-        self.word_timeline_mapping: Dict[float, str] = {}  # word timestamp -> wT id
+        self.word_to_wt_id: List[List[str]] = []  # [seg_idx][word_idx] -> wT id
+        self.word_timeline_entries: List[Tuple[float, str]] = []  # (timestamp, wT id)
         self.speakers: Set[str] = set()
 
     def convert(
@@ -50,7 +51,8 @@ class WhisperToTEIConverter:
             segments=segments,
             timeline_points=timeline_points,
             timeline_mapping=self.timeline_mapping,
-            word_timeline_mapping=self.word_timeline_mapping,
+            word_timeline_entries=self.word_timeline_entries,
+            word_to_wt_id=self.word_to_wt_id,
             speakers=self.speakers,
             source_filename=source_filename,
             summaries=summaries,
@@ -87,6 +89,9 @@ class WhisperToTEIConverter:
         Collects all time points from segment and word timecodes and creates
         both segment and word timeline mappings.
 
+        Word timeline IDs use segment-based naming: wT{seg_idx}_{word_idx}.
+        Only word.start timestamps are included (not word.end).
+
         Args:
             segments: List of WhisperSegments
 
@@ -99,13 +104,19 @@ class WhisperToTEIConverter:
         # Always add 0.0 as start
         segment_timestamps.add(0.0)
 
-        # Collect all segment.start timestamps
-        for segment in segments:
+        # Collect all segment.start timestamps and build word timeline mapping
+        for seg_idx, segment in enumerate(segments):
             segment_timestamps.add(segment.start)
-            # Collect all word timestamps
-            for word in segment.words:
+            seg_wt_ids = []
+            for word_idx, word in enumerate(segment.words):
+                wt_id = f"wT{seg_idx}_{word_idx}"
+                seg_wt_ids.append(wt_id)
+                self.word_timeline_entries.append((word.start, wt_id))
                 word_timestamps.add(word.start)
-                word_timestamps.add(word.end)
+            self.word_to_wt_id.append(seg_wt_ids)
+
+        # Sort word timeline entries by timestamp
+        self.word_timeline_entries.sort(key=lambda e: e[0])
 
         # Add the end of the last segment
         if segments:
@@ -126,12 +137,6 @@ class WhisperToTEIConverter:
             else:
                 # i-1 because 0.0 is already at index 0
                 self.timeline_mapping[ts] = f"T{i - 1}"
-
-        # Create word mapping: timestamp -> wT id
-        # Word timestamps sorted and numbered independently
-        sorted_word_timestamps = sorted(word_timestamps)
-        for i, ts in enumerate(sorted_word_timestamps):
-            self.word_timeline_mapping[ts] = f"wT{i}"
 
         # Combine all timestamps for the full timeline
         all_timestamps = segment_timestamps | word_timestamps
