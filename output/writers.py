@@ -680,13 +680,17 @@ def write_odt(path_without_ext: Path, segments: list):
         odt_zip.writestr("content.xml", content_buffer.getvalue())
 
 
-def write_tei_xml(path_without_ext: Path, segments: list):
+def write_tei_xml(
+    path_without_ext: Path,
+    segments: list,
+    summaries: dict = None,
+):
     """
     Write TEI XML file
     """
     full_path = append_suffix(path_without_ext, ".tei.xml")
     converter = WhisperToTEIConverter()
-    tei_xml_content = converter.convert(segments, full_path.name)
+    tei_xml_content = converter.convert(segments, full_path.name, summaries=summaries)
     with open(full_path, "w", encoding="utf-8") as xml_file:
         xml_file.write(tei_xml_content)
 
@@ -807,7 +811,14 @@ def write_output_files(
         unprocessed_whisperx_output,
     )
     write_ods(base_path, segments)
-    write_tei_xml(base_path, segments)
+
+    # Extract summaries for TEI if summarization is enabled
+    config = get_config()
+    use_summarization = config["llm_meta"].get("use_summarization", False)
+    summaries = None
+    if use_summarization and llm_output:
+        summaries = llm_output.get("summaries")
+    write_tei_xml(base_path, segments, summaries=summaries)
 
     # 2. Write llm_output JSON to content_extraction directory (if provided)
     if llm_output:
