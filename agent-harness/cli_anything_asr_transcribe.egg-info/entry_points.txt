@@ -1,0 +1,2 @@
+[console_scripts]
+cli-anything-asr-transcribe = cli_anything.asr_transcribe.asr_transcribe_cli:main
