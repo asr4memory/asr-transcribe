@@ -125,13 +125,33 @@ def load_model(trial: int, task_name: str) -> Llama:
             n_gpu_layers=n_gpu_layers,
             n_ctx=32768,
             n_batch=1024,
+            n_ubatch=512,
+            n_threads=8,
+            n_threads_batch=16,
+            flash_attn=True,
+            verbose=verbose,
+        )
+    if trial == 2:
+        return Llama(
+            model_path=model_path,
+            n_gpu_layers=n_gpu_layers,
+            n_ctx=65536,
+            n_batch=512,
+            n_ubatch=256,
+            n_threads=8,
+            n_threads_batch=16,
+            flash_attn=True,
             verbose=verbose,
         )
     return Llama(
         model_path=model_path,
-        n_gpu_layers=n_gpu_layers,
-        n_ctx=65536,
-        n_batch=256,
+        n_gpu_layers=max(n_gpu_layers - 4, 0),
+        n_ctx=131072,
+        n_batch=512,
+        n_ubatch=256,
+        n_threads=8,
+        n_threads_batch=16,
+        flash_attn=True,
         verbose=verbose,
     )
 
@@ -307,7 +327,7 @@ def run_task_with_retries(
     top_p: float = 0.9,
     repeat_penalty: float = 1.2,
     parse_json: bool = False,
-    max_trials: int = 2,
+    max_trials: int = 3,
     error_default=None,
 ) -> tuple[dict, Llama | None]:
     """
