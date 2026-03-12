@@ -187,7 +187,7 @@ class TEIBuilder:
             when.set("{http://www.w3.org/XML/1998/namespace}id", tid)
             when.set("type", entry_type)
             when.set("interval", f"{ts:.3f}")
-            when.set("since", "T_START")
+            when.set("since", "#T_START")
 
         return timeline
 
@@ -232,9 +232,9 @@ class TEIBuilder:
         # annotationBlock
         ab = etree.Element("annotationBlock")
         ab.set("{http://www.w3.org/XML/1998/namespace}id", ab_id)
-        ab.set("who", f"p_{segment.get_speaker()}")
-        ab.set("start", start_timeline_id)
-        ab.set("end", end_timeline_id)
+        ab.set("who", f"#p_{segment.get_speaker()}")
+        ab.set("start", f"#{start_timeline_id}")
+        ab.set("end", f"#{end_timeline_id}")
 
         # u (utterance)
         u = etree.SubElement(ab, "u")
@@ -248,7 +248,7 @@ class TEIBuilder:
 
         # Start anchor
         anchor_start = etree.SubElement(seg, "anchor")
-        anchor_start.set("synch", start_timeline_id)
+        anchor_start.set("synch", f"#{start_timeline_id}")
 
         # Words - Tokenize words and punctuation
         token_index = 0
@@ -279,7 +279,7 @@ class TEIBuilder:
                 )
                 # Reference word timeline ID from segment-based mapping
                 word_timeline_id = self.word_to_wt_id[current_index][word_idx]
-                w.set("synch", word_timeline_id)
+                w.set("synch", f"#{word_timeline_id}")
                 w.text = word_text
                 token_index += 1
 
@@ -298,14 +298,14 @@ class TEIBuilder:
 
         # End anchor
         anchor_end = etree.SubElement(seg, "anchor")
-        anchor_end.set("synch", end_timeline_id)
+        anchor_end.set("synch", f"#{end_timeline_id}")
 
         # spanGrp original
         span_grp = etree.SubElement(ab, "spanGrp")
         span_grp.set("type", "original")
         span = etree.SubElement(span_grp, "span")
-        span.set("from", start_timeline_id)
-        span.set("to", end_timeline_id)
+        span.set("from", f"#{start_timeline_id}")
+        span.set("to", f"#{end_timeline_id}")
         span.text = segment.text
 
         return ab
