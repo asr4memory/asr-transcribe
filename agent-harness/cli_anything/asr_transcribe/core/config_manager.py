@@ -112,12 +112,22 @@ def validate_config() -> dict:
         model_path = sum_config.get("sum_model_path", "")
         if model_path and not Path(model_path).exists():
             warnings.append(f"summarization.sum_model_path does not exist: {model_path}")
+        model_cfg = sum_config.get("sum_model_config", "")
+        if not model_cfg:
+            errors.append("summarization.sum_model_config is required when use_summarization is enabled")
+        elif not (root / model_cfg).exists():
+            errors.append(f"summarization.sum_model_config does not exist: {model_cfg}")
 
     if llm_meta.get("use_toc"):
         toc_config = data.get("toc", {})
         model_path = toc_config.get("toc_model_path", "")
         if model_path and not Path(model_path).exists():
             warnings.append(f"toc.toc_model_path does not exist: {model_path}")
+        model_cfg = toc_config.get("toc_model_config", "")
+        if not model_cfg:
+            errors.append("toc.toc_model_config is required when use_toc is enabled")
+        elif not (root / model_cfg).exists():
+            errors.append(f"toc.toc_model_config does not exist: {model_cfg}")
 
     # Check diarization token
     if whisper.get("use_speaker_diarization"):
