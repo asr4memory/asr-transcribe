@@ -24,10 +24,10 @@ from utils.utilities import cleanup_cuda_memory
 from llm_workflows import system_prompt_summaries, system_prompt_toc
 
 config = get_config()
-sum_n_gpu_layers = config["summarization"]["sum_n_gpu_layers"]
-toc_n_gpu_layers = config["toc"]["toc_n_gpu_layers"]
 sum_model_path = config["summarization"]["sum_model_path"]
 toc_model_path = config["toc"]["toc_model_path"]
+sum_model_config_path = config["summarization"].get("sum_model_config", "")
+toc_model_config_path = config["toc"].get("toc_model_config", "")
 verbose = config["llm_meta"].get("verbose", False)
 use_summarization = config["llm_meta"].get("use_summarization", False)
 use_toc = config["llm_meta"].get("use_toc", False)
@@ -100,6 +100,20 @@ def _log_removed_reasoning(removed: str, kind: str, meta: dict | None = None) ->
     log_reasoning(entry)
 
 
+def load_model_config(config_path: str) -> dict:
+    """Load per-model TOML config. Returns empty dict if path is unset or missing."""
+    if not config_path:
+        return {}
+    import tomllib
+    path = Path(config_path).expanduser()
+    if not path.is_absolute():
+        path = Path(__file__).parent.parent / path
+    if not path.exists():
+        return {}
+    with open(path, "rb") as f:
+        return tomllib.load(f)
+
+
 def get_languages() -> list[str]:
     languages = config["llm_meta"].get("llm_languages", ["de", "en"])
     if isinstance(languages, str):
@@ -111,47 +125,27 @@ def get_languages() -> list[str]:
     return cleaned
 
 
-def load_model(trial: int, task_name: str) -> Llama:
+def load_model(trial: int, task_name: str, model_cfg: dict) -> Llama:
     """Initialise the Llama model with trial-specific context settings."""
-    if task_name == "Summary":
-        model_path = sum_model_path
-        n_gpu_layers = sum_n_gpu_layers
-    elif task_name == "TOC":
-        model_path = toc_model_path
-        n_gpu_layers = toc_n_gpu_layers
-    if trial == 1:
-        return Llama(
-            model_path=model_path,
-            n_gpu_layers=n_gpu_layers,
-            n_ctx=32768,
-            n_batch=1024,
-            n_ubatch=512,
-            n_threads=8,
-            n_threads_batch=16,
-            flash_attn=True,
-            verbose=verbose,
+    model_path = sum_model_path if task_name == "Summary" else toc_model_path
+
+    trials = model_cfg.get("trials", [])
+    if trial > len(trials):
+        raise ValueError(
+            f"Trial {trial} requested but model config only defines {len(trials)} trial(s)."
         )
-    if trial == 2:
-        return Llama(
-            model_path=model_path,
-            n_gpu_layers=n_gpu_layers,
-            n_ctx=65536,
-            n_batch=512,
-            n_ubatch=256,
-            n_threads=8,
-            n_threads_batch=16,
-            flash_attn=True,
-            verbose=verbose,
-        )
+    trial_cfg = trials[trial - 1]
+    model_section = model_cfg.get("model", {})
+
     return Llama(
         model_path=model_path,
-        n_gpu_layers=max(n_gpu_layers - 4, 0),
-        n_ctx=131072,
-        n_batch=512,
-        n_ubatch=256,
-        n_threads=8,
-        n_threads_batch=16,
-        flash_attn=True,
+        n_gpu_layers=trial_cfg["n_gpu_layers"],
+        n_ctx=trial_cfg["n_ctx"],
+        n_batch=trial_cfg["n_batch"],
+        n_ubatch=trial_cfg["n_ubatch"],
+        n_threads=model_section.get("n_threads", 8),
+        n_threads_batch=model_section.get("n_threads_batch", 16),
+        flash_attn=model_section.get("flash_attn", True),
         verbose=verbose,
     )
 
@@ -329,18 +323,22 @@ def run_task_with_retries(
     parse_json: bool = False,
     max_trials: int = 3,
     error_default=None,
+    model_cfg: dict = None,
 ) -> tuple[dict, Llama | None]:
     """
     Run an LLM task with per-language retries.
     Only failed languages are retried on the next trial.
     Returns (results_dict, llm) — llm may be None if reloaded on error.
     """
+    if model_cfg is None:
+        model_cfg = {}
+    effective_max_trials = len(model_cfg.get("trials", [])) or max_trials
     results = {}
     remaining_languages = list(languages)
-    for trial in range(1, max_trials + 1):
+    for trial in range(1, effective_max_trials + 1):
         try:
             if llm is None:
-                llm = load_model(trial, task_name)
+                llm = load_model(trial, task_name, model_cfg)
             task_result = generate_task(
                 llm,
                 task_name,
@@ -366,7 +364,7 @@ def run_task_with_retries(
             if not failed_langs:
                 break
 
-            if trial < max_trials:
+            if trial < effective_max_trials:
                 trunc = [
                     lang for lang in failed_langs if task_result[lang].get("_truncated")
                 ]
@@ -387,7 +385,7 @@ def run_task_with_retries(
                 del llm
             llm = None
             cleanup_cuda_memory()
-            if trial < max_trials:
+            if trial < effective_max_trials:
                 print(
                     f"{task_name} error on trial {trial}: {e}, retrying...",
                     file=sys.stderr,
@@ -417,6 +415,9 @@ def main():
     user_prompt_text = user_prompt(segments)
     user_prompt_toc_text = user_prompt_with_timestamps(segments)
 
+    sum_model_cfg = load_model_config(sum_model_config_path)
+    toc_model_cfg = load_model_config(toc_model_config_path)
+
     result = {}
     llm = None
 
@@ -433,6 +434,7 @@ def main():
             top_p=1.0,
             repeat_penalty=1.0,
             error_default="",
+            model_cfg=sum_model_cfg,
         )
     
     # Cleanup
@@ -453,6 +455,7 @@ def main():
             top_p=0.9,
             repeat_penalty=1.1,
             parse_json=True,
+            model_cfg=toc_model_cfg,
         )
 
     # Cleanup
