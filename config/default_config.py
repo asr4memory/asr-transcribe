@@ -44,11 +44,11 @@ CONST_DEFAULT_CONFIG = {
     },
     "summarization": {
         "sum_model_path": "",
-        "sum_n_gpu_layers": 5,
+        "sum_model_config": "",
     },
     "toc": {
         "toc_model_path": "",
-        "toc_n_gpu_layers": 5,
+        "toc_model_config": "",
     },
     "email": {
         "smtp_server": "",

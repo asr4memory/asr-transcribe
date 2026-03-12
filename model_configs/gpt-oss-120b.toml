@@ -1,0 +1,30 @@
+# Model config for gpt-oss-120b (Q4_K_M)
+# Architecture: MoE, 36 transformer layers, 128 experts (4 active), 116.83B params
+# File size: ~60 GB across 2 GGUF shards
+# VRAM budget: 48 GB (RTX PRO 5000 Blackwell)
+#
+# Per-layer weight: ~1.62 GB | KV cache: ~2.3 GB (32K) / ~4.5 GB (65K) / ~9.0 GB (131K)
+# Trial 3 reduces n_gpu_layers by 4 to make room for the larger KV cache at full context.
+
+[model]
+flash_attn = true
+n_threads = 8
+n_threads_batch = 16
+
+[[trials]]
+n_ctx = 32768
+n_gpu_layers = 26
+n_batch = 1024
+n_ubatch = 512
+
+[[trials]]
+n_ctx = 65536
+n_gpu_layers = 26
+n_batch = 512
+n_ubatch = 256
+
+[[trials]]
+n_ctx = 131072
+n_gpu_layers = 22
+n_batch = 512
+n_ubatch = 256
