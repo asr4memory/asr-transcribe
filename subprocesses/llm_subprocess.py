@@ -437,9 +437,10 @@ def main():
             model_cfg=sum_model_cfg,
         )
     
-    # Cleanup
+    # Cleanup between tasks
     if llm is not None and sum_model_path != toc_model_path:
         del llm
+        llm = None
     cleanup_cuda_memory()
 
     # 2. Generate TOC (with retries, per-language)
@@ -458,9 +459,10 @@ def main():
             model_cfg=toc_model_cfg,
         )
 
-    # Cleanup
+    # Final cleanup
     if llm is not None:
         del llm
+        llm = None
     cleanup_cuda_memory()
 
     sys.stdout.buffer.write(pickle.dumps(result))
