@@ -382,6 +382,7 @@ def run_task_with_retries(
         except Exception as e:
             # Other errors: reload model with larger context
             if llm is not None:
+                llm.close()
                 del llm
             llm = None
             cleanup_cuda_memory()
@@ -439,6 +440,7 @@ def main():
     
     # Cleanup between tasks
     if llm is not None and sum_model_path != toc_model_path:
+        llm.close()
         del llm
         llm = None
     cleanup_cuda_memory()
@@ -461,6 +463,7 @@ def main():
 
     # Final cleanup
     if llm is not None:
+        llm.close()
         del llm
         llm = None
     cleanup_cuda_memory()
