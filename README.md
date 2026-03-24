@@ -23,9 +23,9 @@ uv sync
 ```
 
 ### 3. You need to reinstall llama-cpp-python with CUDA support
+The default PyPI wheel is CPU-only. Rebuild from source with CUDA enabled:
 ```shell
-CMAKE_ARGS="-DGGML_CUDA=ON -DCUDAToolkit_ROOT=$CUDA_HOME -DCMAKE_CUDA_COMPILER=$CUDACXX" \
-uv pip install llama-cpp-python==0.3.16 --force-reinstall --no-cache-dir --no-binary llama-cpp-python
+CMAKE_ARGS="-DGGML_CUDA=on" uv sync --reinstall-package llama-cpp-python
 ```
 
 ### 4. Usefull shell scripts for troubleshooting
