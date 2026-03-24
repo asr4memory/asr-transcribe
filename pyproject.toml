@@ -7,7 +7,7 @@ dependencies = [
     "colorlog==6.8.2",
     "ctranslate2==4.5.0",
     "jinja2==3.1.4",
-    "llama-cpp-python>=0.3.16",
+    "llama-cpp-python>=0.3.18",
     "pycairo>=1.29.0",
     "pyexcel-ods3==0.6.1",
     "pytest==8.3.3",
