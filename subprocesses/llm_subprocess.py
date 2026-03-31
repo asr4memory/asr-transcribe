@@ -6,7 +6,7 @@ This allows large models (20GB+) to be loaded and fully cleaned up between files
 Returns a unified result dict:
 {
     "summaries": {"de": "...", "en": "..."},
-    "toc": {"de": "...", "en": "..."},  # future
+    "toc": {"de": "...", "en": "..."},
     ...
     "_meta": {"trial": 1}
 }
@@ -21,16 +21,9 @@ from pathlib import Path
 from llama_cpp import Llama
 from config.app_config import get_config
 from utils.utilities import cleanup_cuda_memory
-from llm_workflows import system_prompt_summaries, system_prompt_toc
 
 config = get_config()
-sum_model_path = config["summarization"]["sum_model_path"]
-toc_model_path = config["toc"]["toc_model_path"]
-sum_model_config_path = config["summarization"].get("sum_model_config", "")
-toc_model_config_path = config["toc"].get("toc_model_config", "")
 verbose = config["llm_meta"].get("verbose", False)
-use_summarization = config["llm_meta"].get("use_summarization", False)
-use_toc = config["llm_meta"].get("use_toc", False)
 reasoning_log_path = config["llm_meta"].get("reasoning_log", "")
 reasoning_log_max_chars = int(config["llm_meta"].get("reasoning_log_max_chars", 0) or 0)
 run_id = f"{datetime.utcnow().isoformat(timespec='seconds')}Z_{os.getpid()}"
@@ -125,10 +118,8 @@ def get_languages() -> list[str]:
     return cleaned
 
 
-def load_model(trial: int, task_name: str, model_cfg: dict) -> Llama:
+def load_model_from_config(model_path: str, trial: int, model_cfg: dict) -> Llama:
     """Initialise the Llama model with trial-specific context settings."""
-    model_path = sum_model_path if task_name == "Summary" else toc_model_path
-
     trials = model_cfg.get("trials", [])
     if trial > len(trials):
         raise ValueError(
@@ -148,22 +139,6 @@ def load_model(trial: int, task_name: str, model_cfg: dict) -> Llama:
         flash_attn=model_section.get("flash_attn", True),
         verbose=verbose,
     )
-
-
-def user_prompt(segments) -> str:
-    """Concatenate all segment texts for the user prompt."""
-    return "\n".join(segment["text"] for segment in segments)
-
-
-def user_prompt_with_timestamps(segments) -> str:
-    """Return segments as tab-separated lines (start, end, text) for TOC generation."""
-    lines = ["start\tend\ttranscript"]
-    for seg in segments:
-        start = seg.get("start", 0)
-        end = seg.get("end", start)
-        text = seg.get("text", "")
-        lines.append(f"{start}\t{end}\t{text}")
-    return "\n".join(lines)
 
 
 def strip_reasoning(text: str, meta: dict | None = None) -> str:
@@ -209,6 +184,26 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
     return text
 
 
+def parse_json_output(text: str) -> dict | list:
+    """
+    Parse LLM output as JSON.
+    Returns parsed JSON (list or dict) if valid, otherwise returns dict with _error key.
+    """
+    import json
+    import re
+
+    # Strip markdown code blocks if present
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        return {"_error": str(e), "_raw": text}
+    
+
 def generate(
     llm: Llama,
     system_prompt: str,
@@ -236,238 +231,30 @@ def generate(
     return strip_reasoning(result, meta=meta), finish_reason
 
 
-def parse_json_output(text: str) -> dict | list:
-    """
-    Parse LLM output as JSON.
-    Returns parsed JSON (list or dict) if valid, otherwise returns dict with _error key.
-    """
-    import json
-    import re
-
-    # Strip markdown code blocks if present
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-        cleaned = re.sub(r"\s*```$", "", cleaned)
-
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        return {"_error": str(e), "_raw": text}
-
-
-def generate_task(
-    llm: Llama,
-    task_name: str,
-    languages: list[str],
-    prompt_fn,
-    user_prompt_text: str,
-    max_tokens: int = 4096,
-    temperature: float = 0.3,
-    top_p: float = 0.9,
-    repeat_penalty: float = 1.2,
-    parse_json: bool = False,
-    trial: int = 0,
-) -> dict:
-    """
-    Generate LLM output for a task across all languages.
-    Returns dict with language codes as keys.
-    """
-    results = {}
-    for language in languages:
-        meta = {
-            "task": task_name,
-            "lang": language,
-            "trial": trial,
-        }
-        system_prompt = prompt_fn(language)
-        output, finish_reason = generate(
-            llm,
-            system_prompt,
-            user_prompt_text,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            repeat_penalty=repeat_penalty,
-            meta=meta,
-        )
-        if parse_json:
-            parsed = parse_json_output(output)
-            if isinstance(parsed, dict) and "_error" in parsed:
-                parsed["_truncated"] = finish_reason == "length"
-                results[language] = parsed
-                label = "truncated" if parsed["_truncated"] else "invalid"
-                print(
-                    f"{task_name} ({language}): JSON parsing failed ({label})",
-                    file=sys.stderr,
-                )
-            else:
-                results[language] = parsed
-                print(f"{task_name} ({language}): done", file=sys.stderr)
-        else:
-            results[language] = output
-            print(f"{task_name} ({language}): done", file=sys.stderr)
-    return results
-
-
-def run_task_with_retries(
-    llm: Llama | None,
-    task_name: str,
-    languages: list[str],
-    prompt_fn,
-    user_prompt_text: str,
-    max_tokens: int = 4096,
-    temperature: float = 0.3,
-    top_p: float = 0.9,
-    repeat_penalty: float = 1.2,
-    parse_json: bool = False,
-    max_trials: int = 3,
-    error_default=None,
-    model_cfg: dict = None,
-) -> tuple[dict, Llama | None]:
-    """
-    Run an LLM task with per-language retries.
-    Only failed languages are retried on the next trial.
-    Returns (results_dict, llm) — llm may be None if reloaded on error.
-    """
-    if model_cfg is None:
-        model_cfg = {}
-    effective_max_trials = len(model_cfg.get("trials", [])) or max_trials
-    results = {}
-    remaining_languages = list(languages)
-    for trial in range(1, effective_max_trials + 1):
-        try:
-            if llm is None:
-                llm = load_model(trial, task_name, model_cfg)
-            task_result = generate_task(
-                llm,
-                task_name,
-                remaining_languages,
-                prompt_fn,
-                user_prompt_text,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                repeat_penalty=repeat_penalty,
-                parse_json=parse_json,
-                trial=trial,
-            )
-            # Collect successes and failures per language
-            failed_langs = []
-            for lang in remaining_languages:
-                val = task_result.get(lang)
-                if parse_json and isinstance(val, dict) and "_error" in val:
-                    failed_langs.append(lang)
-                else:
-                    results[lang] = val
-
-            if not failed_langs:
-                break
-
-            if trial < effective_max_trials:
-                trunc = [
-                    lang for lang in failed_langs if task_result[lang].get("_truncated")
-                ]
-                print(
-                    f"{task_name} JSON errors on trial {trial} for {failed_langs}"
-                    f"{' (truncated: ' + str(trunc) + ')' if trunc else ''}"
-                    f", retrying...",
-                    file=sys.stderr,
-                )
-                remaining_languages = failed_langs
-            else:
-                for lang in failed_langs:
-                    results[lang] = task_result[lang]
-                print(f"{task_name} failed (JSON) for {failed_langs}", file=sys.stderr)
-        except Exception as e:
-            # Other errors: reload model with larger context
-            if llm is not None:
-                llm.close()
-                del llm
-            llm = None
-            cleanup_cuda_memory()
-            if trial < effective_max_trials:
-                print(
-                    f"{task_name} error on trial {trial}: {e}, retrying...",
-                    file=sys.stderr,
-                )
-            else:
-                print(f"{task_name} failed: {e}", file=sys.stderr)
-                default = error_default if error_default is not None else ""
-                for lang in remaining_languages:
-                    results[lang] = default if not parse_json else {"_error": str(e)}
-    return results, llm
-
-
 def main():
     """Main subprocess entry point."""
     languages = get_languages()
+    use_summarization = config["llm_meta"].get("use_summarization", False)
+    use_toc = config["llm_meta"].get("use_toc", False)
 
-    # Return empty result if no languages configured
     if not languages:
-        result = {"summaries": {}, "toc": {}}
-        sys.stdout.buffer.write(pickle.dumps(result))
+        sys.stdout.buffer.write(pickle.dumps({"summaries": {}, "toc": {}}))
         sys.exit(0)
 
-    # Read segments from stdin
-    input_data = sys.stdin.buffer.read()
-    segments = pickle.loads(input_data)
-
-    user_prompt_text = user_prompt(segments)
-    user_prompt_toc_text = user_prompt_with_timestamps(segments)
-
-    sum_model_cfg = load_model_config(sum_model_config_path)
-    toc_model_cfg = load_model_config(toc_model_config_path)
-
+    segments = pickle.loads(sys.stdin.buffer.read())
     result = {}
-    llm = None
 
-    # 1. Generate Summaries (with retries)
     if use_summarization:
-        result["summaries"], llm = run_task_with_retries(
-            llm,
-            "Summary",
-            languages,
-            system_prompt_summaries,
-            user_prompt_text,
-            max_tokens=1024,
-            temperature=0.0,
-            top_p=1.0,
-            repeat_penalty=1.0,
-            error_default="",
-            model_cfg=sum_model_cfg,
-        )
-    
-    # Cleanup between tasks
-    if llm is not None and sum_model_path != toc_model_path:
-        llm.close()
-        del llm
-        llm = None
+        from llm_workflows.llm_task_summary import run as run_summary
+        result["summaries"] = run_summary(segments, languages)
+
     cleanup_cuda_memory()
 
-    # 2. Generate TOC (with retries, per-language)
     if use_toc:
-        result["toc"], llm = run_task_with_retries(
-            llm,
-            "TOC",
-            languages,
-            system_prompt_toc,
-            user_prompt_toc_text,
-            max_tokens=8192,
-            temperature=0.3,
-            top_p=0.9,
-            repeat_penalty=1.1,
-            parse_json=True,
-            model_cfg=toc_model_cfg,
-        )
+        from llm_workflows.llm_task_toc import run as run_toc
+        result["toc"] = run_toc(segments, languages)
 
-    # Final cleanup
-    if llm is not None:
-        llm.close()
-        del llm
-        llm = None
     cleanup_cuda_memory()
-
     sys.stdout.buffer.write(pickle.dumps(result))
     sys.exit(0)
 
