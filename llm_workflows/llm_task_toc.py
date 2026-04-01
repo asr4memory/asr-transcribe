@@ -2,7 +2,13 @@ import sys
 from pathlib import Path
 from config.app_config import get_config
 from utils.utilities import cleanup_cuda_memory
-from subprocesses.llm_subprocess import load_model_config, load_model_from_config, generate, parse_json_output, select_profile
+from subprocesses.llm_subprocess import (
+    load_model_config,
+    load_model_from_config,
+    generate,
+    parse_json_output,
+    select_profile,
+)
 
 config = get_config()
 MODEL_PATH = config["toc"]["toc_model_path"]
@@ -14,6 +20,7 @@ TOP_P = 0.9
 REPEAT_PENALTY = 1.1
 
 ## TOC WORKFLOW ##
+
 
 def get_system_prompt(language: str) -> str:
     base = Path(__file__).parent / "prompts" / "toc"
@@ -82,7 +89,10 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     system_prompt_text = get_system_prompt(language)
     input_chars = len(system_prompt_text) + len(user_prompt_text)
     start_profile = select_profile(model_cfg, input_chars, MAX_TOKENS)
-    print(f"TOC: estimated input {input_chars} chars → starting at profile {start_profile}", file=sys.stderr)
+    print(
+        f"TOC: estimated input {input_chars} chars → starting at profile {start_profile}",
+        file=sys.stderr,
+    )
 
     MAX_JSON_RETRIES = 3
     success = False
@@ -113,7 +123,10 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                         # Truncated — max_tokens is the hard limit, no retry helps
                         parsed["_truncated"] = True
                         results[language] = parsed
-                        print(f"TOC ({language}): truncated (max_tokens={MAX_TOKENS}), stopping", file=sys.stderr)
+                        print(
+                            f"TOC ({language}): truncated (max_tokens={MAX_TOKENS}), stopping",
+                            file=sys.stderr,
+                        )
                         success = True  # not a success, but signals to stop all retries
                         break
                     results[language] = parsed
@@ -123,10 +136,16 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                             file=sys.stderr,
                         )
                     else:
-                        print(f"TOC ({language}): invalid JSON after {MAX_JSON_RETRIES} attempts on profile {profile}", file=sys.stderr)
+                        print(
+                            f"TOC ({language}): invalid JSON after {MAX_JSON_RETRIES} attempts on profile {profile}",
+                            file=sys.stderr,
+                        )
                 else:
                     results[language] = parsed
-                    print(f"TOC ({language}): done (profile {profile}, attempt {json_attempt})", file=sys.stderr)
+                    print(
+                        f"TOC ({language}): done (profile {profile}, attempt {json_attempt})",
+                        file=sys.stderr,
+                    )
                     success = True
                     break
             if success:
@@ -139,29 +158,37 @@ def run(segments: list[dict], languages: list[str]) -> dict:
             llm = None
             cleanup_cuda_memory()
             if profile < effective_max_profiles:
-                print(f"TOC error on profile {profile}: {e}, retrying...", file=sys.stderr)
+                print(
+                    f"TOC error on profile {profile}: {e}, retrying...", file=sys.stderr
+                )
             else:
                 print(f"TOC failed: {e}", file=sys.stderr)
                 results[language] = {"_error": str(e)}
-    
+
     ## TRANSLATION OF TOC WORKFLOW ##
-    
+
     if translation:
         de_toc = results.get(language)
         if de_toc and not (isinstance(de_toc, dict) and "_error" in de_toc):
             import json
+
             toc_json_str = json.dumps(de_toc, ensure_ascii=False)
             try:
                 translation_prompt = get_translation_prompt()
                 translation_input_chars = len(translation_prompt) + len(toc_json_str)
-                translation_profile = select_profile(model_cfg, translation_input_chars, MAX_TOKENS)
+                translation_profile = select_profile(
+                    model_cfg, translation_input_chars, MAX_TOKENS
+                )
                 if llm is not None:
                     llm.close()
                     del llm
                     llm = None
                     cleanup_cuda_memory()
                 llm = load_model_from_config(MODEL_PATH, translation_profile, model_cfg)
-                print(f"TOC translation: input {translation_input_chars} chars → profile {translation_profile}", file=sys.stderr)
+                print(
+                    f"TOC translation: input {translation_input_chars} chars → profile {translation_profile}",
+                    file=sys.stderr,
+                )
                 for json_attempt in range(1, MAX_JSON_RETRIES + 1):
                     meta = {
                         "task": "TOC Translation",
@@ -184,25 +211,45 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                         if finish_reason == "length":
                             parsed["_truncated"] = True
                             results["en"] = parsed
-                            print(f"TOC Translation (en): truncated (max_tokens={MAX_TOKENS}), stopping", file=sys.stderr)
+                            print(
+                                f"TOC Translation (en): truncated (max_tokens={MAX_TOKENS}), stopping",
+                                file=sys.stderr,
+                            )
                             break
                         results["en"] = parsed
                         if json_attempt < MAX_JSON_RETRIES:
-                            print(f"TOC Translation (en): invalid JSON attempt {json_attempt}, retrying...", file=sys.stderr)
+                            print(
+                                f"TOC Translation (en): invalid JSON attempt {json_attempt}, retrying...",
+                                file=sys.stderr,
+                            )
                         else:
-                            print(f"TOC Translation (en): invalid JSON after {MAX_JSON_RETRIES} attempts", file=sys.stderr)
+                            print(
+                                f"TOC Translation (en): invalid JSON after {MAX_JSON_RETRIES} attempts",
+                                file=sys.stderr,
+                            )
                         continue
                     # Valid JSON — validate structure against original
                     validation_error = validate_translation_fields(de_toc, parsed)
                     if validation_error:
-                        results["en"] = {"_error": f"validation failed: {validation_error}"}
+                        results["en"] = {
+                            "_error": f"validation failed: {validation_error}"
+                        }
                         if json_attempt < MAX_JSON_RETRIES:
-                            print(f"TOC Translation (en): {validation_error}, retrying...", file=sys.stderr)
+                            print(
+                                f"TOC Translation (en): {validation_error}, retrying...",
+                                file=sys.stderr,
+                            )
                         else:
-                            print(f"TOC Translation (en): validation failed after {MAX_JSON_RETRIES} attempts: {validation_error}", file=sys.stderr)
+                            print(
+                                f"TOC Translation (en): validation failed after {MAX_JSON_RETRIES} attempts: {validation_error}",
+                                file=sys.stderr,
+                            )
                         continue
                     results["en"] = parsed
-                    print(f"TOC Translation (en): done (attempt {json_attempt})", file=sys.stderr)
+                    print(
+                        f"TOC Translation (en): done (attempt {json_attempt})",
+                        file=sys.stderr,
+                    )
                     break
 
             except Exception as e:

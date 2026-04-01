@@ -98,6 +98,7 @@ def load_model_config(config_path: str) -> dict:
     if not config_path:
         return {}
     import tomllib
+
     path = Path(config_path).expanduser()
     if not path.is_absolute():
         path = Path(__file__).parent.parent / path
@@ -217,7 +218,7 @@ def parse_json_output(text: str) -> dict | list:
         return json.loads(cleaned)
     except json.JSONDecodeError as e:
         return {"_error": str(e), "_raw": text}
-    
+
 
 def generate(
     llm: Llama,
@@ -261,12 +262,14 @@ def main():
 
     if use_summarization:
         from llm_workflows.llm_task_summary import run as run_summary
+
         result["summaries"] = run_summary(segments, languages)
 
     cleanup_cuda_memory()
 
     if use_toc:
         from llm_workflows.llm_task_toc import run as run_toc
+
         result["toc"] = run_toc(segments, languages)
 
     cleanup_cuda_memory()

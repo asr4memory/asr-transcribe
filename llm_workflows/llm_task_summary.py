@@ -2,7 +2,12 @@ import sys
 from pathlib import Path
 from config.app_config import get_config
 from utils.utilities import cleanup_cuda_memory
-from subprocesses.llm_subprocess import load_model_config, load_model_from_config, generate, select_profile
+from subprocesses.llm_subprocess import (
+    load_model_config,
+    load_model_from_config,
+    generate,
+    select_profile,
+)
 
 config = get_config()
 MODEL_PATH = config["summarization"]["sum_model_path"]
@@ -14,6 +19,7 @@ TOP_P = 1.0
 REPEAT_PENALTY = 1.0
 
 ## SUMMARY WORKFLOW ##
+
 
 def get_system_prompt(language: str) -> str:
     base = Path(__file__).parent / "prompts" / "summarization"
@@ -46,7 +52,10 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     system_prompt_text = get_system_prompt(language)
     input_chars = len(system_prompt_text) + len(user_prompt_text)
     start_profile = select_profile(model_cfg, input_chars, MAX_TOKENS)
-    print(f"Summary: estimated input {input_chars} chars → starting at profile {start_profile}", file=sys.stderr)
+    print(
+        f"Summary: estimated input {input_chars} chars → starting at profile {start_profile}",
+        file=sys.stderr,
+    )
 
     for profile in range(start_profile, effective_max_profiles + 1):
         try:
@@ -78,27 +87,35 @@ def run(segments: list[dict], languages: list[str]) -> dict:
             llm = None
             cleanup_cuda_memory()
             if profile < effective_max_profiles:
-                print(f"Summary error on profile {profile}: {e}, retrying...", file=sys.stderr)
+                print(
+                    f"Summary error on profile {profile}: {e}, retrying...",
+                    file=sys.stderr,
+                )
             else:
                 print(f"Summary failed: {e}", file=sys.stderr)
                 results[language] = ""
-    
+
     ## TRANSLATION OF SUMMARY WORKFLOW ##
-        
+
     if translation:
         de_summary = results.get(language)
         if de_summary:
             try:
                 translation_prompt = "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische"
                 translation_input_chars = len(translation_prompt) + len(de_summary)
-                translation_profile = select_profile(model_cfg, translation_input_chars, MAX_TOKENS)
+                translation_profile = select_profile(
+                    model_cfg, translation_input_chars, MAX_TOKENS
+                )
                 if llm is not None:
                     llm.close()
                     del llm
                     llm = None
                     cleanup_cuda_memory()
                 llm = load_model_from_config(MODEL_PATH, translation_profile, model_cfg)
-                print(f"Summary translation: input {translation_input_chars} chars → profile {translation_profile}", file=sys.stderr)
+                print(
+                    f"Summary translation: input {translation_input_chars} chars → profile {translation_profile}",
+                    file=sys.stderr,
+                )
                 meta = {
                     "task": "Summary Translation",
                     "lang": "en",
@@ -115,7 +132,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                     meta=meta,
                 )
                 results["en"] = output
-                print(f"Summary (en): done", file=sys.stderr)
+                print("Summary (en): done", file=sys.stderr)
             except Exception as e:
                 print(f"Summary translation failed: {e}", file=sys.stderr)
                 results["en"] = ""

@@ -23,7 +23,8 @@ def initialize_config():
         "llm_meta": CONST_DEFAULT_CONFIG["llm_meta"] | data.get("llm_meta", {}),
         "email": CONST_DEFAULT_CONFIG["email"] | data.get("email", {}),
         "bag": CONST_DEFAULT_CONFIG["bag"] | data.get("bag", {}),
-        "summarization": CONST_DEFAULT_CONFIG["summarization"] | data.get("summarization", {}),
+        "summarization": CONST_DEFAULT_CONFIG["summarization"]
+        | data.get("summarization", {}),
         "toc": CONST_DEFAULT_CONFIG["toc"] | data.get("toc", {}),
     }
 
