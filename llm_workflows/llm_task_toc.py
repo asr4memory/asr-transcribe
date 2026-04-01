@@ -36,6 +36,32 @@ def build_user_prompt(segments) -> str:
     return "\n".join(lines)
 
 
+EXPECTED_FIELDS = {"level", "title", "start", "end"}
+
+
+def validate_translation_fields(original: list[dict], translated) -> str | None:
+    """Validate translated TOC against original.
+    Checks: same entry count, no extra/missing fields,
+    and level/start/end values are identical to original.
+    Returns error message if invalid, None if valid.
+    """
+    if not isinstance(translated, list):
+        return "translated TOC is not a list"
+    if len(translated) != len(original):
+        return f"entry count mismatch: original={len(original)}, translated={len(translated)}"
+    for i, (orig, trans) in enumerate(zip(original, translated)):
+        extra = set(trans.keys()) - EXPECTED_FIELDS
+        if extra:
+            return f"entry {i}: unexpected fields {extra}"
+        missing = EXPECTED_FIELDS - set(trans.keys())
+        if missing:
+            return f"entry {i}: missing fields {missing}"
+        for field in ("level", "start", "end"):
+            if trans[field] != orig[field]:
+                return f"entry {i}: '{field}' changed from {orig[field]!r} to {trans[field]!r}"
+    return None
+
+
 def run(segments: list[dict], languages: list[str]) -> dict:
     """Runs TOC with retries. Returns {lang: json_data}."""
     model_cfg = load_model_config(MODEL_CONFIG_PATH)
@@ -165,10 +191,19 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                             print(f"TOC Translation (en): invalid JSON attempt {json_attempt}, retrying...", file=sys.stderr)
                         else:
                             print(f"TOC Translation (en): invalid JSON after {MAX_JSON_RETRIES} attempts", file=sys.stderr)
-                    else:
-                        results["en"] = parsed
-                        print(f"TOC Translation (en): done (attempt {json_attempt})", file=sys.stderr)
-                        break
+                        continue
+                    # Valid JSON — validate structure against original
+                    validation_error = validate_translation_fields(de_toc, parsed)
+                    if validation_error:
+                        results["en"] = {"_error": f"validation failed: {validation_error}"}
+                        if json_attempt < MAX_JSON_RETRIES:
+                            print(f"TOC Translation (en): {validation_error}, retrying...", file=sys.stderr)
+                        else:
+                            print(f"TOC Translation (en): validation failed after {MAX_JSON_RETRIES} attempts: {validation_error}", file=sys.stderr)
+                        continue
+                    results["en"] = parsed
+                    print(f"TOC Translation (en): done (attempt {json_attempt})", file=sys.stderr)
+                    break
 
             except Exception as e:
                 if llm is not None:
