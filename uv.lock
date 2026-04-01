@@ -173,7 +173,7 @@ requires-dist = [
     { name = "colorlog", specifier = "==6.8.2" },
     { name = "ctranslate2", specifier = "==4.5.0" },
     { name = "jinja2", specifier = "==3.1.4" },
-    { name = "llama-cpp-python", specifier = ">=0.3.16" },
+    { name = "llama-cpp-python", specifier = ">=0.3.18" },
     { name = "pycairo", specifier = ">=1.29.0" },
     { name = "pyexcel-ods3", specifier = "==0.6.1" },
     { name = "pytest", specifier = "==8.3.3" },
