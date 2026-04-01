@@ -9,7 +9,7 @@ flash_attn = true
 n_threads = 8
 n_threads_batch = 16
 
-[[trials]]
+[[profiles]]
 n_ctx = 32768
 n_gpu_layers = 65
 n_batch = 2048

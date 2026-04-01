@@ -120,12 +120,12 @@ def get_languages() -> list[str]:
 
 def load_model_from_config(model_path: str, trial: int, model_cfg: dict) -> Llama:
     """Initialise the Llama model with trial-specific context settings."""
-    trials = model_cfg.get("trials", [])
-    if trial > len(trials):
+    profiles = model_cfg.get("profiles", [])
+    if trial > len(profiles):
         raise ValueError(
-            f"Trial {trial} requested but model config only defines {len(trials)} trial(s)."
+            f"Trial {trial} requested but model config only defines {len(profiles)} trial(s)."
         )
-    trial_cfg = trials[trial - 1]
+    trial_cfg = profiles[trial - 1]
     model_section = model_cfg.get("model", {})
 
     return Llama(

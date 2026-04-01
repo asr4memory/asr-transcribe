@@ -28,7 +28,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     """Runs Summary with retries. Returns {lang: text}."""
 
     model_cfg = load_model_config(MODEL_CONFIG_PATH)
-    effective_max_trials = len(model_cfg.get("trials", [])) or 3
+    effective_max_profiles = len(model_cfg.get("profiles", [])) or 3
     user_prompt_text = build_user_prompt(segments)
     results = {}
     llm = None
@@ -37,22 +37,22 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     language = None
 
     if languages == ["de", "en"] or languages == ["en", "de"]:
-        language = ["de"]
+        language = "de"
         translation = True
-    elif languages == ["de"] or languages == ["en"]:
+    else:
         language = languages[0]
 
-    for trial in range(1, effective_max_trials + 1):
+    for profile in range(1, effective_max_profiles + 1):
         try:
             if llm is None:
-                llm = load_model_from_config(MODEL_PATH, trial, model_cfg)
+                llm = load_model_from_config(MODEL_PATH, profile, model_cfg)
             results = {}
             meta = {
                 "task": "Summary",
                 "lang": language,
-                "trial": trial,
+                "profile": profile,
             }
-            output = generate(
+            output, _finish_reason = generate(
                 llm,
                 get_system_prompt(language),
                 user_prompt_text,
@@ -72,36 +72,41 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                 del llm
             llm = None
             cleanup_cuda_memory()
-            if trial < effective_max_trials:
-                print(f"Summary error on trial {trial}: {e}, retrying...", file=sys.stderr)
+            if profile < effective_max_profiles:
+                print(f"Summary error on profile {profile}: {e}, retrying...", file=sys.stderr)
             else:
                 print(f"Summary failed: {e}", file=sys.stderr)
                 results[language] = ""
         
     if translation:
-        try:
-            if llm is None:
-                llm = load_model_from_config(MODEL_PATH, 1, model_cfg)
-            system_prompt = "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische"
-            meta = {
-                "task": "Summary",
-                "lang": "en",
-                "trial": 1,
-            }
-            output = generate(
-                llm,
-                system_prompt,
-                results[language],
-                max_tokens=MAX_TOKENS,
-                temperature=TEMPERATURE,
-                top_p=TOP_P,
-                repeat_penalty=REPEAT_PENALTY,
-                meta=meta,
-            )
-            results["en"] = output
-            print(f"Summary (en): done", file=sys.stderr)
-        except Exception as e:
-            print(f"Summary translation failed: {e}", file=sys.stderr)
+        de_summary = results.get(language)
+        if de_summary:
+            try:
+                if llm is None:
+                    llm = load_model_from_config(MODEL_PATH, 1, model_cfg)
+                system_prompt = "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische"
+                meta = {
+                    "task": "Summary",
+                    "lang": "en",
+                    "profile": 1,
+                }
+                output, _finish_reason = generate(
+                    llm,
+                    system_prompt,
+                    de_summary,
+                    max_tokens=MAX_TOKENS,
+                    temperature=TEMPERATURE,
+                    top_p=TOP_P,
+                    repeat_penalty=REPEAT_PENALTY,
+                    meta=meta,
+                )
+                results["en"] = output
+                print(f"Summary (en): done", file=sys.stderr)
+            except Exception as e:
+                print(f"Summary translation failed: {e}", file=sys.stderr)
+                results["en"] = ""
+        else:
+            print("Summary translation skipped: German summary failed", file=sys.stderr)
             results["en"] = ""
 
     if llm is not None:
