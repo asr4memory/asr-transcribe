@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 from config.app_config import get_config
 from utils.utilities import cleanup_cuda_memory
-from subprocesses.llm_subprocess import load_model_config, load_model_from_config, generate, parse_json_output
+from subprocesses.llm_subprocess import load_model_config, load_model_from_config, generate, parse_json_output, select_profile
 
 config = get_config()
 MODEL_PATH = config["toc"]["toc_model_path"]
@@ -13,6 +13,7 @@ TEMPERATURE = 0.3
 TOP_P = 0.9
 REPEAT_PENALTY = 1.1
 
+## TOC WORKFLOW ##
 
 def get_system_prompt(language: str) -> str:
     base = Path(__file__).parent / "prompts" / "toc"
@@ -52,38 +53,58 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     else:
         language = languages[0]
 
-    for profile in range(1, effective_max_profiles + 1):
+    system_prompt_text = get_system_prompt(language)
+    input_chars = len(system_prompt_text) + len(user_prompt_text)
+    start_profile = select_profile(model_cfg, input_chars, MAX_TOKENS)
+    print(f"TOC: estimated input {input_chars} chars → starting at profile {start_profile}", file=sys.stderr)
+
+    MAX_JSON_RETRIES = 3
+    success = False
+    for profile in range(start_profile, effective_max_profiles + 1):
         try:
             if llm is None:
                 llm = load_model_from_config(MODEL_PATH, profile, model_cfg)
-            results = {}
-            meta = {
-                "task": "TOC",
-                "lang": language,
-                "profile": profile,
-            }
-            output, finish_reason = generate(
-                llm,
-                get_system_prompt(language),
-                user_prompt_text,
-                max_tokens=MAX_TOKENS,
-                temperature=TEMPERATURE,
-                top_p=TOP_P,
-                repeat_penalty=REPEAT_PENALTY,
-                meta=meta,
-            )
-            parsed = parse_json_output(output)
-            if isinstance(parsed, dict) and "_error" in parsed:
-                parsed["_truncated"] = finish_reason == "length"
-                results[language] = parsed
-                label = "truncated" if parsed["_truncated"] else "invalid"
-                print(
-                    f"TOC ({language}): JSON parsing failed ({label})",
-                    file=sys.stderr,
+            for json_attempt in range(1, MAX_JSON_RETRIES + 1):
+                meta = {
+                    "task": "TOC",
+                    "lang": language,
+                    "profile": profile,
+                    "json_attempt": json_attempt,
+                }
+                output, finish_reason = generate(
+                    llm,
+                    system_prompt_text,
+                    user_prompt_text,
+                    max_tokens=MAX_TOKENS,
+                    temperature=TEMPERATURE,
+                    top_p=TOP_P,
+                    repeat_penalty=REPEAT_PENALTY,
+                    meta=meta,
                 )
-            else:
-                results[language] = parsed
-                print(f"TOC ({language}): done", file=sys.stderr)
+                parsed = parse_json_output(output)
+                if isinstance(parsed, dict) and "_error" in parsed:
+                    if finish_reason == "length":
+                        # Truncated — max_tokens is the hard limit, no retry helps
+                        parsed["_truncated"] = True
+                        results[language] = parsed
+                        print(f"TOC ({language}): truncated (max_tokens={MAX_TOKENS}), stopping", file=sys.stderr)
+                        success = True  # not a success, but signals to stop all retries
+                        break
+                    results[language] = parsed
+                    if json_attempt < MAX_JSON_RETRIES:
+                        print(
+                            f"TOC ({language}): invalid JSON on profile {profile} attempt {json_attempt}, retrying...",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print(f"TOC ({language}): invalid JSON after {MAX_JSON_RETRIES} attempts on profile {profile}", file=sys.stderr)
+                else:
+                    results[language] = parsed
+                    print(f"TOC ({language}): done (profile {profile}, attempt {json_attempt})", file=sys.stderr)
+                    success = True
+                    break
+            if success:
+                break
 
         except Exception as e:
             if llm is not None:
@@ -97,41 +118,57 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                 print(f"TOC failed: {e}", file=sys.stderr)
                 results[language] = {"_error": str(e)}
     
+    ## TRANSLATION OF TOC WORKFLOW ##
+    
     if translation:
         de_toc = results.get(language)
         if de_toc and not (isinstance(de_toc, dict) and "_error" in de_toc):
             import json
             toc_json_str = json.dumps(de_toc, ensure_ascii=False)
             try:
-                if llm is None:
-                    llm = load_model_from_config(MODEL_PATH, 1, model_cfg)
-                meta = {
-                    "task": "TOC Translation",
-                    "lang": "en",
-                    "profile": 1,
-                }
-                output, finish_reason = generate(
-                    llm,
-                    get_translation_prompt(),
-                    toc_json_str,
-                    max_tokens=MAX_TOKENS,
-                    temperature=TEMPERATURE,
-                    top_p=TOP_P,
-                    repeat_penalty=REPEAT_PENALTY,
-                    meta=meta,
-                )
-                parsed = parse_json_output(output)
-                if isinstance(parsed, dict) and "_error" in parsed:
-                    parsed["_truncated"] = finish_reason == "length"
-                    results["en"] = parsed
-                    label = "truncated" if parsed["_truncated"] else "invalid"
-                    print(
-                        f"TOC Translation (en): JSON parsing failed ({label})",
-                        file=sys.stderr,
+                translation_prompt = get_translation_prompt()
+                translation_input_chars = len(translation_prompt) + len(toc_json_str)
+                translation_profile = select_profile(model_cfg, translation_input_chars, MAX_TOKENS)
+                if llm is not None:
+                    llm.close()
+                    del llm
+                    llm = None
+                    cleanup_cuda_memory()
+                llm = load_model_from_config(MODEL_PATH, translation_profile, model_cfg)
+                print(f"TOC translation: input {translation_input_chars} chars → profile {translation_profile}", file=sys.stderr)
+                for json_attempt in range(1, MAX_JSON_RETRIES + 1):
+                    meta = {
+                        "task": "TOC Translation",
+                        "lang": "en",
+                        "profile": translation_profile,
+                        "json_attempt": json_attempt,
+                    }
+                    output, finish_reason = generate(
+                        llm,
+                        translation_prompt,
+                        toc_json_str,
+                        max_tokens=MAX_TOKENS,
+                        temperature=TEMPERATURE,
+                        top_p=TOP_P,
+                        repeat_penalty=REPEAT_PENALTY,
+                        meta=meta,
                     )
-                else:
-                    results["en"] = parsed
-                    print(f"TOC Translation (en): done", file=sys.stderr)
+                    parsed = parse_json_output(output)
+                    if isinstance(parsed, dict) and "_error" in parsed:
+                        if finish_reason == "length":
+                            parsed["_truncated"] = True
+                            results["en"] = parsed
+                            print(f"TOC Translation (en): truncated (max_tokens={MAX_TOKENS}), stopping", file=sys.stderr)
+                            break
+                        results["en"] = parsed
+                        if json_attempt < MAX_JSON_RETRIES:
+                            print(f"TOC Translation (en): invalid JSON attempt {json_attempt}, retrying...", file=sys.stderr)
+                        else:
+                            print(f"TOC Translation (en): invalid JSON after {MAX_JSON_RETRIES} attempts", file=sys.stderr)
+                    else:
+                        results["en"] = parsed
+                        print(f"TOC Translation (en): done (attempt {json_attempt})", file=sys.stderr)
+                        break
 
             except Exception as e:
                 if llm is not None:

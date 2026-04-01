@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 from config.app_config import get_config
 from utils.utilities import cleanup_cuda_memory
-from subprocesses.llm_subprocess import load_model_config, load_model_from_config, generate
+from subprocesses.llm_subprocess import load_model_config, load_model_from_config, generate, select_profile
 
 config = get_config()
 MODEL_PATH = config["summarization"]["sum_model_path"]
@@ -13,6 +13,7 @@ TEMPERATURE = 0.0
 TOP_P = 1.0
 REPEAT_PENALTY = 1.0
 
+## SUMMARY WORKFLOW ##
 
 def get_system_prompt(language: str) -> str:
     base = Path(__file__).parent / "prompts" / "summarization"
@@ -42,11 +43,15 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     else:
         language = languages[0]
 
-    for profile in range(1, effective_max_profiles + 1):
+    system_prompt_text = get_system_prompt(language)
+    input_chars = len(system_prompt_text) + len(user_prompt_text)
+    start_profile = select_profile(model_cfg, input_chars, MAX_TOKENS)
+    print(f"Summary: estimated input {input_chars} chars → starting at profile {start_profile}", file=sys.stderr)
+
+    for profile in range(start_profile, effective_max_profiles + 1):
         try:
             if llm is None:
                 llm = load_model_from_config(MODEL_PATH, profile, model_cfg)
-            results = {}
             meta = {
                 "task": "Summary",
                 "lang": language,
@@ -54,7 +59,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
             }
             output, _finish_reason = generate(
                 llm,
-                get_system_prompt(language),
+                system_prompt_text,
                 user_prompt_text,
                 max_tokens=MAX_TOKENS,
                 temperature=TEMPERATURE,
@@ -77,22 +82,31 @@ def run(segments: list[dict], languages: list[str]) -> dict:
             else:
                 print(f"Summary failed: {e}", file=sys.stderr)
                 results[language] = ""
+    
+    ## TRANSLATION OF SUMMARY WORKFLOW ##
         
     if translation:
         de_summary = results.get(language)
         if de_summary:
             try:
-                if llm is None:
-                    llm = load_model_from_config(MODEL_PATH, 1, model_cfg)
-                system_prompt = "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische"
+                translation_prompt = "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische"
+                translation_input_chars = len(translation_prompt) + len(de_summary)
+                translation_profile = select_profile(model_cfg, translation_input_chars, MAX_TOKENS)
+                if llm is not None:
+                    llm.close()
+                    del llm
+                    llm = None
+                    cleanup_cuda_memory()
+                llm = load_model_from_config(MODEL_PATH, translation_profile, model_cfg)
+                print(f"Summary translation: input {translation_input_chars} chars → profile {translation_profile}", file=sys.stderr)
                 meta = {
-                    "task": "Summary",
+                    "task": "Summary Translation",
                     "lang": "en",
-                    "profile": 1,
+                    "profile": translation_profile,
                 }
                 output, _finish_reason = generate(
                     llm,
-                    system_prompt,
+                    translation_prompt,
                     de_summary,
                     max_tokens=MAX_TOKENS,
                     temperature=TEMPERATURE,

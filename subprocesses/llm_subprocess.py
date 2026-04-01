@@ -8,7 +8,7 @@ Returns a unified result dict:
     "summaries": {"de": "...", "en": "..."},
     "toc": {"de": "...", "en": "..."},
     ...
-    "_meta": {"trial": 1}
+    "_meta": {"profile": 1}
 }
 """
 
@@ -118,22 +118,37 @@ def get_languages() -> list[str]:
     return cleaned
 
 
-def load_model_from_config(model_path: str, trial: int, model_cfg: dict) -> Llama:
-    """Initialise the Llama model with trial-specific context settings."""
+def select_profile(model_cfg: dict, input_chars: int, max_tokens: int) -> int:
+    """Select the first profile whose n_ctx fits estimated input + output tokens.
+    Falls back to the last (largest) profile if none fits.
+    Uses 2.5 chars/token as a conservative estimate for German/English mixed text.
+    """
+    CHARS_PER_TOKEN = 2.5
+    estimated_input_tokens = int(input_chars / CHARS_PER_TOKEN)
+    required_ctx = estimated_input_tokens + max_tokens
     profiles = model_cfg.get("profiles", [])
-    if trial > len(profiles):
+    for i, p in enumerate(profiles, start=1):
+        if p.get("n_ctx", 0) >= required_ctx:
+            return i
+    return len(profiles) or 1
+
+
+def load_model_from_config(model_path: str, profile: int, model_cfg: dict) -> Llama:
+    """Initialise the Llama model with profile-specific context settings."""
+    profiles = model_cfg.get("profiles", [])
+    if profile > len(profiles):
         raise ValueError(
-            f"Trial {trial} requested but model config only defines {len(profiles)} trial(s)."
+            f"Profile {profile} requested but model config only defines {len(profiles)} profile(s)."
         )
-    trial_cfg = profiles[trial - 1]
+    profile_cfg = profiles[profile - 1]
     model_section = model_cfg.get("model", {})
 
     return Llama(
         model_path=model_path,
-        n_gpu_layers=trial_cfg["n_gpu_layers"],
-        n_ctx=trial_cfg["n_ctx"],
-        n_batch=trial_cfg["n_batch"],
-        n_ubatch=trial_cfg["n_ubatch"],
+        n_gpu_layers=profile_cfg["n_gpu_layers"],
+        n_ctx=profile_cfg["n_ctx"],
+        n_batch=profile_cfg["n_batch"],
+        n_ubatch=profile_cfg["n_ubatch"],
         n_threads=model_section.get("n_threads", 8),
         n_threads_batch=model_section.get("n_threads_batch", 16),
         flash_attn=model_section.get("flash_attn", True),
