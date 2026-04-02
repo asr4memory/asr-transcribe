@@ -13,10 +13,6 @@ config = get_config()
 MODEL_PATH = config["summarization"]["sum_model_path"]
 MODEL_CONFIG_PATH = config["summarization"].get("sum_model_config", "")
 
-MAX_TOKENS = 1024
-TEMPERATURE = 0.0
-TOP_P = 1.0
-REPEAT_PENALTY = 1.0
 
 ## SUMMARY WORKFLOW ##
 
@@ -37,6 +33,12 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     model_cfg = load_model_config(MODEL_CONFIG_PATH)
     effective_max_profiles = len(model_cfg.get("profiles", [])) or 3
     user_prompt_text = build_user_prompt(segments)
+
+    max_tokens = 8192
+    temperature = 0.0
+    top_p = 1.0
+    repeat_penalty = 1.0
+
     results = {}
     llm = None
 
@@ -51,7 +53,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
 
     system_prompt_text = get_system_prompt(language)
     input_chars = len(system_prompt_text) + len(user_prompt_text)
-    start_profile = select_profile(model_cfg, input_chars, MAX_TOKENS)
+    start_profile = select_profile(model_cfg, input_chars, max_tokens)
     print(
         f"Summary: estimated input {input_chars} chars → starting at profile {start_profile}",
         file=sys.stderr,
@@ -70,10 +72,10 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                 llm,
                 system_prompt_text,
                 user_prompt_text,
-                max_tokens=MAX_TOKENS,
-                temperature=TEMPERATURE,
-                top_p=TOP_P,
-                repeat_penalty=REPEAT_PENALTY,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                top_p=top_p,
+                repeat_penalty=repeat_penalty,
                 meta=meta,
             )
             results[language] = output
@@ -100,11 +102,16 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     if translation:
         de_summary = results.get(language)
         if de_summary:
+            max_tokens = 1024
+            temperature = 0.0
+            top_p = 1.0
+            repeat_penalty = 1.0
+
             try:
-                translation_prompt = "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische"
+                translation_prompt = "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische. Reasoning: low."
                 translation_input_chars = len(translation_prompt) + len(de_summary)
                 translation_profile = select_profile(
-                    model_cfg, translation_input_chars, MAX_TOKENS
+                    model_cfg, translation_input_chars, max_tokens
                 )
                 if llm is not None:
                     llm.close()
@@ -125,10 +132,10 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                     llm,
                     translation_prompt,
                     de_summary,
-                    max_tokens=MAX_TOKENS,
-                    temperature=TEMPERATURE,
-                    top_p=TOP_P,
-                    repeat_penalty=REPEAT_PENALTY,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    repeat_penalty=repeat_penalty,
                     meta=meta,
                 )
                 results["en"] = output

@@ -162,29 +162,31 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
     if not text:
         return ""
 
-    # Pattern 1: Multi-step reasoning — analysis block followed by final output
-    if "<|channel|>final<|message|>" in text:
-        before, after = text.split("<|channel|>final<|message|>", 1)
+    # Pattern 1: Multi-step reasoning (Harmony format)
+    # analysis<|message|>{reasoning}<|end|><|start|>assistant<|channel|>final<|message|>{answer}
+    multi_step_delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
+    if multi_step_delimiter in text:
+        before, after = text.split(multi_step_delimiter, 1)
         _log_removed_reasoning(
             removed=before,
             kind="multi_step",
             meta=meta,
         )
-        text = after
-        # Also remove any trailing channel markers
-        if "<|" in text:
-            text = text.split("<|")[0]
-        return text.strip()
+        # Remove trailing channel markers (e.g. <|return|>)
+        if "<|" in after:
+            after = after.split("<|")[0]
+        return after.strip()
 
-    # Pattern 2: Single-step reasoning — direct final output without separate analysis block
-    single_step_delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
-    if single_step_delimiter in text:
-        before, after = text.split(single_step_delimiter, 1)
+    # Pattern 2: Single-step / generic final — no analysis block, direct final output
+    if "<|channel|>final<|message|>" in text:
+        before, after = text.split("<|channel|>final<|message|>", 1)
         _log_removed_reasoning(
             removed=before,
             kind="single_step",
             meta=meta,
         )
+        if "<|" in after:
+            after = after.split("<|")[0]
         return after.strip()
 
     # Pattern 3: Incomplete reasoning — model stuck in analysis, no final output produced

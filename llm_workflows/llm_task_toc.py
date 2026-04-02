@@ -14,11 +14,6 @@ config = get_config()
 MODEL_PATH = config["toc"]["toc_model_path"]
 MODEL_CONFIG_PATH = config["toc"].get("toc_model_config", "")
 
-MAX_TOKENS = 16384
-TEMPERATURE = 0.3
-TOP_P = 0.9
-REPEAT_PENALTY = 1.1
-
 ## TOC WORKFLOW ##
 
 
@@ -43,24 +38,22 @@ def build_user_prompt(segments) -> str:
     return "\n".join(lines)
 
 
-EXPECTED_FIELDS = {"level", "title", "start", "end"}
-
-
 def validate_translation_fields(original: list[dict], translated) -> str | None:
     """Validate translated TOC against original.
     Checks: same entry count, no extra/missing fields,
     and level/start/end values are identical to original.
     Returns error message if invalid, None if valid.
     """
+    expected_fields = {"level", "title", "start", "end"}
     if not isinstance(translated, list):
         return "translated TOC is not a list"
     if len(translated) != len(original):
         return f"entry count mismatch: original={len(original)}, translated={len(translated)}"
     for i, (orig, trans) in enumerate(zip(original, translated)):
-        extra = set(trans.keys()) - EXPECTED_FIELDS
+        extra = set(trans.keys()) - expected_fields
         if extra:
             return f"entry {i}: unexpected fields {extra}"
-        missing = EXPECTED_FIELDS - set(trans.keys())
+        missing = expected_fields - set(trans.keys())
         if missing:
             return f"entry {i}: missing fields {missing}"
         for field in ("level", "start", "end"):
@@ -74,6 +67,12 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     model_cfg = load_model_config(MODEL_CONFIG_PATH)
     effective_max_profiles = len(model_cfg.get("profiles", [])) or 3
     user_prompt_text = build_user_prompt(segments)
+
+    max_tokens = 16384
+    temperature = 0.3
+    top_p = 0.9
+    repeat_penalty = 1.1
+
     results = {}
     llm = None
 
@@ -88,7 +87,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
 
     system_prompt_text = get_system_prompt(language)
     input_chars = len(system_prompt_text) + len(user_prompt_text)
-    start_profile = select_profile(model_cfg, input_chars, MAX_TOKENS)
+    start_profile = select_profile(model_cfg, input_chars, max_tokens)
     print(
         f"TOC: estimated input {input_chars} chars → starting at profile {start_profile}",
         file=sys.stderr,
@@ -111,10 +110,10 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                     llm,
                     system_prompt_text,
                     user_prompt_text,
-                    max_tokens=MAX_TOKENS,
-                    temperature=TEMPERATURE,
-                    top_p=TOP_P,
-                    repeat_penalty=REPEAT_PENALTY,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    repeat_penalty=repeat_penalty,
                     meta=meta,
                 )
                 parsed = parse_json_output(output)
@@ -124,7 +123,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                         parsed["_truncated"] = True
                         results[language] = parsed
                         print(
-                            f"TOC ({language}): truncated (max_tokens={MAX_TOKENS}), stopping",
+                            f"TOC ({language}): truncated (max_tokens={max_tokens}), stopping",
                             file=sys.stderr,
                         )
                         success = True  # not a success, but signals to stop all retries
@@ -172,12 +171,17 @@ def run(segments: list[dict], languages: list[str]) -> dict:
         if de_toc and not (isinstance(de_toc, dict) and "_error" in de_toc):
             import json
 
+            max_tokens = 16384
+            temperature = 0.3
+            top_p = 0.9
+            repeat_penalty = 1.1
+
             toc_json_str = json.dumps(de_toc, ensure_ascii=False)
             try:
                 translation_prompt = get_translation_prompt()
                 translation_input_chars = len(translation_prompt) + len(toc_json_str)
                 translation_profile = select_profile(
-                    model_cfg, translation_input_chars, MAX_TOKENS
+                    model_cfg, translation_input_chars, max_tokens
                 )
                 if llm is not None:
                     llm.close()
@@ -200,10 +204,10 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                         llm,
                         translation_prompt,
                         toc_json_str,
-                        max_tokens=MAX_TOKENS,
-                        temperature=TEMPERATURE,
-                        top_p=TOP_P,
-                        repeat_penalty=REPEAT_PENALTY,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        top_p=top_p,
+                        repeat_penalty=repeat_penalty,
                         meta=meta,
                     )
                     parsed = parse_json_output(output)
@@ -212,7 +216,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                             parsed["_truncated"] = True
                             results["en"] = parsed
                             print(
-                                f"TOC Translation (en): truncated (max_tokens={MAX_TOKENS}), stopping",
+                                f"TOC Translation (en): truncated (max_tokens={max_tokens}), stopping",
                                 file=sys.stderr,
                             )
                             break
