@@ -108,7 +108,10 @@ def run(segments: list[dict], languages: list[str]) -> dict:
             repeat_penalty = 1.0
 
             try:
-                translation_prompt = "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische. Reasoning: low."
+                translation_prompt = (
+                    "Reasoning: low.\n"
+                    "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische."
+                )
                 translation_input_chars = len(translation_prompt) + len(de_summary)
                 translation_profile = select_profile(
                     model_cfg, translation_input_chars, max_tokens
