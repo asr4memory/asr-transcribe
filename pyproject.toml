@@ -12,6 +12,6 @@ dependencies = [
     "pyexcel-ods3==0.6.1",
     "pytest==8.3.3",
     "toml==0.10.2",
-    "whisperx==3.7.4",
+    "whisperx==3.8.5",
     "xhtml2pdf==0.2.16",
 ]

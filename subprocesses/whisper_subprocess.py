@@ -126,7 +126,7 @@ def load_alignment_model(language_code: str):
 def load_diarization_model():
     """Load WhisperX diarization model."""
     diarize_model = whisperx.diarize.DiarizationPipeline(
-        use_auth_token=hf_token, device=device
+        token=hf_token, device=device
     )
     return diarize_model
 
