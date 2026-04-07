@@ -41,6 +41,10 @@ CONST_DEFAULT_CONFIG = {
         "output_debug": "",
         "reasoning_log": "",
         "reasoning_log_max_chars": 0,
+        "batching_threshold_chars": 25000,
+        "chunk_target_minutes": 12,
+        "chunk_max_chars": 10000,
+        "emit_debug_artifacts": False,
     },
     "summarization": {
         "sum_model_path": "",

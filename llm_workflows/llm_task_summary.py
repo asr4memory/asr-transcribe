@@ -8,6 +8,7 @@ from subprocesses.llm_subprocess import (
     generate,
     select_profile,
 )
+from llm_workflows.shared_synopsis import collect_summary_points, collect_key_entities
 
 config = get_config()
 MODEL_PATH_SUMMARIZATION = config["summarization"]["sum_model_path"]
@@ -26,8 +27,56 @@ def get_system_prompt(language: str) -> str:
     return (base / filename).read_text()
 
 
+def get_reduce_prompt(language: str) -> str:
+    base = Path(__file__).parent / "prompts" / "summarization"
+    filename = "summary_reduce_en.md" if language == "en" else "summary_reduce_de.md"
+    return (base / filename).read_text()
+
+
 def build_user_prompt(segments) -> str:
     return "\n".join(segment["text"] for segment in segments)
+
+
+def build_reduce_user_prompt(synopses: list[dict]) -> str:
+    """Build user prompt for the reduction step from synopses."""
+    points = collect_summary_points(synopses)
+    entities = collect_key_entities(synopses)
+    sections = []
+    sections.append("## Stichpunkte / Bullet Points\n")
+    for i, point in enumerate(points, 1):
+        sections.append(f"{i}. {point}")
+    if entities:
+        sections.append("\n## Entitäten / Key Entities\n")
+        sections.append(", ".join(entities))
+    return "\n".join(sections)
+
+
+def run_batched(synopses: list[dict], language: str, llm, model_cfg: dict) -> str:
+    """Reduce synopses into a single prose summary. Returns summary text."""
+    system_prompt = get_reduce_prompt(language)
+    user_prompt = build_reduce_user_prompt(synopses)
+
+    max_tokens = 8192
+    temperature = 0.0
+    top_p = 1.0
+    repeat_penalty = 1.0
+
+    meta = {
+        "task": "Summary Reduce",
+        "lang": language,
+    }
+    output, _finish_reason = generate(
+        llm,
+        system_prompt,
+        user_prompt,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        repeat_penalty=repeat_penalty,
+        meta=meta,
+    )
+    print(f"Summary reduce ({language}): done", file=sys.stderr)
+    return output
 
 
 def run(segments: list[dict], languages: list[str]) -> dict:

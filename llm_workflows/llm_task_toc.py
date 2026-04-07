@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 from config.app_config import get_config
@@ -8,6 +9,11 @@ from subprocesses.llm_subprocess import (
     generate,
     parse_json_output,
     select_profile,
+)
+from llm_workflows.shared_synopsis import (
+    collect_toc_candidates,
+    fix_toc_boundaries,
+    validate_toc,
 )
 
 config = get_config()
@@ -39,6 +45,108 @@ def build_user_prompt(segments) -> str:
         text = seg.get("text", "")
         lines.append(f"{start}\t{end}\t{text}")
     return "\n".join(lines)
+
+
+def get_normalize_prompt(language: str) -> str:
+    base = Path(__file__).parent / "prompts" / "toc"
+    filename = "toc_normalize_en.md" if language == "en" else "toc_normalize_de.md"
+    return (base / filename).read_text()
+
+
+def run_batched(
+    synopses: list[dict],
+    language: str,
+    llm,
+    model_cfg: dict,
+    transcript_start: float,
+    transcript_end: float,
+) -> list[dict]:
+    """Normalize TOC from synopses via LLM, with validation and fallback.
+
+    Returns final TOC entry list (or dict with _error on total failure).
+    """
+    candidates = collect_toc_candidates(synopses)
+
+    if not candidates:
+        return {"_error": "no TOC candidates from synopses"}
+
+    # Ensure candidates cover full transcript range
+    candidates[0]["start"] = transcript_start
+    candidates[-1]["end"] = transcript_end
+
+    system_prompt = get_normalize_prompt(language)
+    user_prompt = json.dumps(candidates, ensure_ascii=False)
+
+    max_tokens = 16384
+    temperature = 0.3
+    top_p = 0.9
+    repeat_penalty = 1.1
+
+    MAX_RETRIES = 3
+    for attempt in range(1, MAX_RETRIES + 1):
+        meta = {
+            "task": "TOC Normalize",
+            "lang": language,
+            "json_attempt": attempt,
+        }
+        output, finish_reason = generate(
+            llm,
+            system_prompt,
+            user_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            repeat_penalty=repeat_penalty,
+            meta=meta,
+        )
+        parsed = parse_json_output(output)
+
+        if isinstance(parsed, dict) and "_error" in parsed:
+            if finish_reason == "length":
+                print(
+                    f"TOC normalize ({language}): truncated, stopping",
+                    file=sys.stderr,
+                )
+                break
+            if attempt < MAX_RETRIES:
+                print(
+                    f"TOC normalize ({language}): invalid JSON attempt {attempt}, retrying...",
+                    file=sys.stderr,
+                )
+                continue
+            print(
+                f"TOC normalize ({language}): invalid JSON after {MAX_RETRIES} attempts",
+                file=sys.stderr,
+            )
+            break
+
+        # Validate
+        validation_error = validate_toc(parsed, transcript_start, transcript_end)
+        if validation_error is None:
+            print(
+                f"TOC normalize ({language}): done (attempt {attempt})",
+                file=sys.stderr,
+            )
+            return parsed
+
+        if attempt < MAX_RETRIES:
+            print(
+                f"TOC normalize ({language}): validation failed: {validation_error}, retrying...",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"TOC normalize ({language}): validation failed after {MAX_RETRIES} attempts: {validation_error}",
+                file=sys.stderr,
+            )
+
+    # Fallback: use raw candidates with programmatic boundary fixes
+    print(
+        f"TOC normalize ({language}): falling back to programmatic boundary fixes",
+        file=sys.stderr,
+    )
+    fixed = fix_toc_boundaries(candidates, transcript_start, transcript_end)
+    return fixed
 
 
 def validate_translation_fields(original: list[dict], translated) -> str | None:
@@ -172,8 +280,6 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     if translation:
         de_toc = results.get(language)
         if de_toc and not (isinstance(de_toc, dict) and "_error" in de_toc):
-            import json
-
             max_tokens = 16384
             temperature = 0.3
             top_p = 0.9

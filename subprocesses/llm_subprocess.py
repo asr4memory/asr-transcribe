@@ -274,6 +274,23 @@ def main():
         sys.exit(0)
 
     segments = pickle.loads(sys.stdin.buffer.read())
+
+    from llm_workflows.chunking import should_use_batching
+
+    if should_use_batching(segments):
+        print("Long transcript detected — using batched mode", file=sys.stderr)
+        from llm_workflows.batched_pipeline import run as run_batched
+
+        result = run_batched(segments, languages, use_summarization, use_toc)
+    else:
+        result = _run_single_pass(segments, languages, use_summarization, use_toc)
+
+    sys.stdout.buffer.write(pickle.dumps(result))
+    sys.exit(0)
+
+
+def _run_single_pass(segments, languages, use_summarization, use_toc):
+    """Original single-pass mode for short transcripts."""
     result = {}
 
     if use_summarization:
@@ -289,8 +306,7 @@ def main():
         result["toc"] = run_toc(segments, languages)
 
     cleanup_cuda_memory()
-    sys.stdout.buffer.write(pickle.dumps(result))
-    sys.exit(0)
+    return result
 
 
 if __name__ == "__main__":
