@@ -9,7 +9,7 @@
 - Python >= 3.10
 - [UV (tested)](https://docs.astral.sh/uv/getting-started/installation/)
 - [ffmpeg](https://www.ffmpeg.org/)
-- [Cairo](https://www.cairographics.org/)
+- [Cairo](https://www.cairographics.org/) (Legacy. Probably not needed anymore)
 - If CUDA is available (depending on you GPU): [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
 - [direnv](https://direnv.net/docs/installation.html) --> You need this to fix the "missing libcudnn_ops_infer.so.8_fix" bug, [see details](/help/missing_libcudnn_ops_infer.so.8_fix.md)
 
@@ -39,7 +39,7 @@ sh ./help/setup_cudnn.sh
 direnv allow # direnv needs to be installed and set up.
 ```
 
-#### 4.2. "Weights_only" bug
+#### 4.2. "Weights_only" bug (fix probably not needed anymore if using WhisperX =< 3.8.5)
 ```shell
 sh ./help/patch_lightning_fabric.sh
 ```
