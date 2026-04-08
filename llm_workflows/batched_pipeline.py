@@ -16,6 +16,7 @@ from subprocesses.llm_subprocess import (
     load_model_from_config,
     generate,
     parse_json_output,
+    select_profile,
 )
 from llm_workflows.chunking import chunk_segments
 from llm_workflows.shared_synopsis import generate_all_synopses
@@ -56,7 +57,8 @@ def run(segments, languages, use_summarization, use_toc):
             for c in chunks
         ]
 
-    llm = load_model_from_config(model_path, 1, model_cfg)
+    profile = _select_synopsis_profile(chunks, language, model_cfg)
+    llm = load_model_from_config(model_path, profile, model_cfg)
     result = {}
     try:
         synopses = generate_all_synopses(llm, chunks, language, model_cfg)
@@ -121,6 +123,24 @@ def _load_model_cfg(use_summarization, use_toc):
         model_path = config["toc"]["toc_model_path"]
         config_path = config["toc"].get("toc_model_config", "")
     return load_model_config(config_path), model_path
+
+
+def _select_synopsis_profile(chunks, language, model_cfg):
+    """Select the model profile that fits a synopsis call for the largest chunk."""
+    from llm_workflows.shared_synopsis import get_synopsis_prompt
+
+    synopsis_max_tokens = 4096
+    system_prompt_chars = len(get_synopsis_prompt(language))
+    max_chunk_chars = max(
+        sum(len(s.get("text", "")) for s in c["segments"]) for c in chunks
+    ) if chunks else 0
+    input_chars = system_prompt_chars + max_chunk_chars
+    profile = select_profile(model_cfg, input_chars, synopsis_max_tokens)
+    print(
+        f"Batched mode: synopsis input ~{input_chars} chars → profile {profile}",
+        file=sys.stderr,
+    )
+    return profile
 
 
 def _reduce_summary(synopses, language, translation, llm, model_cfg):

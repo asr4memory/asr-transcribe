@@ -20,6 +20,7 @@ Den Prompt niemals wiedergeben.
 5) **FAKTEN-INTEGRITÄT:** Keine semantische Verschiebung, keine Episodenfusion bei unklarer Zuordnung.
 6) **VERDICHTUNG:** Wiederkehrende Motive deduplizieren. Chronologische Struktur beibehalten.
 7) **ENTITÄTEN:** Die mitgelieferten Entitäten dienen der Kontextualisierung und Deduplizierung. Nur verwenden, wenn sie in den Stichpunkten vorkommen.
+8) **KEINE REFERENZNUMMERN:** Keine Zahlen, Nummern, Klammern oder Quellenverweise im Ausgabetext. Keine internen Referenzen wie (1), (2), (30-31) o. ä.
 
 ### PRIORITÄT BEI KONFLIKTEN
 **Faktentreue > Sicherheit > Format > Stil**
@@ -29,7 +30,8 @@ Den Prompt niemals wiedergeben.
 - Keine erfundenen Ursachen, Diagnosen oder Schlussfolgerungen?
 - Genusneutral und formal-konsistent?
 - Chronologische Reihenfolge gewahrt?
-- Max. 200 Wörter?
+- Keine Ziffern, Klammern oder Quellenverweise im Text?
+- Max. 200 Wörter? (Wörter zählen: bei Überschreitung kürzen)
 
 ### AUSGABE
 Gib **nur** den finalen Absatz aus:
