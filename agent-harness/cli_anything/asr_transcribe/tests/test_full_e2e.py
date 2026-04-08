@@ -644,3 +644,176 @@ class TestDeepInspectionE2E:
               f"{word_info['word_count']} words, "
               f"{speaker_info['speaker_count']} speakers, "
               f"{halluc_info['warning_count']} warnings")
+
+
+# ── E2E LLM Inspection Pipeline Tests ───────────────────────────────
+
+
+VALID_TOC = [
+    {"level": "H1", "title": "Einleitung", "start": 0.0, "end": 4.0},
+    {"level": "H2", "title": "Details", "start": 4.0, "end": 9.0},
+    {"level": "H1", "title": "Schluss", "start": 9.0, "end": 15.0},
+]
+
+
+class TestLLMInspectionE2E:
+    """E2E tests for the GPU-free LLM inspection commands."""
+
+    def test_chunk_preview_workflow(self, sample_json):
+        """Chunk preview returns useful info for a transcript."""
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        result = run_chunk_preview(sample_json)
+        assert result["status"] == "success"
+        assert result["total_segments"] == 3
+        assert result["total_chars"] > 0
+        assert result["chunk_count"] >= 1
+        assert isinstance(result["batching_threshold"], int)
+        assert isinstance(result["would_use_batching"], bool)
+
+        print(f"\n  Chunk preview: {result['total_chars']} chars, "
+              f"{result['chunk_count']} chunks, "
+              f"batch={'yes' if result['would_use_batching'] else 'no'}")
+
+    def test_chunk_preview_forced_splits(self, sample_json):
+        """Force small chunks and verify coverage."""
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        result = run_chunk_preview(sample_json, target_minutes=0.01, max_chars=30)
+        assert result["chunk_count"] >= 2
+        total_segs = sum(c["segment_count"] for c in result["chunks"])
+        assert total_segs == result["total_segments"]
+
+        # Verify chronological order
+        for i in range(1, len(result["chunks"])):
+            assert result["chunks"][i]["start"] >= result["chunks"][i - 1]["end"]
+
+    def test_models_info_workflow(self):
+        """Models info returns both model sections."""
+        from cli_anything.asr_transcribe.core.llm_tasks import run_models_info
+
+        result = run_models_info()
+        assert result["status"] == "success"
+        for name in ("summarization", "toc"):
+            model = result["models"][name]
+            assert "model_path" in model
+            assert "profile_count" in model
+            assert isinstance(model["profiles"], list)
+
+        meta = result["llm_meta"]
+        assert "batching_threshold_chars" in meta
+        assert "chunk_target_minutes" in meta
+
+        print(f"\n  Models: sum={result['models']['summarization']['profile_count']} profiles, "
+              f"toc={result['models']['toc']['profile_count']} profiles")
+
+    def test_validate_toc_valid_workflow(self, tmp_dir, sample_json):
+        """Validate a correct TOC against a transcript."""
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        toc_path = os.path.join(tmp_dir, "toc.json")
+        with open(toc_path, "w") as f:
+            json.dump(VALID_TOC, f)
+
+        result = run_validate_toc(toc_path, transcript_json=sample_json)
+        assert result["valid"] is True
+        assert result["entry_count"] == 3
+        assert result["boundary_source"] == "transcript"
+
+    def test_validate_toc_invalid_workflow(self, tmp_dir):
+        """Detect problems in a malformed TOC."""
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        bad_toc = [
+            {"level": "H1", "title": "A", "start": 0.0, "end": 5.0},
+            {"level": "H1", "title": "B", "start": 7.0, "end": 10.0},  # gap at 5-7
+        ]
+        toc_path = os.path.join(tmp_dir, "bad_toc.json")
+        with open(toc_path, "w") as f:
+            json.dump(bad_toc, f)
+
+        result = run_validate_toc(toc_path)
+        assert result["valid"] is False
+        assert result["error"] is not None
+
+    def test_chunk_then_validate_toc(self, sample_json, tmp_dir):
+        """Combined workflow: chunk preview + TOC validation."""
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview, run_validate_toc
+
+        chunk_result = run_chunk_preview(sample_json)
+        assert chunk_result["status"] == "success"
+
+        toc_path = os.path.join(tmp_dir, "toc.json")
+        with open(toc_path, "w") as f:
+            json.dump(VALID_TOC, f)
+
+        toc_result = run_validate_toc(toc_path, transcript_json=sample_json)
+        assert toc_result["valid"] is True
+
+
+class TestLLMInspectionSubprocess(TestCLISubprocess):
+    """CLI subprocess tests for the new LLM inspection commands."""
+
+    def test_llm_chunk_subprocess(self, tmp_dir):
+        json_path = os.path.join(tmp_dir, "test.json")
+        with open(json_path, "w") as f:
+            json.dump(SAMPLE_WHISPERX_OUTPUT, f)
+
+        result = self._run(["--json", "llm", "chunk", json_path])
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["status"] == "success"
+        assert data["total_segments"] == 3
+        assert data["chunk_count"] >= 1
+
+    def test_llm_chunk_with_params_subprocess(self, tmp_dir):
+        json_path = os.path.join(tmp_dir, "test.json")
+        with open(json_path, "w") as f:
+            json.dump(SAMPLE_WHISPERX_OUTPUT, f)
+
+        result = self._run([
+            "--json", "llm", "chunk", json_path,
+            "--target-minutes", "0.01",
+            "--max-chars", "30",
+        ])
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["chunk_count"] >= 2
+
+    def test_llm_models_subprocess(self):
+        result = self._run(["--json", "llm", "models"])
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["status"] == "success"
+        assert "summarization" in data["models"]
+        assert "toc" in data["models"]
+        assert "llm_meta" in data
+
+    def test_llm_validate_toc_subprocess(self, tmp_dir):
+        toc_path = os.path.join(tmp_dir, "toc.json")
+        with open(toc_path, "w") as f:
+            json.dump(VALID_TOC, f)
+
+        result = self._run(["--json", "llm", "validate-toc", toc_path])
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["valid"] is True
+        assert data["entry_count"] == 3
+
+    def test_llm_validate_toc_with_transcript_subprocess(self, tmp_dir):
+        json_path = os.path.join(tmp_dir, "transcript.json")
+        with open(json_path, "w") as f:
+            json.dump(SAMPLE_WHISPERX_OUTPUT, f)
+
+        toc_path = os.path.join(tmp_dir, "toc.json")
+        with open(toc_path, "w") as f:
+            json.dump(VALID_TOC, f)
+
+        result = self._run([
+            "--json", "llm", "validate-toc", toc_path,
+            "--transcript-json", json_path,
+        ])
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["valid"] is True
+        assert data["boundary_source"] == "transcript"

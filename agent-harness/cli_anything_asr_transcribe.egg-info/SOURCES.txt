@@ -6,11 +6,15 @@ cli_anything/asr_transcribe/core/__init__.py
 cli_anything/asr_transcribe/core/audio_info.py
 cli_anything/asr_transcribe/core/bag_manager.py
 cli_anything/asr_transcribe/core/config_manager.py
+cli_anything/asr_transcribe/core/email_ops.py
 cli_anything/asr_transcribe/core/export.py
 cli_anything/asr_transcribe/core/llm_tasks.py
 cli_anything/asr_transcribe/core/process.py
 cli_anything/asr_transcribe/core/session.py
 cli_anything/asr_transcribe/core/transcribe.py
+cli_anything/asr_transcribe/tests/__init__.py
+cli_anything/asr_transcribe/tests/test_core.py
+cli_anything/asr_transcribe/tests/test_full_e2e.py
 cli_anything/asr_transcribe/utils/__init__.py
 cli_anything/asr_transcribe/utils/asr_backend.py
 cli_anything/asr_transcribe/utils/repl_skin.py

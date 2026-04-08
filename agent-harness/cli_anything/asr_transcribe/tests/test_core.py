@@ -667,3 +667,250 @@ class TestBagManagerExtended:
 
         result = validate_bag(bag_path)
         assert result["valid"] is True
+
+
+# ── llm_tasks: chunk preview tests ──────────────────────────────────
+
+
+class TestChunkPreview:
+    def test_chunk_preview_basic(self, sample_json):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        result = run_chunk_preview(sample_json)
+        assert result["status"] == "success"
+        assert result["total_segments"] == 3
+        assert result["total_chars"] > 0
+        assert isinstance(result["would_use_batching"], bool)
+        assert result["chunk_count"] >= 1
+        assert len(result["chunks"]) == result["chunk_count"]
+
+    def test_chunk_preview_short_transcript_no_batching(self, sample_json):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        result = run_chunk_preview(sample_json)
+        # Our sample data is tiny — well below 25000 chars
+        assert result["would_use_batching"] is False
+
+    def test_chunk_preview_custom_params(self, sample_json):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        # Very small limits to force multiple chunks
+        result = run_chunk_preview(sample_json, target_minutes=0.01, max_chars=20)
+        assert result["status"] == "success"
+        assert result["chunk_count"] >= 2
+        assert result["target_minutes"] == 0.01
+        assert result["max_chars_per_chunk"] == 20
+
+    def test_chunk_preview_chunk_details(self, sample_json):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        result = run_chunk_preview(sample_json, target_minutes=0.01, max_chars=20)
+        for chunk in result["chunks"]:
+            assert "chunk_id" in chunk
+            assert "start" in chunk
+            assert "end" in chunk
+            assert "duration_sec" in chunk
+            assert "segment_count" in chunk
+            assert "char_count" in chunk
+            assert chunk["segment_count"] >= 1
+            assert chunk["char_count"] > 0
+
+    def test_chunk_preview_missing_file(self):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        with pytest.raises(FileNotFoundError):
+            run_chunk_preview("/nonexistent/file.json")
+
+    def test_chunk_preview_empty_segments(self, tmp_dir):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        path = os.path.join(tmp_dir, "empty.json")
+        with open(path, "w") as f:
+            json.dump({"segments": []}, f)
+
+        result = run_chunk_preview(path)
+        assert result["status"] == "error"
+
+    def test_chunk_preview_no_segments_lost(self, sample_json):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        result = run_chunk_preview(sample_json, target_minutes=0.01, max_chars=20)
+        total_segments_in_chunks = sum(c["segment_count"] for c in result["chunks"])
+        assert total_segments_in_chunks == result["total_segments"]
+
+    def test_chunk_preview_list_format(self, tmp_dir):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+        path = os.path.join(tmp_dir, "list.json")
+        with open(path, "w") as f:
+            json.dump(SAMPLE_SEGMENTS, f)
+
+        result = run_chunk_preview(path)
+        assert result["status"] == "success"
+        assert result["total_segments"] == 3
+
+
+# ── llm_tasks: models info tests ────────────────────────────────────
+
+
+class TestModelsInfo:
+    def test_models_info_returns_structure(self):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_models_info
+
+        result = run_models_info()
+        assert result["status"] == "success"
+        assert "models" in result
+        assert "summarization" in result["models"]
+        assert "toc" in result["models"]
+        assert "llm_meta" in result
+
+    def test_models_info_model_fields(self):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_models_info
+
+        result = run_models_info()
+        for name in ("summarization", "toc"):
+            model = result["models"][name]
+            assert "model_path" in model
+            assert "model_exists" in model
+            assert "config_path" in model
+            assert "config_loaded" in model
+            assert "profile_count" in model
+            assert "profiles" in model
+            assert isinstance(model["profiles"], list)
+
+    def test_models_info_llm_meta_fields(self):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_models_info
+
+        result = run_models_info()
+        meta = result["llm_meta"]
+        assert "use_summarization" in meta
+        assert "use_toc" in meta
+        assert "llm_languages" in meta
+        assert "batching_threshold_chars" in meta
+        assert "chunk_target_minutes" in meta
+        assert "chunk_max_chars" in meta
+        assert "emit_debug_artifacts" in meta
+
+
+# ── llm_tasks: validate-toc tests ───────────────────────────────────
+
+
+VALID_TOC = [
+    {"level": "H1", "title": "Introduction", "start": 0.0, "end": 5.0},
+    {"level": "H2", "title": "Details", "start": 5.0, "end": 10.0},
+    {"level": "H1", "title": "Conclusion", "start": 10.0, "end": 15.0},
+]
+
+
+class TestValidateToc:
+    def test_validate_toc_valid(self, tmp_dir):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        toc_path = os.path.join(tmp_dir, "toc.json")
+        with open(toc_path, "w") as f:
+            json.dump(VALID_TOC, f)
+
+        result = run_validate_toc(toc_path)
+        assert result["status"] == "success"
+        assert result["valid"] is True
+        assert result["entry_count"] == 3
+        assert result["boundary_source"] == "toc_self"
+
+    def test_validate_toc_with_transcript(self, tmp_dir, sample_json):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        # Align TOC to sample transcript boundaries (0.0 - 13.5)
+        toc = [
+            {"level": "H1", "title": "Part One", "start": 0.0, "end": 8.2},
+            {"level": "H1", "title": "Part Two", "start": 8.2, "end": 13.5},
+        ]
+        toc_path = os.path.join(tmp_dir, "toc.json")
+        with open(toc_path, "w") as f:
+            json.dump(toc, f)
+
+        result = run_validate_toc(toc_path, transcript_json=sample_json)
+        assert result["valid"] is True
+        assert result["boundary_source"] == "transcript"
+        assert result["transcript_start"] == 0.0
+        assert result["transcript_end"] == 13.5
+
+    def test_validate_toc_boundary_mismatch(self, tmp_dir, sample_json):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        # TOC ends at 10.0 but transcript ends at 13.5
+        toc = [
+            {"level": "H1", "title": "Part One", "start": 0.0, "end": 10.0},
+        ]
+        toc_path = os.path.join(tmp_dir, "toc.json")
+        with open(toc_path, "w") as f:
+            json.dump(toc, f)
+
+        result = run_validate_toc(toc_path, transcript_json=sample_json)
+        assert result["valid"] is False
+        assert "transcript end" in result["error"]
+
+    def test_validate_toc_empty(self, tmp_dir):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        toc_path = os.path.join(tmp_dir, "empty.json")
+        with open(toc_path, "w") as f:
+            json.dump([], f)
+
+        result = run_validate_toc(toc_path)
+        assert result["valid"] is False
+
+    def test_validate_toc_not_list(self, tmp_dir):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        toc_path = os.path.join(tmp_dir, "bad.json")
+        with open(toc_path, "w") as f:
+            json.dump({"title": "not a list"}, f)
+
+        result = run_validate_toc(toc_path)
+        assert result["status"] == "error"
+        assert result["valid"] is False
+
+    def test_validate_toc_gap_between_entries(self, tmp_dir):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        toc = [
+            {"level": "H1", "title": "A", "start": 0.0, "end": 5.0},
+            {"level": "H1", "title": "B", "start": 6.0, "end": 10.0},
+        ]
+        toc_path = os.path.join(tmp_dir, "gap.json")
+        with open(toc_path, "w") as f:
+            json.dump(toc, f)
+
+        result = run_validate_toc(toc_path)
+        assert result["valid"] is False
+        assert "previous end" in result["error"]
+
+    def test_validate_toc_invalid_level(self, tmp_dir):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        toc = [
+            {"level": "H4", "title": "Bad level", "start": 0.0, "end": 5.0},
+        ]
+        toc_path = os.path.join(tmp_dir, "level.json")
+        with open(toc_path, "w") as f:
+            json.dump(toc, f)
+
+        result = run_validate_toc(toc_path)
+        assert result["valid"] is False
+        assert "level" in result["error"]
+
+    def test_validate_toc_missing_file(self):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        with pytest.raises(FileNotFoundError):
+            run_validate_toc("/nonexistent/toc.json")
+
+    def test_validate_toc_missing_transcript_json(self, tmp_dir):
+        from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+        toc_path = os.path.join(tmp_dir, "toc.json")
+        with open(toc_path, "w") as f:
+            json.dump(VALID_TOC, f)
+
+        with pytest.raises(FileNotFoundError):
+            run_validate_toc(toc_path, transcript_json="/nonexistent/segments.json")

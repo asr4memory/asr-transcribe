@@ -51,6 +51,9 @@ in its own process and all VRAM is freed on exit.
 | Run sentence splitting only | `process split <json>` |
 | Run LLM summarization | `llm summarize <json>` |
 | Run LLM TOC generation | `llm toc <json>` |
+| Preview chunking for batched mode | `llm chunk <json>` |
+| Inspect LLM model configs | `llm models` |
+| Validate a TOC JSON file | `llm validate-toc <json>` |
 | Validate BagIt archive | `bag validate <path>` |
 | ZIP a bag directory | `bag zip <path>` |
 | Create new bag structure | `bag create <dir>` |
@@ -93,6 +96,9 @@ in its own process and all VRAM is freed on exit.
 ### llm — LLM workflows
 - `llm summarize <json_path>` — Generate summaries from transcript
 - `llm toc <json_path>` — Generate table of contents from transcript
+- `llm chunk <json_path>` — Preview chunking for batched mode (--target-minutes, --max-chars)
+- `llm models` — Inspect loaded model configurations and profiles
+- `llm validate-toc <toc_path>` — Validate a TOC JSON file (--transcript-json for boundary check)
 - `llm debug` — Run LLM debug mode using configured debug_file
 
 ### bag — BagIt operations

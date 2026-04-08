@@ -75,6 +75,11 @@ cli-anything-asr-transcribe export convert /path/to/segments.json -f vtt,srt,txt
 # LLM workflows
 cli-anything-asr-transcribe llm summarize /path/to/segments.json
 cli-anything-asr-transcribe llm toc /path/to/segments.json
+cli-anything-asr-transcribe llm chunk /path/to/segments.json
+cli-anything-asr-transcribe llm chunk /path/to/segments.json --target-minutes 10 --max-chars 8000
+cli-anything-asr-transcribe llm models
+cli-anything-asr-transcribe llm validate-toc /path/to/toc.json
+cli-anything-asr-transcribe llm validate-toc /path/to/toc.json --transcript-json /path/to/segments.json
 cli-anything-asr-transcribe llm debug
 
 # BagIt operations

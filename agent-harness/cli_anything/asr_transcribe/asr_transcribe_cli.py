@@ -397,6 +397,44 @@ def llm_toc(ctx_obj, json_path, output_dir):
     _output(result, ctx_obj)
 
 
+@llm.command("chunk")
+@click.argument("json_path")
+@click.option("--target-minutes", type=float, default=None,
+              help="Override chunk target duration in minutes.")
+@click.option("--max-chars", type=int, default=None,
+              help="Override max characters per chunk.")
+@pass_ctx
+def llm_chunk(ctx_obj, json_path, target_minutes, max_chars):
+    """Preview how a transcript would be chunked for batched processing."""
+    from cli_anything.asr_transcribe.core.llm_tasks import run_chunk_preview
+
+    result = run_chunk_preview(json_path, target_minutes, max_chars)
+    _output(result, ctx_obj)
+
+
+@llm.command("models")
+@pass_ctx
+def llm_models(ctx_obj):
+    """Inspect loaded model configurations and profiles."""
+    from cli_anything.asr_transcribe.core.llm_tasks import run_models_info
+
+    result = run_models_info()
+    _output(result, ctx_obj)
+
+
+@llm.command("validate-toc")
+@click.argument("toc_path")
+@click.option("--transcript-json", default=None,
+              help="Source WhisperX JSON for boundary validation.")
+@pass_ctx
+def llm_validate_toc(ctx_obj, toc_path, transcript_json):
+    """Validate a TOC JSON file structure and boundaries."""
+    from cli_anything.asr_transcribe.core.llm_tasks import run_validate_toc
+
+    result = run_validate_toc(toc_path, transcript_json)
+    _output(result, ctx_obj)
+
+
 @llm.command("debug")
 @pass_ctx
 def llm_debug(ctx_obj):
@@ -525,6 +563,9 @@ def repl(ctx):
         "export convert <json>": "Export to format(s)",
         "llm summarize <json>": "Generate summaries",
         "llm toc <json>": "Generate table of contents",
+        "llm chunk <json>": "Preview chunking for batched mode",
+        "llm models": "Inspect model configs and profiles",
+        "llm validate-toc <json>": "Validate a TOC JSON file",
         "llm debug": "Run LLM debug mode",
         "bag validate <path>": "Validate BagIt structure",
         "bag zip <path>": "ZIP a bag directory",
