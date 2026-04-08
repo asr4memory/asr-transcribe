@@ -32,7 +32,7 @@ config = get_config()
 def run(segments, languages, use_summarization, use_toc):
     """Batched pipeline entry point. Returns result dict."""
     language, translation = _resolve_language(languages)
-    model_cfg, model_path = _load_model_cfg()
+    model_cfg, model_path = _load_model_cfg(use_summarization, use_toc)
 
     transcript_start = segments[0].get("start", 0.0) if segments else 0.0
     transcript_end = segments[-1].get("end", 0.0) if segments else 0.0
@@ -108,10 +108,18 @@ def _resolve_language(languages):
     return languages[0], False
 
 
-def _load_model_cfg():
-    """Load model config for batched mode. Returns (model_cfg, model_path)."""
-    model_path = config["summarization"]["sum_model_path"]
-    config_path = config["summarization"].get("sum_model_config", "")
+def _load_model_cfg(use_summarization, use_toc):
+    """Load model config for batched mode. Returns (model_cfg, model_path).
+
+    Prefers summarization config when available, falls back to TOC config
+    for TOC-only runs.
+    """
+    if use_summarization:
+        model_path = config["summarization"]["sum_model_path"]
+        config_path = config["summarization"].get("sum_model_config", "")
+    else:
+        model_path = config["toc"]["toc_model_path"]
+        config_path = config["toc"].get("toc_model_config", "")
     return load_model_config(config_path), model_path
 
 
