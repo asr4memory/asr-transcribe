@@ -134,6 +134,18 @@ def select_profile(model_cfg: dict, input_chars: int, max_tokens: int) -> int:
     return len(profiles) or 1
 
 
+def _resolve_ggml_type(value: str | int | None) -> int | None:
+    """Convert a GGML type string ('q8_0') or int to the integer constant."""
+    _GGML_TYPE_Q8_0 = 8
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if value.lower() == "q8_0":
+        return _GGML_TYPE_Q8_0
+    raise ValueError(f"Unsupported GGML type: {value!r}. Only 'q8_0' is supported.")
+
+
 def load_model_from_config(model_path: str, profile: int, model_cfg: dict) -> Llama:
     """Initialise the Llama model with profile-specific context settings."""
     profiles = model_cfg.get("profiles", [])
@@ -153,6 +165,9 @@ def load_model_from_config(model_path: str, profile: int, model_cfg: dict) -> Ll
         n_threads=model_section.get("n_threads", 8),
         n_threads_batch=model_section.get("n_threads_batch", 16),
         flash_attn=model_section.get("flash_attn", True),
+        swa_full=model_section.get("swa_full", True),
+        type_k=_resolve_ggml_type(model_section.get("type_k")),
+        type_v=_resolve_ggml_type(model_section.get("type_v")),
         verbose=verbose,
     )
 
