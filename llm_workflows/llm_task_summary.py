@@ -10,8 +10,11 @@ from subprocesses.llm_subprocess import (
 )
 
 config = get_config()
-MODEL_PATH = config["summarization"]["sum_model_path"]
-MODEL_CONFIG_PATH = config["summarization"].get("sum_model_config", "")
+MODEL_PATH_SUMMARIZATION = config["summarization"]["sum_model_path"]
+SUMMARIZATION_MODEL_CONFIG_PATH = config["summarization"].get("sum_model_config", "")
+
+MODEL_PATH_TRANSLATION = config["translation"]["translation_model_path"]
+TRANSLATION_MODEL_CONFIG_PATH = config["translation"].get("translation_model_config", "")
 
 
 ## SUMMARY WORKFLOW ##
@@ -30,8 +33,8 @@ def build_user_prompt(segments) -> str:
 def run(segments: list[dict], languages: list[str]) -> dict:
     """Runs Summary with retries. Returns {lang: text}."""
 
-    model_cfg = load_model_config(MODEL_CONFIG_PATH)
-    effective_max_profiles = len(model_cfg.get("profiles", [])) or 3
+    model_cfg_sum = load_model_config(SUMMARIZATION_MODEL_CONFIG_PATH)
+    effective_max_profiles = len(model_cfg_sum.get("profiles", [])) or 3
     user_prompt_text = build_user_prompt(segments)
 
     max_tokens = 8192
@@ -53,7 +56,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
 
     system_prompt_text = get_system_prompt(language)
     input_chars = len(system_prompt_text) + len(user_prompt_text)
-    start_profile = select_profile(model_cfg, input_chars, max_tokens)
+    start_profile = select_profile(model_cfg_sum, input_chars, max_tokens)
     print(
         f"Summary: estimated input {input_chars} chars → starting at profile {start_profile}",
         file=sys.stderr,
@@ -62,7 +65,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     for profile in range(start_profile, effective_max_profiles + 1):
         try:
             if llm is None:
-                llm = load_model_from_config(MODEL_PATH, profile, model_cfg)
+                llm = load_model_from_config(MODEL_PATH_SUMMARIZATION, profile, model_cfg_sum)
             meta = {
                 "task": "Summary",
                 "lang": language,
@@ -106,6 +109,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
             temperature = 0.0
             top_p = 1.0
             repeat_penalty = 1.0
+            model_cfg_trans = load_model_config(TRANSLATION_MODEL_CONFIG_PATH)
 
             try:
                 translation_prompt = (
@@ -114,14 +118,14 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                 )
                 translation_input_chars = len(translation_prompt) + len(de_summary)
                 translation_profile = select_profile(
-                    model_cfg, translation_input_chars, max_tokens
+                    model_cfg_trans, translation_input_chars, max_tokens
                 )
                 if llm is not None:
                     llm.close()
                     del llm
                     llm = None
                     cleanup_cuda_memory()
-                llm = load_model_from_config(MODEL_PATH, translation_profile, model_cfg)
+                llm = load_model_from_config(MODEL_PATH_TRANSLATION, translation_profile, model_cfg_trans)
                 print(
                     f"Summary translation: input {translation_input_chars} chars → profile {translation_profile}",
                     file=sys.stderr,

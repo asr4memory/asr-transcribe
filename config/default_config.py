@@ -50,6 +50,10 @@ CONST_DEFAULT_CONFIG = {
         "toc_model_path": "",
         "toc_model_config": "",
     },
+    "translation": {
+        "translation_model_path": "",
+        "translation_model_config": "",
+    },
     "email": {
         "smtp_server": "",
         "smtp_port": 25,

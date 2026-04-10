@@ -26,6 +26,7 @@ def initialize_config():
         "summarization": CONST_DEFAULT_CONFIG["summarization"]
         | data.get("summarization", {}),
         "toc": CONST_DEFAULT_CONFIG["toc"] | data.get("toc", {}),
+        "translation": CONST_DEFAULT_CONFIG["translation"] | data.get("translation", {}),
     }
 
 

@@ -143,6 +143,9 @@ def load_model_from_config(model_path: str, profile: int, model_cfg: dict) -> Ll
         )
     profile_cfg = profiles[profile - 1]
     model_section = model_cfg.get("model", {})
+    model_name = model_section.get("name", "")
+    if model_name:
+        print(f"Loading model: {model_name} (profile {profile})", file=sys.stderr)
 
     return Llama(
         model_path=model_path,
@@ -163,24 +166,7 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
     if not text:
         return ""
 
-    # Pattern 1a: Gemma 4 thinking format
-    # <|channel>thought{reasoning}<channel|>{final answer}
-    if "<channel|>" in text:
-        before, after = text.split("<channel|>", 1)
-        _log_removed_reasoning(removed=before, kind="gemma4_thought", meta=meta)
-        return after.strip()
-
-    # Pattern 1b: Gemma 4 incomplete thinking (no closing <channel|>)
-    if "<|channel>thought" in text:
-        before, after = text.split("<|channel>thought", 1)
-        _log_removed_reasoning(
-            removed="<|channel>thought" + after,
-            kind="gemma4_incomplete",
-            meta=meta,
-        )
-        return before.strip()
-
-    # Pattern 2a: GPT-OSS Harmony format: Multi-step reasoning 
+    # Pattern 1a: GPT-OSS Harmony format: Multi-step reasoning 
     # analysis<|message|>{reasoning}<|end|><|start|>assistant<|channel|>final<|message|>{answer}
     multi_step_delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
     if multi_step_delimiter in text:
@@ -195,7 +181,7 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
             after = after.split("<|")[0]
         return after.strip()
 
-    # Pattern 2b: GPT-OSS Harmony format: Single-step / generic final — no analysis block, direct final output
+    # Pattern 1b: GPT-OSS Harmony format: Single-step / generic final — no analysis block, direct final output
     if "<|channel|>final<|message|>" in text:
         before, after = text.split("<|channel|>final<|message|>", 1)
         _log_removed_reasoning(
@@ -207,7 +193,7 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
             after = after.split("<|")[0]
         return after.strip()
 
-    # Pattern 2c: GPT-OSS Harmony format: Incomplete reasoning — model stuck in analysis, no final output produced
+    # Pattern 1c: GPT-OSS Harmony format: Incomplete reasoning — model stuck in analysis, no final output produced
     if "<|channel|>analysis" in text:
         before, after = text.split("<|channel|>analysis", 1)
         _log_removed_reasoning(

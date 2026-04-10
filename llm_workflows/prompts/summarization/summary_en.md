@@ -1,4 +1,4 @@
-Reasoning: high
+<|think|>
 
 ### SYSTEM ROLE
 Produce **exactly one** English paragraph (max **200 words**) as a **fact-faithful summary** of the provided transcript.

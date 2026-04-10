@@ -11,8 +11,11 @@ from subprocesses.llm_subprocess import (
 )
 
 config = get_config()
-MODEL_PATH = config["toc"]["toc_model_path"]
-MODEL_CONFIG_PATH = config["toc"].get("toc_model_config", "")
+MODEL_PATH_TOC = config["toc"]["toc_model_path"]
+TOC_MODEL_CONFIG_PATH = config["toc"].get("toc_model_config", "")
+
+MODEL_PATH_TRANSLATION = config["translation"]["translation_model_path"]
+TRANSLATION_MODEL_CONFIG_PATH = config["translation"].get("translation_model_config", "")
 
 ## TOC WORKFLOW ##
 
@@ -64,8 +67,8 @@ def validate_translation_fields(original: list[dict], translated) -> str | None:
 
 def run(segments: list[dict], languages: list[str]) -> dict:
     """Runs TOC with retries. Returns {lang: json_data}."""
-    model_cfg = load_model_config(MODEL_CONFIG_PATH)
-    effective_max_profiles = len(model_cfg.get("profiles", [])) or 3
+    model_cfg_toc = load_model_config(TOC_MODEL_CONFIG_PATH)
+    effective_max_profiles = len(model_cfg_toc.get("profiles", [])) or 3
     user_prompt_text = build_user_prompt(segments)
 
     max_tokens = 16384
@@ -87,7 +90,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
 
     system_prompt_text = get_system_prompt(language)
     input_chars = len(system_prompt_text) + len(user_prompt_text)
-    start_profile = select_profile(model_cfg, input_chars, max_tokens)
+    start_profile = select_profile(model_cfg_toc, input_chars, max_tokens)
     print(
         f"TOC: estimated input {input_chars} chars → starting at profile {start_profile}",
         file=sys.stderr,
@@ -98,7 +101,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     for profile in range(start_profile, effective_max_profiles + 1):
         try:
             if llm is None:
-                llm = load_model_from_config(MODEL_PATH, profile, model_cfg)
+                llm = load_model_from_config(MODEL_PATH_TOC, profile, model_cfg_toc)
             for json_attempt in range(1, MAX_JSON_RETRIES + 1):
                 meta = {
                     "task": "TOC",
@@ -175,20 +178,21 @@ def run(segments: list[dict], languages: list[str]) -> dict:
             temperature = 0.3
             top_p = 0.9
             repeat_penalty = 1.1
+            model_cfg_trans = load_model_config(TRANSLATION_MODEL_CONFIG_PATH)
 
             toc_json_str = json.dumps(de_toc, ensure_ascii=False)
             try:
                 translation_prompt = get_translation_prompt()
                 translation_input_chars = len(translation_prompt) + len(toc_json_str)
                 translation_profile = select_profile(
-                    model_cfg, translation_input_chars, max_tokens
+                    model_cfg_trans, translation_input_chars, max_tokens
                 )
                 if llm is not None:
                     llm.close()
                     del llm
                     llm = None
                     cleanup_cuda_memory()
-                llm = load_model_from_config(MODEL_PATH, translation_profile, model_cfg)
+                llm = load_model_from_config(MODEL_PATH_TRANSLATION, translation_profile, model_cfg_trans)
                 print(
                     f"TOC translation: input {translation_input_chars} chars → profile {translation_profile}",
                     file=sys.stderr,
