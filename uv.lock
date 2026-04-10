@@ -174,7 +174,7 @@ requires-dist = [
     { name = "colorlog", specifier = "==6.8.2" },
     { name = "ctranslate2", specifier = "==4.5.0" },
     { name = "jinja2", specifier = "==3.1.4" },
-    { name = "llama-cpp-python", specifier = ">=0.3.18" },
+    { name = "llama-cpp-python", specifier = ">=0.3.20" },
     { name = "pycairo", specifier = ">=1.29.0" },
     { name = "pyexcel-ods3", specifier = "==0.6.1" },
     { name = "pytest", specifier = "==8.3.3" },
@@ -1113,7 +1113,7 @@ wheels = [
 
 [[package]]
 name = "llama-cpp-python"
-version = "0.3.18"
+version = "0.3.20"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "diskcache" },
@@ -1121,7 +1121,7 @@ dependencies = [
     { name = "numpy" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8f/f7/ae8c53ec5b388b0f5c750ab6a20eb3a33546c91335a8067024f8e01e3524/llama_cpp_python-0.3.18.tar.gz", hash = "sha256:56e060193a4b54fb19ad80f7067a688c259c0224ca027efdfc97ab8a91b2b43d", size = 61684351, upload-time = "2026-03-24T10:01:07.433Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/45/95/c69c47c9c8dda97f712f5864688d13a22b0159aa9adae91a69067a728532/llama_cpp_python-0.3.20.tar.gz", hash = "sha256:70f01b7d915d31c617dc66610a332cb2d51cde84c8b152d09a352206323616f5", size = 59323017, upload-time = "2026-04-03T06:56:32.455Z" }
 
 [[package]]
 name = "lml"

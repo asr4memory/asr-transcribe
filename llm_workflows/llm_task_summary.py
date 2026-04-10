@@ -34,7 +34,7 @@ def run(segments: list[dict], languages: list[str]) -> dict:
     effective_max_profiles = len(model_cfg.get("profiles", [])) or 3
     user_prompt_text = build_user_prompt(segments)
 
-    max_tokens = 16384
+    max_tokens = 8192
     temperature = 0.0
     top_p = 1.0
     repeat_penalty = 1.0

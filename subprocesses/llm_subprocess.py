@@ -134,18 +134,6 @@ def select_profile(model_cfg: dict, input_chars: int, max_tokens: int) -> int:
     return len(profiles) or 1
 
 
-def _resolve_ggml_type(value: str | int | None) -> int | None:
-    """Convert a GGML type string ('q8_0') or int to the integer constant."""
-    _GGML_TYPE_Q8_0 = 8
-    if value is None:
-        return None
-    if isinstance(value, int):
-        return value
-    if value.lower() == "q8_0":
-        return _GGML_TYPE_Q8_0
-    raise ValueError(f"Unsupported GGML type: {value!r}. Only 'q8_0' is supported.")
-
-
 def load_model_from_config(model_path: str, profile: int, model_cfg: dict) -> Llama:
     """Initialise the Llama model with profile-specific context settings."""
     profiles = model_cfg.get("profiles", [])
@@ -166,8 +154,6 @@ def load_model_from_config(model_path: str, profile: int, model_cfg: dict) -> Ll
         n_threads_batch=model_section.get("n_threads_batch", 16),
         flash_attn=model_section.get("flash_attn", True),
         swa_full=model_section.get("swa_full", True),
-        type_k=_resolve_ggml_type(model_section.get("type_k")),
-        type_v=_resolve_ggml_type(model_section.get("type_v")),
         verbose=verbose,
     )
 
@@ -177,7 +163,24 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
     if not text:
         return ""
 
-    # Pattern 1: Multi-step reasoning (Harmony format)
+    # Pattern 1a: Gemma 4 thinking format
+    # <|channel>thought{reasoning}<channel|>{final answer}
+    if "<channel|>" in text:
+        before, after = text.split("<channel|>", 1)
+        _log_removed_reasoning(removed=before, kind="gemma4_thought", meta=meta)
+        return after.strip()
+
+    # Pattern 1b: Gemma 4 incomplete thinking (no closing <channel|>)
+    if "<|channel>thought" in text:
+        before, after = text.split("<|channel>thought", 1)
+        _log_removed_reasoning(
+            removed="<|channel>thought" + after,
+            kind="gemma4_incomplete",
+            meta=meta,
+        )
+        return before.strip()
+
+    # Pattern 2a: GPT-OSS Harmony format: Multi-step reasoning 
     # analysis<|message|>{reasoning}<|end|><|start|>assistant<|channel|>final<|message|>{answer}
     multi_step_delimiter = "|end|><|start|>assistant<|channel|>final<|message|>"
     if multi_step_delimiter in text:
@@ -192,7 +195,7 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
             after = after.split("<|")[0]
         return after.strip()
 
-    # Pattern 2: Single-step / generic final — no analysis block, direct final output
+    # Pattern 2b: GPT-OSS Harmony format: Single-step / generic final — no analysis block, direct final output
     if "<|channel|>final<|message|>" in text:
         before, after = text.split("<|channel|>final<|message|>", 1)
         _log_removed_reasoning(
@@ -204,7 +207,7 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
             after = after.split("<|")[0]
         return after.strip()
 
-    # Pattern 3: Incomplete reasoning — model stuck in analysis, no final output produced
+    # Pattern 2c: GPT-OSS Harmony format: Incomplete reasoning — model stuck in analysis, no final output produced
     if "<|channel|>analysis" in text:
         before, after = text.split("<|channel|>analysis", 1)
         _log_removed_reasoning(
