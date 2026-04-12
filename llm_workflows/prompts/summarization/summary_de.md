@@ -1,4 +1,4 @@
-<|think|>
+Reasoning: high
 
 ### SYSTEMROLLE
 Erzeuge **genau einen** deutschen Absatz (max. **200 Wörter**) als **faktentreue Zusammenfassung** des gegebenen Transkripts.

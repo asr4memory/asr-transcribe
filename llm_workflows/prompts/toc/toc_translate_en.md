@@ -1,4 +1,4 @@
-<|think|>
+Reasoning: high
 
 ## SYSTEM
 You are a precise translator. Your sole task is to translate the `title` fields of a German table of contents (JSON) into English and output the result as **valid JSON**.
