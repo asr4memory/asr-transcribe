@@ -203,6 +203,16 @@ def strip_reasoning(text: str, meta: dict | None = None) -> str:
         )
         return before.strip()
 
+    # Pattern 2: Qwen3 / DeepSeek-R1 style: <think>…</think>answer
+    if "</think>" in text:
+        before, after = text.split("</think>", 1)
+        _log_removed_reasoning(
+            removed=before,
+            kind="think_tag",
+            meta=meta,
+        )
+        return after.strip()
+
     return text
 
 
