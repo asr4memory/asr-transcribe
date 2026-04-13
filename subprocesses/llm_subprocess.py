@@ -122,9 +122,9 @@ def get_languages() -> list[str]:
 def select_profile(model_cfg: dict, input_chars: int, max_tokens: int) -> int:
     """Select the first profile whose n_ctx fits estimated input + output tokens.
     Falls back to the last (largest) profile if none fits.
-    Uses 2.5 chars/token as a conservative estimate for German/English mixed text.
+    Uses 3.5 chars/token as an estimate for German/English mixed text.
     """
-    CHARS_PER_TOKEN = 2.5
+    CHARS_PER_TOKEN = 3.5
     estimated_input_tokens = int(input_chars / CHARS_PER_TOKEN)
     required_ctx = estimated_input_tokens + max_tokens
     profiles = model_cfg.get("profiles", [])
