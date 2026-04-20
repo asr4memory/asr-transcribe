@@ -36,15 +36,15 @@ reasoning_log_max_chars = 20000 # 0 = no truncation
 
 [summarization]
 sum_model_path = "path/to/model" # Needs to be in llama_cpp compatible GGUF format
-sum_model_config = "model_configs/your-model.toml" # Per-model trial/hardware config
+sum_model_config = "model_configs/your-model.toml" # Per-model profile/hardware config
 
 [toc]
 toc_model_path = "path/to/model" # Needs to be in llama_cpp compatible GGUF format
-toc_model_config = "model_configs/your-model.toml" # Per-model trial/hardware config
+toc_model_config = "model_configs/your-model.toml" # Per-model profile/hardware config
 
 [translation]
 translation_model_path = "path/to/model" # Needs to be in llama_cpp compatible GGUF format
-translation_model_config = "model_configs/your-model.toml" # Per-model trial/hardware config
+translation_model_config = "model_configs/your-model.toml" # Per-model profile/hardware config
 
 [email]
 smtp_server = "mail.example.com"
