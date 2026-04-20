@@ -122,24 +122,17 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                 parsed = parse_json_output(output)
                 if isinstance(parsed, dict) and "_error" in parsed:
                     if finish_reason == "length":
-                        # Truncated — max_tokens is the hard limit, no retry helps
                         parsed["_truncated"] = True
-                        results[language] = parsed
-                        print(
-                            f"TOC ({language}): truncated (max_tokens={max_tokens}), stopping",
-                            file=sys.stderr,
-                        )
-                        success = True  # not a success, but signals to stop all retries
-                        break
                     results[language] = parsed
+                    reason = "truncated" if finish_reason == "length" else "invalid JSON"
                     if json_attempt < MAX_JSON_RETRIES:
                         print(
-                            f"TOC ({language}): invalid JSON on profile {profile} attempt {json_attempt}, retrying...",
+                            f"TOC ({language}): {reason} on profile {profile} attempt {json_attempt}, retrying...",
                             file=sys.stderr,
                         )
                     else:
                         print(
-                            f"TOC ({language}): invalid JSON after {MAX_JSON_RETRIES} attempts on profile {profile}",
+                            f"TOC ({language}): {reason} after {MAX_JSON_RETRIES} attempts on profile {profile}",
                             file=sys.stderr,
                         )
                 else:
@@ -218,21 +211,16 @@ def run(segments: list[dict], languages: list[str]) -> dict:
                     if isinstance(parsed, dict) and "_error" in parsed:
                         if finish_reason == "length":
                             parsed["_truncated"] = True
-                            results["en"] = parsed
-                            print(
-                                f"TOC Translation (en): truncated (max_tokens={max_tokens}), stopping",
-                                file=sys.stderr,
-                            )
-                            break
                         results["en"] = parsed
+                        reason = "truncated" if finish_reason == "length" else "invalid JSON"
                         if json_attempt < MAX_JSON_RETRIES:
                             print(
-                                f"TOC Translation (en): invalid JSON attempt {json_attempt}, retrying...",
+                                f"TOC Translation (en): {reason} attempt {json_attempt}, retrying...",
                                 file=sys.stderr,
                             )
                         else:
                             print(
-                                f"TOC Translation (en): invalid JSON after {MAX_JSON_RETRIES} attempts",
+                                f"TOC Translation (en): {reason} after {MAX_JSON_RETRIES} attempts",
                                 file=sys.stderr,
                             )
                         continue

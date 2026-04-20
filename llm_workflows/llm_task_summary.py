@@ -113,8 +113,8 @@ def run(segments: list[dict], languages: list[str]) -> dict:
 
             try:
                 translation_prompt = (
-                    "Reasoning: low.\n"
-                    "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische."
+                    "<|think|>\n"
+                    "Du bist ein präziser Übersetzer. Übersetze die folgende Zusammenfassung eines Transkript ins Englische. Keine zusätzlichen Erklärungen, nur die Übersetzung.\n\n"
                 )
                 translation_input_chars = len(translation_prompt) + len(de_summary)
                 translation_profile = select_profile(
