@@ -11,65 +11,65 @@
 
       @page {
         size: A4 portrait;
-        @frame header_frame {           /* Static Frame */
-          -pdf-frame-content: header_content;
-          left: 2.5cm; width: 16cm; top: 1.5cm; height: 1.5cm;
+        margin: 2.5cm;
+        @top-left {
+          content: "asr-transcribe " string(doc-title);
+          font-style: italic;
+          font-size: 10pt;
         }
-
-        @frame content_frame {          /* Content Frame */
-          left: 2.5cm; width: 16cm; top: 3cm; height: 24cm;
-        }
-
-        @frame footer_frame {           /* Another static Frame */
-          -pdf-frame-content: footer_content;
-          left: 2.5cm; width: 16cm; top: 28cm; height: 1.5cm;
+        @bottom-right {
+          content: counter(page) " / " counter(pages);
+          font-style: italic;
+          font-size: 10pt;
         }
       }
 
       body {
         font-family: "NotoSans", sans-serif;
+        font-size: 12pt;
+        line-height: 1.35;
       }
 
-      h1  { font-size: 24pt; }
-      h2  { font-size: 16pt; }
-      div { font-size: 12pt; }
-      p   { font-size: 12pt; }
-      dl  { font-size: 12pt; }
+      h1 {
+        font-size: 24pt;
+        margin: 0 0 1.2cm 0;
+        string-set: doc-title content();
+      }
 
-      dt {
-        display: inline-block;
+      .segment {
+        margin: 0 0 0.45cm 0;
+        break-inside: avoid;
+      }
+
+      .speaker {
         font-weight: bold;
+        margin: 0;
       }
 
-      dd { display: inline-block; }
-
-      .header {
+      .timestamp {
         font-style: italic;
+        margin: 0;
       }
 
-      .footer {
-        font-style: italic;
-        text-align: right;
+      .text {
+        margin: 0.05cm 0 0 0;
+        white-space: pre-wrap;
       }
     </style>
   </head>
   <body>
-    <div id="header_content" class="header">
-      asr-transcribe {{ filename }}
-    </div>
-
-    <div id="footer_content" class="footer">
-      <pdf:pagenumber/>&nbsp;/&nbsp;<pdf:pagecount/>
-    </div>
-
     <h1>{{ filename }}</h1>
 
     {% for segment in segments %}
-      {% if "speaker" in segment %}
-        <p>{{ segment.speaker }}:<br>{{ segment.text }}</p>
-      {% else %}
-        <p>{{ segment.text }}</p>
-      {% endif %}
+      <section class="segment">
+        {% if "speaker" in segment %}
+          <p class="speaker">{{ segment.speaker }}:</p>
+        {% endif %}
+        {% if "timestamp" in segment %}
+          <p class="timestamp">{{ segment.timestamp }}</p>
+        {% endif %}
+        <p class="text">{{ segment.text }}</p>
+      </section>
     {% endfor %}
   </body>
 </html>

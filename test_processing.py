@@ -19,6 +19,7 @@ from utils.utilities import (
     duplicate_speaker_csvs_to_ohd_import,
 )
 from output.writers import write_summary, write_text, write_text_speaker
+from output import writers as writers_module
 
 
 class TestSentenceIsIncomplete:
@@ -162,6 +163,167 @@ def test_split_long_sentences_no_comma_no_split():
     )
 
     assert result == [segment]
+
+
+def test_prepare_segments_for_template_without_timestamps():
+    segments = [
+        {"text": "Hallo", "speaker": "SPEAKER_01", "start": 0.0, "end": 1.0},
+        {"text": "Welt", "speaker": "SPEAKER_01", "start": 1.0, "end": 2.0},
+        {"text": "Test", "speaker": "SPEAKER_02", "start": 2.0, "end": 3.0},
+        {"text": "Leer", "speaker": "", "start": 3.0, "end": 4.0},
+    ]
+
+    prepared = writers_module.prepare_segments_for_template(
+        segments, include_timestamps=False
+    )
+
+    assert prepared[0] == {"text": "Hallo", "speaker": "SPEAKER_01"}
+    assert prepared[1] == {"text": "Welt"}
+    assert prepared[2] == {"text": "Test", "speaker": "SPEAKER_02"}
+    assert prepared[3] == {"text": "Leer"}
+    assert all("timestamp" not in item for item in prepared)
+
+
+def test_prepare_segments_for_template_with_timestamps_and_missing_bounds():
+    segments = [
+        {"text": "Alpha", "speaker": "SPEAKER_01", "start": 0.0, "end": 1.0},
+        {"text": "Beta", "speaker": "SPEAKER_01", "start": 1.0},  # missing end
+        {"text": "Gamma", "speaker": "SPEAKER_02", "start": 2.0, "end": 3.0},
+    ]
+
+    prepared = writers_module.prepare_segments_for_template(
+        segments, include_timestamps=True
+    )
+
+    assert prepared[0]["text"] == "Alpha"
+    assert prepared[0]["speaker"] == "SPEAKER_01"
+    assert "timestamp" in prepared[0]
+    assert "-->" in prepared[0]["timestamp"]
+
+    assert prepared[1]["text"] == "Beta"
+    assert "timestamp" not in prepared[1]
+    assert "speaker" not in prepared[1]
+
+    assert prepared[2]["text"] == "Gamma"
+    assert prepared[2]["speaker"] == "SPEAKER_02"
+    assert "timestamp" in prepared[2]
+
+
+def test_prepare_segments_for_template_resets_after_empty_speaker():
+    segments = [
+        {"text": "Alpha", "speaker": "SPEAKER_01", "start": 0.0, "end": 1.0},
+        {"text": "Pause", "speaker": "", "start": 1.0, "end": 2.0},
+        {"text": "Back", "speaker": "SPEAKER_01", "start": 2.0, "end": 3.0},
+    ]
+
+    prepared = writers_module.prepare_segments_for_template(
+        segments, include_timestamps=False
+    )
+
+    assert prepared[0]["speaker"] == "SPEAKER_01"
+    assert "speaker" not in prepared[1]
+    assert prepared[2]["speaker"] == "SPEAKER_01"
+
+
+def test_write_pdf_calls_central_helper(monkeypatch, tmp_path):
+    captured = {}
+
+    class DummyTemplate:
+        def render(self, **kwargs):
+            captured["render_kwargs"] = kwargs
+            return "<html><body>ok</body></html>"
+
+    def fake_get_template(_name):
+        return DummyTemplate()
+
+    def fake_pdf_helper(html_content, full_path, *, base_url):
+        captured["html_content"] = html_content
+        captured["full_path"] = full_path
+        captured["base_url"] = base_url
+
+    monkeypatch.setattr(writers_module.env, "get_template", fake_get_template)
+    monkeypatch.setattr(writers_module, "_write_pdfa_2a_from_html", fake_pdf_helper)
+
+    base_path = tmp_path / "beispiel"
+    segments = [{"text": "Hallo Welt", "speaker": "SPEAKER_01", "start": 0.0, "end": 1.0}]
+    writers_module.write_pdf(base_path, segments)
+
+    assert captured["full_path"] == tmp_path / "beispiel.pdf"
+    assert captured["html_content"].startswith("<html>")
+    assert captured["base_url"] == str(
+        writers_module.Path(writers_module.__file__).resolve().parent.parent
+    )
+    assert all(
+        "timestamp" not in segment
+        for segment in captured["render_kwargs"]["segments"]
+    )
+
+
+def test_write_pdf_timestamps_calls_central_helper(monkeypatch, tmp_path):
+    captured = {}
+
+    class DummyTemplate:
+        def render(self, **kwargs):
+            captured["render_kwargs"] = kwargs
+            return "<html><body>ok</body></html>"
+
+    def fake_get_template(_name):
+        return DummyTemplate()
+
+    def fake_pdf_helper(html_content, full_path, *, base_url):
+        captured["html_content"] = html_content
+        captured["full_path"] = full_path
+        captured["base_url"] = base_url
+
+    monkeypatch.setattr(writers_module.env, "get_template", fake_get_template)
+    monkeypatch.setattr(writers_module, "_write_pdfa_2a_from_html", fake_pdf_helper)
+
+    base_path = tmp_path / "beispiel"
+    segments = [
+        {"text": "Hallo Welt", "speaker": "SPEAKER_01", "start": 0.0, "end": 1.0},
+        {"text": "Noch ein Satz", "speaker": "SPEAKER_01", "start": 1.0, "end": 2.0},
+    ]
+    writers_module.write_pdf_timestamps(base_path, segments)
+
+    assert captured["full_path"] == tmp_path / "beispiel_timestamps.pdf"
+    rendered_segments = captured["render_kwargs"]["segments"]
+    assert all("timestamp" in segment for segment in rendered_segments)
+    assert rendered_segments[0]["text"] == "Hallo Welt"
+    assert rendered_segments[1]["text"] == "Noch ein Satz"
+
+
+def test_write_pdf_smoke_if_weasyprint_available(tmp_path):
+    pytest.importorskip("weasyprint")
+
+    base_path = tmp_path / "smoke_pdf"
+    segments = [{"text": "Kurzer Test", "speaker": "SPEAKER_01", "start": 0.0, "end": 1.0}]
+
+    try:
+        writers_module.write_pdf(base_path, segments)
+    except RuntimeError as exc:
+        pytest.skip(f"WeasyPrint runtime not available in test environment: {exc}")
+
+    pdf_path = tmp_path / "smoke_pdf.pdf"
+    assert pdf_path.exists()
+    assert pdf_path.stat().st_size > 0
+    assert pdf_path.read_bytes().startswith(b"%PDF-")
+
+
+def test_write_pdf_timestamps_smoke_if_weasyprint_available(tmp_path):
+    pytest.importorskip("weasyprint")
+
+    base_path = tmp_path / "smoke_pdf_ts"
+    segments = [{"text": "Kurzer Test", "speaker": "SPEAKER_01", "start": 0.0, "end": 1.0}]
+
+    try:
+        writers_module.write_pdf_timestamps(base_path, segments)
+    except RuntimeError as exc:
+        pytest.skip(f"WeasyPrint runtime not available in test environment: {exc}")
+
+    pdf_path = tmp_path / "smoke_pdf_ts_timestamps.pdf"
+    assert pdf_path.exists()
+    assert pdf_path.stat().st_size > 0
+    assert pdf_path.read_bytes().startswith(b"%PDF-")
 
 
 # --- BagIt Tests ---

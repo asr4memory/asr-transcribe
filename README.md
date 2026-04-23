@@ -173,7 +173,7 @@ The output is a VTT file with chapter markers (H1/H2/H3 levels) that can be used
 
 For every processed file a timestamped bag directory is created under the configured output path. Each bag contains:
 
-- `data/transcripts/`: All transcript formats (TXT, RTF, CSV, VTT, SRT, JSON, ODT, PDF, etc.), including speaker CSVs with pause markers and a `_speaker_nopause.csv` variant without pause markers.
+- `data/transcripts/`: All transcript formats (TXT, RTF, CSV, VTT, SRT, JSON, ODT, PDF/A, etc.), including speaker CSVs with pause markers and a `_speaker_nopause.csv` variant without pause markers.
 - `data/translations/`: Mirrors the transcript formats but contains the translated text when translation is enabled.
 - `data/abstracts/`: Language-specific summaries (currently `_summary_de.txt` and `_summary_en.txt`).
 - `data/ohd_import/`: Copies of the speaker CSV exports (with and without pause markers) for downstream ingestion.

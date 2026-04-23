@@ -11,7 +11,6 @@ from unicodedata import normalize
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 from pyexcel_ods3 import save_data
-from xhtml2pdf import pisa
 from output.tei_builder import WhisperToTEIConverter
 
 from config.app_config import get_config
@@ -483,47 +482,76 @@ def write_pdf(path_without_ext: Path, segments: list):
     """Write a PDF file with the transcript text."""
     template = env.get_template("pdf_template.html")
     normalized_filename = normalize("NFC", path_without_ext.name)
-    segments_for_template = prepare_segments_for_template(segments)
+    segments_for_template = prepare_segments_for_template(
+        segments, include_timestamps=False
+    )
 
     html_content = template.render(
         lang="en", filename=normalized_filename, segments=segments_for_template
     )
 
     full_path = append_suffix(path_without_ext, ".pdf")
-    with open(full_path, "wb") as file:
-        pisa.CreatePDF(html_content, dest=file)
+    base_url = str(Path(__file__).resolve().parent.parent)
+    _write_pdfa_2a_from_html(
+        html_content,
+        full_path,
+        base_url=base_url,
+    )
 
 
 def write_pdf_timestamps(path_without_ext: Path, segments: list):
     """Write a PDF file with the transcript text and timestamps."""
     template = env.get_template("pdf_template.html")
     normalized_filename = normalize("NFC", path_without_ext.name)
-
-    # Modify segments to include timestamps in text
-    modified_segments = []
-    for segment in segments:
-        # Get formatted timestamps
-        _, start_time = format_timestamp(segment["start"])
-        _, end_time = format_timestamp(segment["end"])
-
-        # Create a copy of the segment with modified text
-        modified_segment = segment.copy()
-        modified_segment["text"] = f"[{start_time} --> {end_time}]\n{segment['text']}"
-        modified_segments.append(modified_segment)
-
-    # Use the same preparation function as write_pdf
-    segments_for_template = prepare_segments_for_template(modified_segments)
+    segments_for_template = prepare_segments_for_template(
+        segments, include_timestamps=True
+    )
 
     html_content = template.render(
         lang="en", filename=normalized_filename, segments=segments_for_template
     )
 
     full_path = append_affix(path_without_ext, "_timestamps", ".pdf")
-    with open(full_path, "wb") as file:
-        pisa.CreatePDF(html_content, dest=file)
+    base_url = str(Path(__file__).resolve().parent.parent)
+    _write_pdfa_2a_from_html(
+        html_content,
+        full_path,
+        base_url=base_url,
+    )
 
 
-def prepare_segments_for_template(segments: list) -> list:
+def _write_pdfa_2a_from_html(
+    html_content: str,
+    full_path: Path,
+    *,
+    base_url: str,
+) -> None:
+    """Render HTML to PDF/A-2a using WeasyPrint."""
+    try:
+        from weasyprint import HTML
+    except ImportError as exc:
+        raise RuntimeError(
+            "WeasyPrint is required for PDF export. Install Python dependency "
+            "'weasyprint==68.0' and required system libraries (Pango/HarfBuzz/Cairo)."
+        ) from exc
+
+    full_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        HTML(string=html_content, base_url=base_url).write_pdf(
+            target=str(full_path),
+            pdf_variant="pdf/a-2a",
+            pdf_tags=True,
+            srgb=True,
+            custom_metadata=True,
+        )
+    except Exception as exc:
+        raise RuntimeError(f"PDF/A-2a rendering failed for '{full_path}': {exc}") from exc
+
+
+def prepare_segments_for_template(
+    segments: list, include_timestamps: bool = False
+) -> list:
     """
     Transform the segment data for the template that is used for
     creating the PDF file.
@@ -534,8 +562,18 @@ def prepare_segments_for_template(segments: list) -> list:
         new_segment = {"text": segment["text"]}
         speaker = segment.get("speaker", "")
         if speaker != last_speaker:
-            new_segment["speaker"] = speaker
+            if speaker:
+                new_segment["speaker"] = speaker
             last_speaker = speaker
+
+        if include_timestamps:
+            start = segment.get("start")
+            end = segment.get("end")
+            if start is not None and end is not None:
+                _, start_time = format_timestamp(start)
+                _, end_time = format_timestamp(end)
+                new_segment["timestamp"] = f"[{start_time} --> {end_time}]"
+
         segments_for_template.append(new_segment)
 
     return segments_for_template
