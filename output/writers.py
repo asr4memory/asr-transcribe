@@ -332,11 +332,49 @@ def write_rtf(path_without_ext: Path, segments: list):
 
 def write_rtf_speaker(path_without_ext: Path, segments: list):
     """
+    Write the processed segments to an RTF file with speaker markings.
+    This file will contain the transcribed text of each segment with speaker information.
+    """
+    full_path = append_affix(path_without_ext, "_speaker", ".rtf")
+    with open(full_path, "w", encoding="utf-8") as rtf_file:
+        # RTF header
+        rtf_file.write("{\\rtf1\\ansi\\ansicpg1252\\cocoartf2580\\cocoasubrtf220\n")
+        rtf_file.write(
+            "{\\fonttbl\\f0\\fswiss\\fcharset0 Helvetica;\\f1\\fswiss\\fcharset0 Helvetica-Bold;}\n"
+        )
+        rtf_file.write(
+            "{\\colortbl;\\red255\\green255\\blue255;\\red0\\green0\\blue0;}\n"
+        )
+        rtf_file.write("\\margl1440\\margr1440\\vieww11520\\viewh8400\\viewkind0\n")
+        rtf_file.write(
+            "\\pard\\tx720\\tx1440\\tx2160\\tx2880\\tx3600\\tx4320\\tx5040\\tx5760\\tx6480\\tx7200\\tx7920\\tx8640\\pardirnatural\\partightenfactor0\n\n"
+        )
+
+        last_speaker = ""
+        for seg in segments:
+            speaker = seg.get("speaker", "")
+            text = encode_rtf_text(seg["text"])
+
+            # Only write the speaker when it changes
+            if speaker != last_speaker:
+                speaker_encoded = encode_rtf_text(speaker)
+                rtf_file.write(f"\\f1\\b \\cf0 {speaker_encoded}:\\f0\\b0\\par\n")
+                last_speaker = speaker
+
+            # Write text
+            rtf_file.write(f"{text}\\par\n")
+
+        # RTF footer
+        rtf_file.write("}")
+
+
+def write_rtf_timestamps(path_without_ext: Path, segments: list):
+    """
     Write the processed segments to an RTF file with speaker markings and timestamps.
     This file will contain the transcribed text of each segment with speaker information
     and start/end timestamps for each segment.
     """
-    full_path = append_affix(path_without_ext, "_speaker", ".rtf")
+    full_path = append_affix(path_without_ext, "_timestamps", ".rtf")
     with open(full_path, "w", encoding="utf-8") as rtf_file:
         # RTF header
         rtf_file.write("{\\rtf1\\ansi\\ansicpg1252\\cocoartf2580\\cocoasubrtf220\n")
@@ -810,6 +848,7 @@ def write_output_files(
     write_text_maxqda(base_path, segments, word_segments)
     write_rtf(base_path, segments)
     write_rtf_speaker(base_path, segments)
+    write_rtf_timestamps(base_path, segments)
     write_odt(base_path, segments)  # Added new ODT function
     write_pdf(base_path, segments)
     write_pdf_timestamps(base_path, segments)

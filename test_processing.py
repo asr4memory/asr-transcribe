@@ -506,6 +506,54 @@ def test_write_text_speaker_preserves_multiple_dots(tmp_path):
     assert (tmp_path / "PART2.Pagenstecher.vorstellung_de_speaker.txt").exists()
 
 
+def test_write_rtf_contains_only_transcript_text(tmp_path):
+    base_path = tmp_path / "sample.v1.final"
+    segments = [{"text": "Hallo {Welt} ä", "start": 0.0, "end": 1.0, "speaker": "SPK_A"}]
+
+    writers_module.write_rtf(base_path, segments)
+
+    content = (tmp_path / "sample.v1.final.rtf").read_text(encoding="utf-8")
+    assert "SPK_A:" not in content
+    assert "-->" not in content
+    assert "\\{Welt\\}" in content
+    assert "\\u228?" in content
+
+
+def test_write_rtf_speaker_contains_speakers_without_timestamps(tmp_path):
+    base_path = tmp_path / "sample.v1.final"
+    segments = [
+        {"text": "Hallo", "start": 0.0, "end": 1.0, "speaker": "SPK_A"},
+        {"text": "Weiter", "start": 1.0, "end": 2.0, "speaker": "SPK_A"},
+        {"text": "Grüße", "start": 2.0, "end": 3.0, "speaker": "SPK_B"},
+    ]
+
+    writers_module.write_rtf_speaker(base_path, segments)
+
+    content = (tmp_path / "sample.v1.final_speaker.rtf").read_text(encoding="utf-8")
+    assert content.count("SPK_A:") == 1
+    assert content.count("SPK_B:") == 1
+    assert "-->" not in content
+    assert "Hallo\\par\nWeiter\\par\n" in content
+    assert "\\u252?" in content
+
+
+def test_write_rtf_timestamps_contains_speakers_and_timestamps(tmp_path):
+    base_path = tmp_path / "sample.v1.final"
+    segments = [
+        {"text": "Hallo", "start": 0.0, "end": 1.0, "speaker": "SPK_A"},
+        {"text": "Weiter", "start": 1.0, "end": 2.0, "speaker": "SPK_A"},
+        {"text": "Grüße", "start": 2.0, "end": 3.0, "speaker": "SPK_B"},
+    ]
+
+    writers_module.write_rtf_timestamps(base_path, segments)
+
+    content = (tmp_path / "sample.v1.final_timestamps.rtf").read_text(encoding="utf-8")
+    assert content.count("SPK_A:") == 1
+    assert content.count("SPK_B:") == 1
+    assert "[00:00:00.000 --> 00:00:01.000]" in content
+    assert "\\u252?" in content
+
+
 def test_duplicate_speaker_csvs_preserves_multiple_dots(tmp_path):
     data_dir = tmp_path / "bag" / "data"
     transcripts_dir = data_dir / "transcripts"
