@@ -677,3 +677,158 @@ def test_process_directory_sends_success_email_when_files_exist(tmp_path, monkey
     asr_workflow.process_directory(input_dir, output_dir)
 
     assert called["count"] == 1
+
+
+def test_llm_config_html_renders_all_llm_sections(monkeypatch):
+    from config import app_config as app_config_module
+
+    monkeypatch.setattr(
+        app_config_module,
+        "combined_config",
+        {
+            "system": {},
+            "whisper": {},
+            "llm_meta": {
+                "use_summarization": True,
+                "use_toc": False,
+                "llm_languages": ["de", "en"],
+                "verbose": False,
+                "debug_file": "",
+                "output_debug": "",
+                "reasoning_log": "",
+                "reasoning_log_max_chars": 0,
+            },
+            "email": {},
+            "bag": {},
+            "summarization": {
+                "sum_model_path": "/models/sum.gguf",
+                "sum_model_config": "",
+            },
+            "toc": {
+                "toc_model_path": "",
+                "toc_model_config": "/configs/toc.toml",
+            },
+            "translation": {
+                "translation_model_path": "/models/translate.gguf",
+                "translation_model_config": "",
+            },
+        },
+    )
+
+    html = app_config_module.llm_config_html()
+
+    assert "LLM meta:<br>" in html
+    assert "Summarization:<br>" in html
+    assert "TOC:<br>" in html
+    assert "Translation:<br>" in html
+    assert "Use_summarization: True<br>" in html
+    assert "Use_toc: False<br>" in html
+    assert "Llm_languages: de, en<br>" in html
+    assert "Reasoning_log_max_chars: 0<br>" in html
+    assert "Sum_model_path: /models/sum.gguf<br>" in html
+    assert "Sum_model_config: <br>" in html
+    assert "Toc_model_path: <br>" in html
+    assert "Toc_model_config: /configs/toc.toml<br>" in html
+    assert "Translation_model_path: /models/translate.gguf<br>" in html
+    assert "Translation_model_config: <br>" in html
+
+
+def test_send_success_email_includes_full_llm_configuration(monkeypatch):
+    import importlib
+    import socket
+
+    monkeypatch.setattr(socket, "gethostbyname", lambda _name: "127.0.0.1")
+    from config import app_config as app_config_module
+    from utils import email_notifications as email_notifications_module
+
+    email_notifications_module = importlib.reload(email_notifications_module)
+
+    monkeypatch.setattr(
+        app_config_module,
+        "combined_config",
+        {
+            "system": {"email_notifications": True},
+            "whisper": {
+                "model": "large-v3",
+                "device": "cuda",
+                "thread_count": 4,
+                "batch_size": 16,
+                "beam_size": 5,
+                "compute_type": "float16",
+                "language": "es",
+                "translation_enabled": True,
+                "translation_target_language": "en",
+                "translation_model": "large-v3",
+                "use_initial_prompt": False,
+                "initial_prompt": "",
+                "max_sentence_length": 80,
+                "use_speaker_diarization": True,
+                "min_speakers": 1,
+                "max_speakers": 3,
+                "hf_token": None,
+                "pause_marker_threshold": 2.0,
+                "api_key": None,
+            },
+            "llm_meta": {
+                "use_summarization": True,
+                "use_toc": False,
+                "llm_languages": ["de", "en"],
+                "verbose": False,
+                "debug_file": "",
+                "output_debug": "",
+                "reasoning_log": "",
+                "reasoning_log_max_chars": 0,
+            },
+            "email": {},
+            "bag": {
+                "group_identifier": "asr-transcribe-bags",
+                "bag_count": "1 of 1",
+                "internal_sender_identifier": "internal-identifier",
+                "internal_sender_description": "Automatic Transcription by ASR4Memory",
+            },
+            "summarization": {
+                "sum_model_path": "/models/sum.gguf",
+                "sum_model_config": "",
+            },
+            "toc": {
+                "toc_model_path": "",
+                "toc_model_config": "/configs/toc.toml",
+            },
+            "translation": {
+                "translation_model_path": "/models/translate.gguf",
+                "translation_model_config": "",
+            },
+        },
+    )
+
+    sent_email = {}
+
+    def _fake_send_email(subject, body, type):
+        sent_email["subject"] = subject
+        sent_email["body"] = body
+        sent_email["type"] = type
+
+    monkeypatch.setattr(email_notifications_module, "send_email", _fake_send_email)
+
+    process_info = SimpleNamespace(
+        filename="sample.wav",
+        formatted_audio_length=lambda: "00:00:10",
+        formatted_process_duration=lambda: "00:00:02",
+        realtime_factor=lambda: 0.20,
+    )
+
+    email_notifications_module.send_success_email(
+        [process_info], warning_count=0, warning_audio_inputs=[]
+    )
+
+    body = sent_email["body"]
+    assert sent_email["type"] == "success"
+    assert "LLM configuration:</b><br>LLM meta:<br>" in body
+    assert "Use_summarization: True<br>" in body
+    assert "Use_toc: False<br>" in body
+    assert "Summarization:<br>" in body
+    assert "Sum_model_path: /models/sum.gguf<br>" in body
+    assert "TOC:<br>" in body
+    assert "Toc_model_config: /configs/toc.toml<br>" in body
+    assert "Translation:<br>" in body
+    assert "Translation_model_path: /models/translate.gguf<br>" in body

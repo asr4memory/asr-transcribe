@@ -53,7 +53,19 @@ def whisper_config_html(blacklist=["initial_prompt", "hf_token", "api_key"]):
 
 def llm_config_html():
     "Returns LLM configuration as HTML."
-    return _section_config_html("llm")
+    sections = [
+        ("LLM meta", "llm_meta"),
+        ("Summarization", "summarization"),
+        ("TOC", "toc"),
+        ("Translation", "translation"),
+    ]
+
+    result = ""
+    for title, section_name in sections:
+        result += f"{title}:<br>"
+        result += _section_config_html(section_name)
+
+    return result
 
 
 def bag_config_html():
