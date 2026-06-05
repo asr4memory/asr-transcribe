@@ -23,7 +23,7 @@ models
 watchfolder_crontabs/
 watchfolder_crontabs/__pycache__/
 watchfolder_crontabs/asr_watch_config.toml
-scripts/convert_jobs.toml
+model_convert/convert_jobs.toml
 .cache/
 .nv/
 nltk_data/
