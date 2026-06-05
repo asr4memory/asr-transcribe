@@ -60,6 +60,17 @@ def is_multilingual_model(name: Optional[str]) -> bool:
     return any(prefix in basename for prefix in MULTILINGUAL_PREFIXES)
 
 
+def is_external_model(name: Optional[str]) -> bool:
+    """
+    Return True if `name` refers to a locally stored (external / fine-tuned)
+    model rather than a built-in Whisper identifier such as 'large-v3'.
+    Built-in models are bare names; external models are given as a filesystem path.
+    """
+    if not name:
+        return False
+    return os.path.isabs(name) or os.path.isdir(name)
+
+
 def resolve_model_name() -> str:
     """
     Determine the actual model name to load.
@@ -104,6 +115,17 @@ def load_transcription_model():
     asr_options = {"beam_size": beam_size}
     if use_initial_prompt:
         asr_options["initial_prompt"] = initial_prompt
+
+    # Anti-repetition guards against hallucination loops ("äh äh äh…").
+    # Only applied to external/fine-tuned models loaded by path; built-in
+    # models (e.g. "large-v3") keep WhisperX defaults untouched.
+    if is_external_model(model_name):
+        no_repeat = config["whisper"].get("no_repeat_ngram_size", 0)
+        if no_repeat:
+            asr_options["no_repeat_ngram_size"] = no_repeat
+        rep_penalty = config["whisper"].get("repetition_penalty", 1.0)
+        if rep_penalty and rep_penalty != 1.0:
+            asr_options["repetition_penalty"] = rep_penalty
 
     model = whisperx.load_model(
         model_name,

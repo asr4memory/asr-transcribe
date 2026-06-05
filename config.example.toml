@@ -23,6 +23,8 @@ min_speakers = 1
 max_speakers = 2
 hf_token = "add your Huggingface Token here"
 pause_marker_threshold = 2.0  # Minimum gap (seconds) before inserting pause markers in transcript
+no_repeat_ngram_size = 10  # Hard cap on runaway repetition loops ("äh äh äh…"). Only active for external/fine-tuned models loaded by a path (ignored for built-in like large-v3 above). 10 spares genuine repeated compounds.
+repetition_penalty = 1.0  # OFF by default (1.0). Optional soft penalty against repetition; it also suppresses genuine repeated interjections (äh/ähm), so no_repeat_ngram_size is the preferred loop guard.
 
 [llm_meta]
 use_summarization = false

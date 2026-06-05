@@ -30,6 +30,8 @@ CONST_DEFAULT_CONFIG = {
         "max_speakers": None,
         "hf_token": None,
         "pause_marker_threshold": 2.0,
+        "no_repeat_ngram_size": 10,
+        "repetition_penalty": 1.0,
         "api_key": None,
     },
     "llm_meta": {

@@ -120,6 +120,7 @@ The `config.toml` file is used to configure the application. You can copy the `c
 - **`use_speaker_diarization`**, **`min_speakers`**, **`max_speakers`**: Control diarization; when enabled you must supply **`hf_token`** so WhisperX can download the diarization model from Hugging Face.
 - **`pause_marker_threshold`**: Minimum gap in seconds before inserting pause markers into speaker-aware exports (e.g., `_speaker.csv`, MAXQDA variants); defaults to 2.0s.
 - **`use_initial_prompt`**, **`initial_prompt`**, **`max_sentence_length`**: Fine-tune segmentation and prompt injection.
+- **`no_repeat_ngram_size`** / **`repetition_penalty`**: Anti-hallucination guards against repetition loops ("äh äh äh…"), applied only to external/fine-tuned models loaded by a filesystem path (ignored for built-in names like `large-v3`). `no_repeat_ngram_size` is the primary guard and **defaults to `10` (on for external models)**: a hard cap that breaks runaway loops while leaving genuine speech untouched and not garbling repeated compounds. `repetition_penalty` is an optional soft penalty, **off by default (`1.0`)** — being an always-on global bias it also suppresses genuine repeated interjections (`äh`/`ähm`), so prefer `no_repeat_ngram_size`. Set `0` / `1.0` to disable.
 
 ### Email Options (`[email]`)
 
