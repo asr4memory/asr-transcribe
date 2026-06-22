@@ -533,7 +533,8 @@ def test_write_rtf_speaker_contains_speakers_without_timestamps(tmp_path):
     assert content.count("SPK_A:") == 1
     assert content.count("SPK_B:") == 1
     assert "-->" not in content
-    assert "Hallo\\par\nWeiter\\par\n" in content
+    assert "Hallo Weiter\\par\n" in content
+    assert "Hallo\\par" not in content
     assert "\\u252?" in content
 
 

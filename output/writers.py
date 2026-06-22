@@ -351,18 +351,30 @@ def write_rtf_speaker(path_without_ext: Path, segments: list):
         )
 
         last_speaker = ""
+        block_parts: list[str] = []
+
+        def flush_block():
+            # Emit the accumulated speaker block as a single paragraph.
+            if block_parts:
+                rtf_file.write(f"{' '.join(block_parts).strip()}\\par\n")
+                block_parts.clear()
+
         for seg in segments:
             speaker = seg.get("speaker", "")
             text = encode_rtf_text(seg["text"])
 
-            # Only write the speaker when it changes
+            # Line breaks only on speaker change: flush the previous block,
+            # then write the new speaker label.
             if speaker != last_speaker:
+                flush_block()
                 speaker_encoded = encode_rtf_text(speaker)
                 rtf_file.write(f"\\f1\\b \\cf0 {speaker_encoded}:\\f0\\b0\\par\n")
                 last_speaker = speaker
 
-            # Write text
-            rtf_file.write(f"{text}\\par\n")
+            # Merge consecutive same-speaker segments into one paragraph
+            block_parts.append(text)
+
+        flush_block()
 
         # RTF footer
         rtf_file.write("}")
