@@ -6,7 +6,7 @@
 
 ### Requirements
 
-- Python >= 3.10
+- Python >= 3.12
 - [UV (tested)](https://docs.astral.sh/uv/getting-started/installation/)
 - [ffmpeg](https://www.ffmpeg.org/)
 - [Cairo](https://www.cairographics.org/) (Legacy. Probably not needed anymore)

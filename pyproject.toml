@@ -16,3 +16,12 @@ dependencies = [
     "whisperx==3.8.5",
     "xhtml2pdf==0.2.16",
 ]
+
+[tool.ruff.lint]
+# Ruff's historical default rule set, pinned explicitly. Without this the
+# enforced rules change with every ruff release: 0.16.0 widened the defaults
+# and reported 133 findings in code that had not meaningfully changed, which
+# is what broke CI run #250. These four selectors are what Astral recommends
+# for keeping the former set. Widening it is a deliberate decision, not a side
+# effect of an upgrade.
+select = ["E4", "E7", "E9", "F"]
