@@ -148,6 +148,19 @@ The application uses the BagIt specification to package the output files. The fo
 - **`internal_sender_identifier`**: An identifier for the creator of the bag.
 - **`internal_sender_description`**: A description of the creator of the bag.
 
+### Compliance Options (`[compliance]`)
+
+Transparency notices for AI-generated content, as required by Article 50 of the EU AI Act. This section is the single source for the wording; the notices cannot be set anywhere else.
+
+- **`summary_label`**: Written as the first line of every `_summary_*.txt`, followed by a blank line and the unchanged summary text. The same English sentence is used for every language.
+- **`toc_label`**: Written into the `WEBVTT` header line of every `_toc_*.vtt`, so it is the first line of the file without affecting cue numbering.
+- **`transcript_label`**: Recorded in `bag-info.txt` only. The spoken text is never modified.
+- **`translation_label`**: Recorded in `bag-info.txt` only. The wording says *from the original audio* because that is how translation currently works; once it runs off the transcript instead, swap in the prepared variant from `config.example.toml`.
+
+An empty string disables a notice. A malformed value falls back to the default in `config/default_config.py`, so a typo cannot silently switch off a mandatory notice. Keep every notice single-line and free of `-->`.
+
+Both active notices are additionally recorded as machine-readable metadata: an `ai_disclosure` block in `_llm_output.json` naming the language variants that were actually exported, and `AI-Disclosure-*` fields in `bag-info.txt` for the content the bag actually holds.
+
 ## Summaries
 
 If `llm.use_summarization` is enabled, the workflow runs an LLM subprocess that produces per-language summaries according to `llm.summary_languages`.
@@ -176,7 +189,7 @@ For every processed file a timestamped bag directory is created under the config
 
 - `data/transcripts/`: All transcript formats (TXT, RTF, CSV, VTT, SRT, JSON, ODT, PDF/A, etc.), including speaker CSVs with pause markers and a `_speaker_nopause.csv` variant without pause markers.
 - `data/translations/`: Mirrors the transcript formats but contains the translated text when translation is enabled.
-- `data/abstracts/`: Language-specific summaries (currently `_summary_de.txt` and `_summary_en.txt`).
+- `data/content_extraction/`: Language-specific summaries (`_summary_de.txt`, `_summary_en.txt`), tables of contents (`_toc_de.vtt`, `_toc_en.vtt`) and the raw `_llm_output.json`. Summaries and tables of contents carry an AI transparency notice; see `[compliance]`.
 - `data/ohd_import/`: Copies of the speaker CSV exports (with and without pause markers) for downstream ingestion.
 - `documentation/`: Reference material copied from `doc_files/` (export formats, citation text, upload instructions).
 - `bagit.txt`, `bag-info.txt`, `manifest-sha512.txt`, `tagmanifest-sha512.txt`: Files required by the BagIt specification.

@@ -11,6 +11,19 @@ from config.default_config import CONST_DEFAULT_CONFIG
 combined_config = {}
 
 
+def _merge_section(name: str, defaults: dict, data: dict) -> dict:
+    "Merges one config section over its defaults. Non-table values are ignored."
+    user_section = data.get(name, {})
+    if not isinstance(user_section, dict):
+        logger.warning(
+            "config.toml: [%s] is not a table (%r); using defaults for this section.",
+            name,
+            user_section,
+        )
+        user_section = {}
+    return defaults | user_section
+
+
 def initialize_config():
     global combined_config
     config_file_path = Path.cwd() / "config.toml"
@@ -18,15 +31,8 @@ def initialize_config():
     with open(config_file_path) as f:
         data = toml.load(f)
     combined_config = {
-        "system": CONST_DEFAULT_CONFIG["system"] | data.get("system", {}),
-        "whisper": CONST_DEFAULT_CONFIG["whisper"] | data.get("whisper", {}),
-        "llm_meta": CONST_DEFAULT_CONFIG["llm_meta"] | data.get("llm_meta", {}),
-        "email": CONST_DEFAULT_CONFIG["email"] | data.get("email", {}),
-        "bag": CONST_DEFAULT_CONFIG["bag"] | data.get("bag", {}),
-        "summarization": CONST_DEFAULT_CONFIG["summarization"]
-        | data.get("summarization", {}),
-        "toc": CONST_DEFAULT_CONFIG["toc"] | data.get("toc", {}),
-        "translation": CONST_DEFAULT_CONFIG["translation"] | data.get("translation", {}),
+        section: _merge_section(section, defaults, data)
+        for section, defaults in CONST_DEFAULT_CONFIG.items()
     }
 
 

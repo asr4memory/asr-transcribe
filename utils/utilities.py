@@ -158,6 +158,43 @@ def finalize_bag(
     if extra_info:
         bag_info.update(extra_info)
 
+    # Imported locally: a module level import of output.* would create a cycle
+    # (output/__init__.py -> output.writers -> utils.utilities).
+    from output import disclosure
+
+    relative_paths = [
+        path.relative_to(bag_root).as_posix() for path in payload_files_sorted
+    ]
+    extraction_paths = [
+        path for path in relative_paths if path.startswith("data/content_extraction/")
+    ]
+    disclosure_fields = [
+        (
+            "AI-Disclosure-Transcript",
+            disclosure.TRANSCRIPT,
+            any(path.startswith("data/transcripts/") for path in relative_paths),
+        ),
+        (
+            "AI-Disclosure-Translation",
+            disclosure.TRANSLATION,
+            any(path.startswith("data/translations/") for path in relative_paths),
+        ),
+        (
+            "AI-Disclosure-Summary",
+            disclosure.SUMMARY,
+            any(re.search(r"_summary_[^/]+\.txt$", path) for path in extraction_paths),
+        ),
+        (
+            "AI-Disclosure-TOC",
+            disclosure.TOC,
+            any(re.search(r"_toc_[^/]+\.vtt$", path) for path in extraction_paths),
+        ),
+    ]
+    for field, kind, applies in disclosure_fields:
+        label = disclosure.get_label(kind) if applies else ""
+        if label:
+            bag_info.setdefault(field, label)
+
     bag_info.setdefault(
         "Bag-Description",
         (

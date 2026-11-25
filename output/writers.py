@@ -14,6 +14,7 @@ from pyexcel_ods3 import save_data
 from output.tei_builder import WhisperToTEIConverter
 
 from config.app_config import get_config
+from output import disclosure
 from utils.utilities import format_timestamp, append_suffix, append_affix
 
 env = Environment(
@@ -783,9 +784,17 @@ def write_tei_xml(
         xml_file.write(tei_xml_content)
 
 
-def write_summary(path_without_ext: Path, summary: str, language_code: str = "de"):
+def write_summary(
+    path_without_ext: Path,
+    summary: str,
+    language_code: str = "de",
+    *,
+    disclosure_label: str = "",
+) -> Path:
     """
     Write the summary to a localized text file in the content_extraction directory.
+    The AI disclosure notice becomes the first line, followed by a blank line
+    and the unchanged summary text. Returns the written path.
     """
     bag_data_dir = path_without_ext.parent.parent
     content_extraction_dir = bag_data_dir / "content_extraction"
@@ -793,28 +802,57 @@ def write_summary(path_without_ext: Path, summary: str, language_code: str = "de
     summary_filename = f"{path_without_ext.name}_summary_{language_code}.txt"
     full_path = content_extraction_dir / summary_filename
     with open(full_path, "w", encoding="utf-8") as txt_file:
-        txt_file.write(summary)
+        txt_file.write(disclosure.prefix_block(summary, disclosure_label))
+    return full_path
 
 
-def write_toc(path_without_ext: Path, toc: dict | list, language_code: str = "de"):
+def _with_ai_disclosure(
+    llm_output: dict, entries: list[tuple[str, list[str]]]
+) -> dict:
+    """
+    Return a shallow copy of llm_output carrying the AI disclosure metadata.
+    Each entry is a (notice, applies_to) pair; entries without a notice or
+    without targets are dropped. The input dictionary is never mutated.
+    """
+    blocks = [
+        {"notice": notice, "applies_to": applies_to}
+        for notice, applies_to in entries
+        if notice and applies_to
+    ]
+    if not blocks:
+        return llm_output
+    return {"ai_disclosure": blocks} | {
+        key: value for key, value in llm_output.items() if key != "ai_disclosure"
+    }
+
+
+def write_toc(
+    path_without_ext: Path,
+    toc: dict | list,
+    language_code: str = "de",
+    *,
+    disclosure_label: str = "",
+) -> Path | None:
     """
     Write the table of contents to a VTT file in the llm_output directory.
     Converts TOC entries (with start, end, title, level) to VTT format.
     TOC is expected to be a flat list of entries.
+    The AI disclosure notice goes into the WEBVTT header line.
+    Returns the written path, or None when the payload is unusable.
     """
     from config.logger import logger
 
     # Skip if TOC has parse error (error case returns a dict with _error)
     if isinstance(toc, dict) and "_error" in toc:
         logger.warning(f"TOC ({language_code}): Invalid JSON - {toc['_error']}")
-        return
+        return None
 
     # TOC should be a list
     if not isinstance(toc, list):
         logger.warning(
             f"TOC ({language_code}): Expected list, got {type(toc).__name__}"
         )
-        return
+        return None
 
     bag_data_dir = path_without_ext.parent.parent
     content_extraction_dir = bag_data_dir / "content_extraction"
@@ -822,9 +860,15 @@ def write_toc(path_without_ext: Path, toc: dict | list, language_code: str = "de
     toc_filename = f"{path_without_ext.name}_toc_{language_code}.vtt"
     full_path = content_extraction_dir / toc_filename
 
+    # The signature line may carry arbitrary text, but never "-->", or the
+    # file stops being valid WebVTT and players refuse to load it.
+    header = "WEBVTT"
+    if disclosure_label:
+        header = f"WEBVTT - {disclosure_label.replace('-->', '->')}"
+
     cues = toc
     with open(full_path, "w", encoding="utf-8") as vtt_file:
-        vtt_file.write("WEBVTT\n\n")
+        vtt_file.write(f"{header}\n\n")
         for i, cue in enumerate(cues):
             _, start_time = format_timestamp(cue.get("start", 0))
             _, end_time = format_timestamp(cue.get("end", 0))
@@ -835,6 +879,8 @@ def write_toc(path_without_ext: Path, toc: dict | list, language_code: str = "de
             vtt_file.write(f"{i + 1}\n")
             vtt_file.write(f"{start_time} --> {end_time}\n")
             vtt_file.write(f"{text}\n\n")
+
+    return full_path
 
 
 def write_output_files(
@@ -913,14 +959,49 @@ def write_output_files(
     if llm_output:
         content_extraction_dir = base_path.parent.parent / "content_extraction"
         content_extraction_dir.mkdir(parents=True, exist_ok=True)
-        write_json(content_extraction_dir / f"{base_path.name}_llm_output", llm_output)
-        summaries = llm_output.get("summaries", {})
-        if summaries:
-            for language_code, text in summaries.items():
-                if text:
-                    write_summary(base_path, text, language_code=language_code)
-        toc = llm_output.get("toc", {})
-        if toc:
-            for language_code, toc_text in toc.items():
-                if toc_text:
-                    write_toc(base_path, toc_text, language_code=language_code)
+
+        summary_label = disclosure.get_label(disclosure.SUMMARY)
+        toc_label = disclosure.get_label(disclosure.TOC)
+
+        summaries = llm_output.get("summaries", {}) or {}
+        toc = llm_output.get("toc", {}) or {}
+
+        # Write the files first, then derive the disclosure mapping from what
+        # was actually written. Predicting it would claim languages the
+        # writers rejected (a TOC can come back as {"_error": ...}).
+        summary_langs = []
+        for language_code, text in summaries.items():
+            if not (isinstance(text, str) and text.strip()):
+                continue
+            if write_summary(
+                base_path,
+                text,
+                language_code=language_code,
+                disclosure_label=summary_label,
+            ):
+                summary_langs.append(language_code)
+
+        toc_langs = []
+        for language_code, toc_text in toc.items():
+            # toc_text is a list of cues or an error dict, never a string -
+            # write_toc alone decides whether a payload is usable.
+            if not toc_text:
+                continue
+            if write_toc(
+                base_path,
+                toc_text,
+                language_code=language_code,
+                disclosure_label=toc_label,
+            ):
+                toc_langs.append(language_code)
+
+        write_json(
+            content_extraction_dir / f"{base_path.name}_llm_output",
+            _with_ai_disclosure(
+                llm_output,
+                [
+                    (summary_label, [f"summaries.{lang}" for lang in summary_langs]),
+                    (toc_label, [f"toc.{lang}" for lang in toc_langs]),
+                ],
+            ),
+        )
